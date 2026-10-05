@@ -10,7 +10,7 @@
     "typecheck": "tsc",
     "analyze": "tsx scripts/analyze-log.ts",
     "profiles": "tsx scripts/summarize-profiles.ts",
-    "db:seed": "tsx scripts/gen-seed.ts > db/002_stock_profiles_seed.sql",
+    "db:seed": "tsx scripts/gen-seed.ts",
     "db:up": "docker compose up -d --wait",
     "db:migrate": "tsx scripts/db-migrate.ts"
   },

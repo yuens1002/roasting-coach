@@ -1,8 +1,8 @@
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
+import { generateSeed } from "../scripts/seed-sql.js";
 import { levelToTemp } from "../src/adapters/kaffelogic/parse.js";
 import { STOCK_PROFILES } from "../src/adapters/kaffelogic/startingProfiles.js";
 
@@ -17,8 +17,8 @@ beforeAll(async () => {
 
 describe("stock profile tables", () => {
   it("seed file is up to date with the TypeScript table", () => {
-    const fresh = execFileSync("npx", ["tsx", "scripts/gen-seed.ts"], { cwd: ROOT, encoding: "utf8" });
-    expect(fresh).toBe(sql("002_stock_profiles_seed.sql"));
+    // Git on Windows may check the file out with CRLF line endings; the content is what matters.
+    expect(sql("002_stock_profiles_seed.sql").replace(/\r\n/g, "\n")).toBe(generateSeed());
   });
 
   it("loads every profile and level", async () => {
