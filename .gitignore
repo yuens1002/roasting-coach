@@ -1,0 +1,6 @@
+node_modules/
+# Real Kaffelogic profiles and logs: not ours to redistribute, and logs are user data.
+fixtures/private/
+*.klog
+*.kpro
+!test/fixtures/*.kpro

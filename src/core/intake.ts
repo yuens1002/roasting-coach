@@ -1,0 +1,107 @@
+// The two deterministic forms: bean intake (once per bean) and roast result
+// (once per roast). Field definitions are data so the UI renders from them and
+// the rules can rely on the same ids. Anything the log already records
+// (profile, level, ambient temperature, times, temperatures) is not asked for.
+
+export type Field =
+  | { id: string; label: string; kind: "text"; required?: boolean; help?: string; usedFor: string }
+  | { id: string; label: string; kind: "number"; unit?: string; min?: number; max?: number; required?: boolean; help?: string; usedFor: string }
+  | { id: string; label: string; kind: "date"; required?: boolean; help?: string; usedFor: string }
+  | { id: string; label: string; kind: "boolean"; required?: boolean; help?: string; usedFor: string }
+  | { id: string; label: string; kind: "choice" | "chips"; options: { value: string; label: string }[]; required?: boolean; help?: string; usedFor: string };
+
+const opts = (...pairs: [string, string][]) => pairs.map(([value, label]) => ({ value, label }));
+
+/** Bean intake: one per bean, i.e. per roast project. */
+export const INTAKE_FIELDS: Field[] = [
+  { id: "name", label: "Bean name", kind: "text", required: true, help: "Whatever you call it, e.g. 'Ethiopia Guji from Sweet Maria's'.", usedFor: "Display" },
+  { id: "species", label: "Species", kind: "choice", required: true, options: opts(["arabica", "Arabica"], ["robusta", "Robusta"], ["blend", "Blend / not sure"]), usedFor: "Picks the Robusta profile" },
+  { id: "decaf", label: "Decaf", kind: "boolean", required: true, usedFor: "Picks the Decaf profile" },
+  {
+    id: "process",
+    label: "Processing",
+    kind: "choice",
+    required: true,
+    options: opts(["washed", "Washed"], ["natural", "Natural / dry"], ["honey", "Honey / pulped natural"], ["anaerobic", "Anaerobic / experimental"], ["wet-hulled", "Wet-hulled"], ["unknown", "Don't know"]),
+    usedFor: "Picks KL Washed / KL Natural; naturals scorch and develop faster",
+  },
+  { id: "goal", label: "Brewing for", kind: "choice", required: true, options: opts(["filter", "Filter / pour over"], ["espresso", "Espresso"], ["both", "Both"], ["cupping", "Just tasting a new bean"]), usedFor: "Sets the target level" },
+  { id: "drinkWhen", label: "When will you drink it", kind: "choice", required: true, options: opts(["soon", "Within a day or two"], ["rest", "After resting 3 to 5 days"]), usedFor: "RTD vs Rest profiles" },
+  { id: "altitudeM", label: "Altitude", kind: "number", unit: "m", min: 0, max: 3000, help: "If the bag gives a range, use the middle.", usedFor: "Altitude band; a proxy for density" },
+  { id: "origin", label: "Country / region", kind: "text", usedFor: "Display; comparing beans later" },
+  { id: "variety", label: "Variety", kind: "text", help: "e.g. Bourbon, Gesha, SL28.", usedFor: "Comparing beans later" },
+  { id: "cropDate", label: "Harvest or arrival date", kind: "date", help: "Old crop roasts faster and tastes flatter.", usedFor: "Flags past-crop beans" },
+  { id: "moisturePct", label: "Moisture", kind: "number", unit: "%", min: 5, max: 15, help: "Only if the seller lists it.", usedFor: "Adjusts drying expectations" },
+  { id: "densityGL", label: "Density", kind: "number", unit: "g/L", min: 550, max: 850, help: "Only if the seller lists it.", usedFor: "Better than altitude when known" },
+  { id: "chaffy", label: "Lots of chaff", kind: "boolean", help: "Leave blank until you've roasted it once.", usedFor: "Suggests the higher-fan variant" },
+  { id: "sellerNotes", label: "Seller's tasting notes", kind: "text", usedFor: "What 'good' should taste like for this bean" },
+];
+
+/** Shape of a filled intake, as the rules read it. */
+export interface Intake {
+  name: string;
+  species: "arabica" | "robusta" | "blend";
+  decaf: boolean;
+  process: "washed" | "natural" | "honey" | "anaerobic" | "wet-hulled" | "unknown";
+  goal: "filter" | "espresso" | "both" | "cupping";
+  drinkWhen: "soon" | "rest";
+  altitudeM?: number;
+  origin?: string;
+  variety?: string;
+  cropDate?: string;
+  moisturePct?: number;
+  densityGL?: number;
+  chaffy?: boolean;
+  sellerNotes?: string;
+}
+
+/** Right after the roast. The log supplies everything else. */
+export const ROAST_FIELDS: Field[] = [
+  { id: "greenG", label: "Green weight", kind: "number", unit: "g", min: 50, max: 200, required: true, help: "Weigh it; the machine's load setting isn't the actual weight.", usedFor: "Weight loss" },
+  { id: "roastedG", label: "Roasted weight", kind: "number", unit: "g", min: 30, max: 200, required: true, usedFor: "Weight loss: a check on development that doesn't depend on button presses" },
+  { id: "cracksPressedOk", label: "I pressed first crack when I heard it", kind: "boolean", help: "Untick if you missed it or pressed late.", usedFor: "Whether to trust development time" },
+  { id: "colour", label: "Colour reading", kind: "number", min: 0, max: 150, help: "Only with a colour meter; say which scale in notes.", usedFor: "Ground truth for roast level" },
+  {
+    id: "looks",
+    label: "How the beans look",
+    kind: "chips",
+    options: opts(["even", "Even"], ["uneven", "Uneven colour"], ["tipping", "Dark tips / edges"], ["oily", "Oily already"], ["chaff", "Lots of chaff left"]),
+    usedFor: "Spots scorching and uneven roasts",
+  },
+];
+
+/** After resting and brewing. This is the field that matters most; keep it quick. */
+export const TASTING_FIELDS: Field[] = [
+  { id: "tastedOn", label: "Tasted on", kind: "date", required: true, help: "Defaults to today.", usedFor: "Days of rest" },
+  { id: "brew", label: "Brewed as", kind: "choice", required: true, options: opts(["espresso", "Espresso"], ["pourover", "Pour over"], ["immersion", "French press / immersion"], ["aeropress", "AeroPress"], ["moka", "Moka pot"], ["other", "Other"]), usedFor: "Espresso exaggerates sourness; filter exaggerates flatness" },
+  { id: "score", label: "Overall", kind: "choice", required: true, options: opts(["1", "1 Bad"], ["2", "2 Meh"], ["3", "3 OK"], ["4", "4 Good"], ["5", "5 Great"]), usedFor: "Ranks versions of the profile" },
+  {
+    id: "taste",
+    label: "What did you taste",
+    kind: "chips",
+    required: true,
+    options: opts(
+      ["sweet", "Sweet"],
+      ["bright", "Pleasantly bright"],
+      ["balanced", "Balanced"],
+      ["sour", "Sour / sharp"],
+      ["grassy", "Grassy / green"],
+      ["bready", "Bready / nutty-raw"],
+      ["astringent", "Dry / astringent"],
+      ["flat", "Flat / dull / papery"],
+      ["bitter", "Bitter"],
+      ["roasty", "Roasty / smoky"],
+      ["ashy", "Ashy / burnt"],
+      ["thin", "Thin body"],
+    ),
+    usedFor: "Maps to under-, over- or baked development",
+  },
+  {
+    id: "wantNext",
+    label: "Next time I want",
+    kind: "chips",
+    options: opts(["same", "The same"], ["sweeter", "Sweeter"], ["brighter", "Brighter"], ["less-sour", "Less sour"], ["less-bitter", "Less bitter"], ["more-body", "More body"], ["lighter", "Lighter roast"], ["darker", "Darker roast"]),
+    usedFor: "The direction for the next version",
+  },
+  { id: "notes", label: "Notes", kind: "text", usedFor: "Your own words; kept with the version" },
+];
