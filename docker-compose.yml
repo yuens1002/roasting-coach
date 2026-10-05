@@ -1,0 +1,14 @@
+# Local development database. Start with `docker compose up -d`.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: roast
+      POSTGRES_PASSWORD: roast
+      POSTGRES_DB: roast_copilot
+    ports:
+      - "54320:5432"
+    volumes:
+      - roast-db:/var/lib/postgresql/data
+volumes:
+  roast-db:

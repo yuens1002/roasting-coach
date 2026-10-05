@@ -10,16 +10,22 @@
     "typecheck": "tsc",
     "analyze": "tsx scripts/analyze-log.ts",
     "profiles": "tsx scripts/summarize-profiles.ts",
-    "db:seed": "tsx scripts/gen-seed.ts > db/002_stock_profiles_seed.sql"
+    "db:seed": "tsx scripts/gen-seed.ts > db/002_stock_profiles_seed.sql",
+    "db:up": "docker compose up -d",
+    "db:migrate": "tsx --env-file-if-exists=.env scripts/db-migrate.ts"
   },
   "license": "AGPL-3.0-only",
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@types/node": "^26.6.4",
+    "@types/pg": "^8.23.1",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^5.0.3"
   },
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "pg": "^8.23.1"
+  }
 }

@@ -4,3 +4,4 @@ fixtures/private/
 *.klog
 *.kpro
 !test/fixtures/*.kpro
+.env
