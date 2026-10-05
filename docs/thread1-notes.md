@@ -111,3 +111,26 @@ portion of the service without written permission. So the repo commits **no Kaff
 numbers derived from the files, which are facts. Prose from the descriptions is not copied.
 Tests on the real files run only when someone has them locally. Asking terms@kaffelogic.com
 for permission would let us ship them as test fixtures, but nothing depends on that.
+
+## 6. The table in Postgres
+
+`db/001_stock_profiles.sql` creates three tables and one function:
+
+- `machine`: one row per roaster model (`kaffelogic-nano7` today; the M1 joins later).
+- `stock_profile`: one row per stock profile, with what it is meant for (altitude band,
+  drink soon or rest, process, robusta, decaf), its seven level end temperatures, the first-crack
+  temperature it expects when it states one, and `selectable` (false for KL Classic and the
+  high-fan Robusta, which we recognise in logs but don't suggest).
+- `stock_profile_level`: one row per profile and goal (filter, espresso, dark, cupping) with the
+  level, end temperature, when the curve reaches it, and any development or rise-after-crack
+  target the profile states.
+- `level_to_temp(levels, level)`: turns any level, including one a user typed, into an end temperature.
+
+`db/002_stock_profiles_seed.sql` is generated from the TypeScript table (`npm run db:seed`), and a
+test fails if the two ever differ. The tests load both files into an in-memory Postgres (PGlite)
+and check counts, constraints, that every stored end temperature agrees with its level, and a
+plain-SQL lookup (1850 m, drink soon, espresso → 1500-2000m RTD at level 3.1, 219.3 °C, 10:19).
+
+Only names and numbers are stored: no profile files, curves or description text. The selection
+order (robusta, decaf, cupping, process, altitude) stays in `selectStartingProfile`, where it is
+tested; the database holds the data it reads.

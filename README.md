@@ -9,7 +9,8 @@ Kaffelogic Nano 7 first; Kaleido M1 later through a second adapter.
   development, rate of rise, data sanity checks) and the intake / result form definitions.
 - `src/adapters/kaffelogic/` reads `.kpro` and `.klog` files, maps them onto `RoastLog`,
   and holds the stock-profile table used to pick a starting profile for a new bean.
-- `scripts/` command-line helpers for looking at real files.
+- `db/` Postgres schema and seed for the stock-profile tables.
+- `scripts/` command-line helpers for looking at real files and regenerating the seed.
 
 ## Running
 

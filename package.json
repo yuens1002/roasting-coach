@@ -9,10 +9,12 @@
     "test": "vitest run",
     "typecheck": "tsc",
     "analyze": "tsx scripts/analyze-log.ts",
-    "profiles": "tsx scripts/summarize-profiles.ts"
+    "profiles": "tsx scripts/summarize-profiles.ts",
+    "db:seed": "tsx scripts/gen-seed.ts > db/002_stock_profiles_seed.sql"
   },
   "license": "AGPL-3.0-only",
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/node": "^26.6.4",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",

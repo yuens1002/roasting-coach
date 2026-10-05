@@ -60,6 +60,7 @@ const FILES: Record<string, string> = {
   "0-1200m RTD": "0-1200m_RTD_v1.0", "0-1200m Rest": "0-1200m_Rest_v1.0", "1200-1500m RTD": "1200-1500m_RTD_v1.0",
   "1200-1500m Rest": "1200-1500m_Rest_v1.0", "1500-2000m RTD": "1500-2000m_RTD_v1.0", "1500-2000m Rest": "1500-2000m_Rest_v1.0",
   "2000-2700m RTD": "2000-2700m_RTD_v1.0", "2000-2700m Rest": "2000-2700m_Rest_v1.0", "KL Washed": "KL_Washed_v1.1",
+  Robusta_inc_fan: "Robusta_v1a", "K-logic classic": "KL_Classic",
   "KL Natural": "KL_Natural_v1.1", Cupping: "Cupping_v1.0", Decaf: "Decaf_v1.0", Robusta: "Robusta_v1.0",
 };
 
@@ -67,6 +68,9 @@ describe.skipIf(!existsSync(PRIVATE))("starting-profile table matches the stock 
   for (const [name, file] of Object.entries(FILES)) {
     it(name, () => {
       const p = parseKpro(readFileSync(join(PRIVATE, `${file}.kpro`), "utf8"));
+      expect(p.shortName).toBe(name);
+      expect(p.roastLevels).toEqual(STOCK_PROFILES[name].roastLevels);
+      expect(p.expectFirstCrack).toBe(STOCK_PROFILES[name].expectFirstCrack);
       for (const lv of Object.values(STOCK_PROFILES[name].levels)) {
         expect(levelToTemp(p.roastLevels, lv.level)).toBeCloseTo(lv.endTemp, 1);
         const t = Math.round(timeCurveReaches(p.roastCurve, levelToTemp(p.roastLevels, lv.level)!)!);
