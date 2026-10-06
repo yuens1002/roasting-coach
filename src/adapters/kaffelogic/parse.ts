@@ -59,12 +59,12 @@ const num = (s: string | undefined): number | undefined => {
   return Number.isFinite(n) ? n : undefined;
 };
 
-function splitLines(text: string): string[] {
+export function splitLines(text: string): string[] {
   return text.replace(/^﻿/, "").split(/\r?\n/);
 }
 
 /** Reads `key:value` lines until the first blank line (or the end). */
-function parseHeader(lines: string[]): { header: Record<string, string>; next: number } {
+export function parseHeader(lines: string[]): { header: Record<string, string>; next: number } {
   const header: Record<string, string> = {};
   let i = 0;
   // Some files start with a blank line before the header.

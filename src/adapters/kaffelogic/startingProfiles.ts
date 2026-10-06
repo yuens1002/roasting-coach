@@ -9,6 +9,11 @@ import type { Intake } from "../../core/intake.js";
 
 export type Goal = "filter" | "espresso" | "dark" | "cupping";
 
+export const MACHINE_ID = "kaffelogic-nano7";
+
+/** Database id of a stock profile, e.g. "1500-2000m RTD" -> "kaffelogic-nano7/1500-2000m-rtd". */
+export const stockProfileId = (name: string) => `${MACHINE_ID}/${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+
 export interface StockLevel {
   level: number;
   /** End temperature for this level, °C. */

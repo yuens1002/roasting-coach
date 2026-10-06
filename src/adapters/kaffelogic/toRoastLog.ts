@@ -1,5 +1,6 @@
 import type { RoastEvent, RoastLog, RoastSample } from "../../core/types.js";
 import { type KaffelogicLog, levelToTemp } from "./parse.js";
+import { MACHINE_ID } from "./startingProfiles.js";
 
 const EVENT_MARKERS = ["colour_change", "first_crack", "second_crack", "roast_end"] as const;
 
@@ -30,7 +31,7 @@ export function kaffelogicToRoastLog(log: KaffelogicLog): RoastLog {
   }
 
   return {
-    machine: "kaffelogic-nano7",
+    machine: MACHINE_ID,
     profileName: log.profile.shortName || undefined,
     roastDate: log.roastDate,
     ambientTemp: log.ambientTemp,

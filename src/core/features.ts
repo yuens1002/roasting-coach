@@ -19,6 +19,28 @@ export const THRESHOLDS = {
   timeToTemps: [100, 150, 170, 190, 200] as const,
 };
 
+/**
+ * Thermal dose: how far the heat-driven chemistry of a roast went, in minutes at a constant
+ * 200 °C that would do the same. Reaction rates follow the Arrhenius law, k = A·exp(−Ea/RT), so a
+ * reaction's progress is proportional to the integral of exp(−Ea/RT(t)) over the roast. 105 kJ/mol
+ * is the typical activation energy fitted for roasting reactions (caramelisation, Maillard,
+ * chlorogenic acid and trigonelline loss) in Bruno et al., "A preliminary model to establish a
+ * digital twin for coffee roasting", Sci Rep 16:15857 (2026); their fits span about 90-140, and
+ * ratios between roasts barely change across that range. Unlike end temperature or total time,
+ * it accounts for the whole curve. Absolute values depend on where the probe sits, so compare
+ * roasts on one machine, not across machines.
+ */
+export const THERMAL_DOSE = { activationEnergyKjMol: 105, referenceC: 200 } as const;
+const GAS_CONSTANT_KJ = 8.314462618e-3;
+
+/** Thermal dose of a temperature trace (°C against seconds), by the trapezoid rule. See THERMAL_DOSE. */
+export function thermalDose(points: { t: number; temp: number }[], activationEnergyKjMol: number = THERMAL_DOSE.activationEnergyKjMol): number {
+  const rate = (c: number) => Math.exp(-activationEnergyKjMol / (GAS_CONSTANT_KJ * (c + 273.15)));
+  let sum = 0;
+  for (let i = 1; i < points.length; i++) sum += ((rate(points[i - 1].temp) + rate(points[i].temp)) / 2) * (points[i].t - points[i - 1].t);
+  return sum / rate(THERMAL_DOSE.referenceC) / 60;
+}
+
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : Number.NaN);
 
 function eventTime(log: RoastLog, name: RoastEventName): number | undefined {
@@ -185,6 +207,7 @@ export function extractFeatures(log: RoastLog): RoastFeatures {
       series,
     },
     profileTracking,
+    thermalDose: thermalDose(samples.map((s) => ({ t: s.t, temp: s.beanTemp }))),
     dataWarnings: warnings,
   };
 }

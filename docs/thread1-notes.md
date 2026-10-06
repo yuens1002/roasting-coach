@@ -84,7 +84,7 @@ comparable across profiles**, so the app should always show the end temperature 
 
 ## 4. Forms
 
-Defined as data in `src/core/intake.ts`, so the UI renders from them. The log supplies profile,
+Defined as data in `src/core/intake.ts`, so the CLI prompts from them (no web UI: personal use only). The log supplies profile,
 level, ambient temperature and every time and temperature, so none of that is asked.
 
 **Bean intake (once per bean).** Required: name, species, decaf, processing, brewing for, when

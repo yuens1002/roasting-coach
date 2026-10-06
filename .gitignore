@@ -1,7 +1,15 @@
 node_modules/
 # Real Kaffelogic profiles and logs: not ours to redistribute, and logs are user data.
 fixtures/private/
+# Your own profiles and logs, and the profiles roasting-coach writes (profiles/out/).
+profiles/
 *.klog
 *.kpro
 !test/fixtures/*.kpro
 .env
+
+# Local OSS-hygiene denylist for the pre-push hook: lists private names, so never commit it.
+.claude/oss-hygiene-rules.json
+
+# Notes for Claude Code sessions: personal working context, kept local.
+CLAUDE.md

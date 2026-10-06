@@ -1,9 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { levelToTemp, parseKpro, timeCurveReaches } from "../src/adapters/kaffelogic/parse.js";
 import { STOCK_PROFILES, altitudeBand, selectStartingProfile } from "../src/adapters/kaffelogic/startingProfiles.js";
 import type { Intake } from "../src/core/intake.js";
+import { PRIVATE_PROFILES, headerValue } from "./privateFiles.js";
 
 const base: Intake = { name: "test", species: "arabica", decaf: false, process: "unknown", goal: "espresso", drinkWhen: "soon" };
 
@@ -55,20 +54,21 @@ describe("selectStartingProfile", () => {
 });
 
 // The table's numbers must match the real files when they're available locally.
-const PRIVATE = join(__dirname, "..", "fixtures", "private");
-const FILES: Record<string, string> = {
-  "0-1200m RTD": "0-1200m_RTD_v1.0", "0-1200m Rest": "0-1200m_Rest_v1.0", "1200-1500m RTD": "1200-1500m_RTD_v1.0",
-  "1200-1500m Rest": "1200-1500m_Rest_v1.0", "1500-2000m RTD": "1500-2000m_RTD_v1.0", "1500-2000m Rest": "1500-2000m_Rest_v1.0",
-  "2000-2700m RTD": "2000-2700m_RTD_v1.0", "2000-2700m Rest": "2000-2700m_Rest_v1.0", "KL Washed": "KL_Washed_v1.1",
-  Robusta_inc_fan: "Robusta_v1a", "K-logic classic": "KL_Classic",
-  "KL Natural": "KL_Natural_v1.1", Cupping: "Cupping_v1.0", Decaf: "Decaf_v1.0", Robusta: "Robusta_v1.0",
-};
+const stockNames = new Set(Object.keys(STOCK_PROFILES));
+const presentStock = PRIVATE_PROFILES.filter((f) => stockNames.has(headerValue(f.text, "profile_short_name")?.trim() ?? ""));
 
-describe.skipIf(!existsSync(PRIVATE))("starting-profile table matches the stock files", () => {
-  for (const [name, file] of Object.entries(FILES)) {
-    it(name, () => {
-      const p = parseKpro(readFileSync(join(PRIVATE, `${file}.kpro`), "utf8"));
-      expect(p.shortName).toBe(name);
+describe("starting-profile table matches the stock files", () => {
+  // Once any stock profile is in the local library, all of them must be: a missing or renamed
+  // file would otherwise skip its check silently.
+  it.skipIf(!presentStock.length)("finds every stock profile once the library has any", () => {
+    const found = new Set(presentStock.map((f) => headerValue(f.text, "profile_short_name")!.trim()));
+    expect([...stockNames].filter((n) => !found.has(n))).toEqual([]);
+  });
+
+  for (const name of Object.keys(STOCK_PROFILES)) {
+    const stock = PRIVATE_PROFILES.find((f) => headerValue(f.text, "profile_short_name")?.trim() === name);
+    it.skipIf(!stock)(name, () => {
+      const p = parseKpro(stock!.text);
       expect(p.roastLevels).toEqual(STOCK_PROFILES[name].roastLevels);
       expect(p.expectFirstCrack).toBe(STOCK_PROFILES[name].expectFirstCrack);
       for (const lv of Object.values(STOCK_PROFILES[name].levels)) {

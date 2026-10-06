@@ -79,6 +79,12 @@ export interface RoastFeatures {
   };
   /** How closely the machine followed the profile: mean |bean - target| from 60 s to the end. */
   profileTracking?: { meanAbsError: number; maxAbsError: number };
+  /**
+   * How far the heat-driven chemistry went, as minutes at a constant 200 °C that would do the same
+   * (see THERMAL_DOSE in features.ts). Doesn't depend on button presses; compare roasts on one
+   * machine, not across machines.
+   */
+  thermalDose: number;
   /** Plain-language warnings about the data itself, for example a likely mis-pressed button. */
   dataWarnings: string[];
 }

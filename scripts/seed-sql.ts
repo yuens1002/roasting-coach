@@ -1,11 +1,9 @@
 // Builds the SQL that seeds the stock-profile tables from the tested TypeScript
 // table, so the two can't drift. Written to disk by gen-seed.ts and checked by test/db.test.ts.
-import { STOCK_PROFILES } from "../src/adapters/kaffelogic/startingProfiles.js";
+import { MACHINE_ID as MACHINE, STOCK_PROFILES, stockProfileId as slug } from "../src/adapters/kaffelogic/startingProfiles.js";
 
-const MACHINE = "kaffelogic-nano7";
 const q = (v: string | number | boolean | null | undefined) =>
   v === null || v === undefined ? "null" : typeof v === "string" ? `'${v.replace(/'/g, "''")}'` : String(v);
-const slug = (name: string) => `${MACHINE}/${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
 const seconds = (mmss: string) => {
   const [m, s] = mmss.split(":").map(Number);
   return m * 60 + s;

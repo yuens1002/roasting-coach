@@ -1,5 +1,5 @@
 // The two deterministic forms: bean intake (once per bean) and roast result
-// (once per roast). Field definitions are data so the UI renders from them and
+// (once per roast). Field definitions are data so the CLI prompts from them and
 // the rules can rely on the same ids. Anything the log already records
 // (profile, level, ambient temperature, times, temperatures) is not asked for.
 

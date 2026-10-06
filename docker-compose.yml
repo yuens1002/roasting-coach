@@ -17,3 +17,7 @@ services:
       retries: 15
 volumes:
   roast-db:
+    # A fixed name, so the database survives the checkout folder being renamed or re-cloned
+    # (Docker otherwise prefixes volumes with the folder name). Kept from the project's first name,
+    # like the database name, so existing local data stays where it is.
+    name: roast-copilot_roast-db

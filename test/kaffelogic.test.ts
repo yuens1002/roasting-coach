@@ -1,53 +1,9 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { evalCurve, levelToTemp, parseKlog, parseKpro } from "../src/adapters/kaffelogic/parse.js";
 import { kaffelogicToRoastLog } from "../src/adapters/kaffelogic/toRoastLog.js";
 import { extractFeatures } from "../src/core/features.js";
-
-// A made-up profile in the .kpro shape: a straight line from 20 °C at 0 s to 220 °C at 600 s.
-const CURVE = "0,20,0,0,200,86.6667,600,220,400,153.333,0,0";
-const PROFILE = [
-  "profile_short_name:Test line",
-  "profile_designer:roast-copilot tests",
-  "profile_description:First line\\vSecond line",
-  "recommended_level:3.3",
-  "expect_fc:0.0",
-  "zone1_time_start:100",
-  "zone1_time_end:200",
-  "zone1_boost:3",
-  "zone2_time_start:0",
-  "zone2_time_end:0",
-  "zone2_boost:4",
-  "roast_levels:204,209,214,219,222,224,226",
-  `roast_profile:${CURVE}`,
-  "fan_profile:0,14700,0,0,100,14700,600,13200,500,13200,0,0",
-].join("\n");
-
-/** A synthetic log that follows the line above: 1 °C every 3 s, crack marked at 540 s. */
-function syntheticLog(markers: Record<string, number>): string {
-  const rows: string[] = [];
-  for (let t = 0; t <= 640; t++) {
-    const temp = t <= 600 ? 20 + t / 3 : 220 - (t - 600) * 2; // cooling after the end
-    rows.push([t, temp, temp, temp, Math.min(20 + t / 3, 220), 20, 20, 20, 1, 14700].join("\t") + "\t");
-    for (const [name, at] of Object.entries(markers)) {
-      // Real logs write markers a few seconds after the event.
-      if (Math.round(at) + 5 === t) rows.push(`!${name}:${at}`);
-    }
-  }
-  return [
-    "log_file_name:test.klog",
-    "roast_date:25/06/2025 14:21:55 UTC",
-    "roasting_level:3.3",
-    "boost_load_size:120",
-    "ambient_temperature:21.5",
-    PROFILE,
-    "",
-    "offsets\t0\t0\t0\t0\t0\t0\t0\t0\t0",
-    "time\t#spot_temp\t#=temp\t=mean_temp\t=profile\tprofile_ROR\t=actual_ROR\t#=desired_ROR\tpower_kW\t#^actual_fan_RPM",
-    ...rows,
-  ].join("\n");
-}
+import { PRIVATE_LOGS, PRIVATE_PROFILES, headerValue } from "./privateFiles.js";
+import { PROFILE, syntheticLog } from "./syntheticLog.js";
 
 describe("parseKpro", () => {
   const p = parseKpro(PROFILE);
@@ -129,14 +85,13 @@ describe("parseKlog + features on a synthetic roast", () => {
   });
 });
 
-// Real Kaffelogic files are not committed (see README); these run only when
-// they have been copied into fixtures/private locally.
-const PRIVATE = join(__dirname, "..", "fixtures", "private");
-const hasPrivate = existsSync(join(PRIVATE, "log0040.klog"));
+// The reference roast from the first build pass (log0040 on the maintainer's machine), found by its
+// roast date rather than its file name.
+const reference = PRIVATE_LOGS.find((f) => headerValue(f.text, "roast_date")?.startsWith("25/06/2025 14:21:55"));
 
-describe.skipIf(!hasPrivate)("real Kaffelogic files", () => {
-  it("reads log0040 and agrees with the machine's own development figure", () => {
-    const raw = parseKlog(readFileSync(join(PRIVATE, "log0040.klog"), "utf8"));
+describe("real Kaffelogic files", () => {
+  it.skipIf(!reference)("reads the reference log and agrees with the machine's own development figure", () => {
+    const raw = parseKlog(reference!.text);
     expect(raw.profile.shortName).toBe("1500-2000m RTD");
     expect(raw.level).toBeCloseTo(3.3, 5);
     expect(raw.markers.first_crack).toBeCloseTo(380.455, 3);
@@ -155,11 +110,26 @@ describe.skipIf(!hasPrivate)("real Kaffelogic files", () => {
     expect(f.ror.shape).toBe("declining");
   });
 
-  it("parses every stock profile", () => {
-    const files = readdirSync(PRIVATE).filter((f) => f.endsWith(".kpro"));
-    expect(files.length).toBeGreaterThanOrEqual(15);
-    for (const file of files) {
-      const p = parseKpro(readFileSync(join(PRIVATE, file), "utf8"));
+  // Every real log the machine computed a development figure for: ours must agree with it.
+  const withMachineFigure = PRIVATE_LOGS.filter((f) => /^!development_percent:/m.test(f.text) && /^!first_crack:/m.test(f.text));
+  it.skipIf(!withMachineFigure.length)("agrees with the machine's own development figure on every log that has one", () => {
+    for (const { file, text } of withMachineFigure) {
+      const raw = parseKlog(text);
+      expect(extractFeatures(kaffelogicToRoastLog(raw)).developmentRatio, file).toBeCloseTo(raw.markers.development_percent, 1);
+    }
+  });
+
+  it.skipIf(!PRIVATE_LOGS.length)("parses every log present", () => {
+    for (const { file, text } of PRIVATE_LOGS) {
+      const log = kaffelogicToRoastLog(parseKlog(text));
+      expect(log.samples.length, file).toBeGreaterThan(100);
+      expect(extractFeatures(log).totalTime, file).toBeGreaterThan(300);
+    }
+  });
+
+  it.skipIf(!PRIVATE_PROFILES.length)("parses every profile present", () => {
+    for (const { file, text } of PRIVATE_PROFILES) {
+      const p = parseKpro(text);
       expect(p.roastLevels, file).toHaveLength(7);
       expect(p.roastCurve.length, file).toBeGreaterThanOrEqual(3);
       expect(p.roastCurve[p.roastCurve.length - 1].point.t, file).toBeGreaterThan(400);

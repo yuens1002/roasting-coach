@@ -1,24 +1,20 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
 import { generateSeed } from "../scripts/seed-sql.js";
 import { levelToTemp } from "../src/adapters/kaffelogic/parse.js";
 import { STOCK_PROFILES } from "../src/adapters/kaffelogic/startingProfiles.js";
+import { migratedDb, readSql } from "./pg.js";
 
-const ROOT = join(__dirname, "..");
-const sql = (f: string) => readFileSync(join(ROOT, "db", f), "utf8");
-const db = new PGlite();
+let db: PGlite;
 
 beforeAll(async () => {
-  await db.exec(sql("001_stock_profiles.sql"));
-  await db.exec(sql("002_stock_profiles_seed.sql"));
+  db = await migratedDb();
 });
 
 describe("stock profile tables", () => {
   it("seed file is up to date with the TypeScript table", () => {
     // Git on Windows may check the file out with CRLF line endings; the content is what matters.
-    expect(sql("002_stock_profiles_seed.sql").replace(/\r\n/g, "\n")).toBe(generateSeed());
+    expect(readSql("002_stock_profiles_seed.sql").replace(/\r\n/g, "\n")).toBe(generateSeed());
   });
 
   it("loads every profile and level", async () => {
