@@ -10,6 +10,8 @@
 //   npx tsx scripts/roast.ts version:add '{"beanId": 1, "level": 3.6, "reason": "..."}'   (same profile, new level)
 //   npx tsx scripts/roast.ts version:add '{"beanId": 1, "profileName": "KL Washed", "level": 1.2, "reason": "..."}'
 //   npx tsx scripts/roast.ts history 1
+//   npx tsx scripts/roast.ts bean:update  '{"beanId": 1, "answers": {"sellerNotes": "..."}}'   (merged over the stored answers; null clears)
+//   npx tsx scripts/roast.ts taste:update '{"tastingId": 2, "answers": {"wantNext": ["brighter"]}}'
 //   npx tsx scripts/roast.ts dose '{"profile": "Robusta", "level": 3, "change": -15}'   (level for a dose change)
 //   npx tsx scripts/roast.ts features:refresh   (recompute features of stored logs)
 //   npx tsx scripts/roast.ts bean:remove 1   (only when the roaster asks; deletes its versions, roasts, tastings)
@@ -26,7 +28,7 @@ import { levelForDose, profileDoseAtLevel } from "../src/adapters/kaffelogic/dos
 import { findBaseProfile, formatKpro, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
 import { INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../src/core/intake.js";
 import { checkShape } from "../src/core/validate.js";
-import { InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, listBeans, NEW_ROAST_SHAPE, refreshFeatures, removeBean } from "../src/db/store.js";
+import { InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, listBeans, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting } from "../src/db/store.js";
 import { asDb, connect } from "./db.js";
 import { KAFFELOGIC_DIR, KAFFELOGIC_OUT_DIR, loadLibrary, outPath } from "./library.js";
 
@@ -151,12 +153,16 @@ async function run() {
         return await addTasting(db, json() as never);
       case "history":
         return await beanHistory(db, beanIdArg());
+      case "bean:update":
+        return await updateBean(db, json() as never);
+      case "taste:update":
+        return await updateTasting(db, json() as never);
       case "features:refresh":
         return await refreshFeatures(db);
       case "bean:remove":
         return await removeBean(db, beanIdArg());
       default:
-        throw new InputError([`Unknown command "${command}". Commands: fields, library, dose, beans, bean:add, bean:remove, version:add, roast:add, taste:add, history, features:refresh.`]);
+        throw new InputError([`Unknown command "${command}". Commands: fields, library, dose, beans, bean:add, bean:update, bean:remove, version:add, roast:add, taste:add, taste:update, history, features:refresh.`]);
     }
   } finally {
     await client.end();

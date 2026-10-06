@@ -2,7 +2,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
 import { INTAKE_FIELDS, TASTING_FIELDS } from "../src/core/intake.js";
 import { checkAnswers } from "../src/core/validate.js";
-import { type Db, InputError, addBean, addRoast, addTasting, addVersion, beanHistory, listBeans, removeBean, versionProfileFile } from "../src/db/store.js";
+import { type Db, InputError, addBean, addRoast, addTasting, addVersion, beanHistory, listBeans, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
 import { migratedDb } from "./pg.js";
 import { PROFILE, syntheticLog } from "./syntheticLog.js";
 
@@ -318,6 +318,36 @@ describe("store", () => {
     // The transaction rolled back: no roast, and the plan is unchanged.
     const h = await beanHistory(db, beanId);
     expect(h.versions).toMatchObject([{ number: 1, profileName: "1500-2000m Rest", level: 3.2, roasts: [] }]);
+  });
+
+  it("updates a bean's intake answers, keeping the others exactly as they were", async () => {
+    const { beanId } = await addBean(db, { ...GUJI, name: "Updated", cropDate: "2024-01-01", moisturePct: 12 });
+    const after = await updateBean(db, { beanId, answers: { sellerNotes: "At the farm, as a pour-over: lively and fruit-forward." } });
+    expect(after).toMatchObject({ name: "Updated", crop_date: "2024-01-01", moisture_pct: 12, altitude_m: 1950, seller_notes: "At the farm, as a pour-over: lively and fruit-forward." });
+    // null clears an optional answer; a required one can't be cleared.
+    expect(await updateBean(db, { beanId, answers: { sellerNotes: null } })).toMatchObject({ seller_notes: null, crop_date: "2024-01-01" });
+    await expect(updateBean(db, { beanId, answers: { name: null } })).rejects.toMatchObject({ errors: ["Bean name is required."] });
+  });
+
+  it("refuses an invalid bean update and changes nothing", async () => {
+    const { beanId } = await addBean(db, { ...GUJI, name: "Unchanged" });
+    await expect(updateBean(db, { beanId, answers: { process: "wet", sellerNotes: "x" } })).rejects.toMatchObject({
+      errors: ['Processing: "wet" isn\'t an option. Options: washed, natural, honey, anaerobic, wet-hulled, unknown.'],
+    });
+    expect((await beanHistory(db, beanId)).bean).toMatchObject({ process: "washed", seller_notes: "peach, jasmine" });
+    await expect(updateBean(db, { beanId: 999999, answers: {} })).rejects.toThrow("Bean 999999 doesn't exist.");
+    await expect(updateBean(db, { beanId, answers: { colour: 50 } })).rejects.toMatchObject({ errors: ['"colour" is not a field on this form.'] });
+  });
+
+  it("updates a tasting's chips, keeping its date and score", async () => {
+    const { beanId } = await addBean(db, { ...GUJI, name: "Retaste" });
+    const { roastId } = await addRoast(db, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
+    const { tastingId } = await addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-11", brew: "pourover", score: 2, taste: ["ashy"], wantNext: ["less-bitter"] } });
+    const after = await updateTasting(db, { tastingId, answers: { wantNext: ["less-bitter", "brighter"] } });
+    expect(after).toMatchObject({ tasted_on: "2026-03-11", score: 2, taste: ["ashy"], want_next: ["less-bitter", "brighter"] });
+    await expect(updateTasting(db, { tastingId, answers: { wantNext: ["fruitier"] } })).rejects.toMatchObject({
+      errors: [expect.stringMatching(/^Next time I want: "fruitier" isn't an option\./)],
+    });
   });
 
   it("removes a bean with everything recorded for it", async () => {

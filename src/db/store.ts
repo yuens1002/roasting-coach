@@ -413,6 +413,48 @@ export async function addTasting(db: Db, t: NewTasting) {
   return { tastingId, roastId: Number(roast.id), version: Number(roast.number), daysRested };
 }
 
+export const BEAN_UPDATE_SHAPE: Shape = { beanId: { type: "integer", required: true }, answers: { type: "object", required: true } };
+export const TASTING_UPDATE_SHAPE: Shape = { tastingId: { type: "integer", required: true }, answers: { type: "object", required: true } };
+
+/** A stored row as form answers: the form's own fields, empty columns left out, choices as their option text. */
+function rowAsAnswers(fields: Field[], row: Record<string, unknown>): Record<string, unknown> {
+  const answers: Record<string, unknown> = {};
+  for (const f of fields) {
+    const v = row[fieldColumn(f.id)];
+    if (v === null || v === undefined) continue;
+    answers[f.id] = f.kind === "choice" ? String(v) : v;
+  }
+  return answers;
+}
+
+/**
+ * Changes answers on a stored form. The changes are merged over the stored answers and the result
+ * is checked as a whole form, so it stays exactly as valid as a new one. An answer of null clears
+ * an optional field.
+ */
+async function updateForm(db: Db, table: "bean" | "tasting", id: number, fields: Field[], changes: Record<string, unknown>, notFound: string) {
+  // to_jsonb gives dates as YYYY-MM-DD and numbers as numbers, the shapes the form expects.
+  const r = await db.query<{ row: Record<string, unknown> }>(`select to_jsonb(t) as row from ${table} t where id = $1`, [id]);
+  if (!r.rows.length) throw new InputError([notFound]);
+  const values = checked(fields, { ...rowAsAnswers(fields, r.rows[0].row), ...changes });
+  const columns = fields.map((f) => fieldColumn(f.id));
+  await db.query(`update ${table} set ${columns.map((c, i) => `${c} = $${i + 2}`).join(", ")} where id = $1`, [id, ...fields.map((f) => values[f.id] ?? null)]);
+  const after = await db.query<{ row: Record<string, unknown> }>(`select to_jsonb(t) as row from ${table} t where id = $1`, [id]);
+  return after.rows[0].row;
+}
+
+/** Corrects or adds to a bean's intake answers. Versions already recorded are not changed. */
+export async function updateBean(db: Db, input: { beanId: number; answers: Record<string, unknown> }) {
+  checkedShape(input, BEAN_UPDATE_SHAPE);
+  return updateForm(db, "bean", input.beanId, INTAKE_FIELDS, input.answers, `Bean ${input.beanId} doesn't exist.`);
+}
+
+/** Corrects or adds to a tasting, for example its "next time I want" chips. */
+export async function updateTasting(db: Db, input: { tastingId: number; answers: Record<string, unknown> }) {
+  checkedShape(input, TASTING_UPDATE_SHAPE);
+  return updateForm(db, "tasting", input.tastingId, TASTING_FIELDS, input.answers, `Tasting ${input.tastingId} doesn't exist.`);
+}
+
 export async function listBeans(db: Db) {
   const r = await db.query(
     `select b.id, b.name, b.process, b.goal,

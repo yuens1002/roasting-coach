@@ -13,6 +13,12 @@ with `{"errors": [...]}` in plain words. Read the error, fix or ask, retry. Neve
 The form definitions in `src/core/intake.ts` are the spec (`roast.ts fields intake|roast|tasting`).
 The code rejects anything outside them, which is what keeps the stored data deterministic.
 
+To correct or add to answers later, use `bean:update` (`{"beanId", "answers"}`) or `taste:update`
+(`{"tastingId", "answers"}`): the changes are merged over the stored answers and checked as a whole
+form; `null` clears an optional answer. Updating a bean doesn't change versions already recorded.
+A reference cup the roaster describes (say, the farm's or the seller's) goes in the bean's
+`sellerNotes`: it is what "good" should taste like for this bean.
+
 ## 1. New bean (intake)
 
 1. The roaster describes the bean in free text. Map what they said onto the intake fields.

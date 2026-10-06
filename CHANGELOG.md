@@ -5,6 +5,16 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-06
+
+- 2026-10-06 - feat(store): add bean:update and taste:update commands
+
+### Added
+
+- `bean:update` and `taste:update`: correct or add to a bean's intake answers or a tasting after
+  the fact. Changes are merged over the stored answers and checked as a whole form; `null` clears
+  an optional answer.
+
 ## [0.1.0] - 2026-10-06
 
 - 2026-10-06 - feat(roast): roast projects, profile files and thermal dose
