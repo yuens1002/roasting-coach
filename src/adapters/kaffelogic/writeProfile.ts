@@ -99,7 +99,12 @@ export function findBaseProfile(files: KaffelogicFile[], want: { name: string; m
 }
 
 /** Keys that label a profile without changing how it roasts. */
-const LABEL_KEYS = new Set(["profile_short_name", "profile_designer", "profile_description", "profile_modified"]);
+/**
+ * Keys that label a profile without changing how it roasts. recommended_level is only the level the
+ * machine offers first; the level actually roasted is chosen before each roast (the log's
+ * roasting_level), so two profiles that differ only in it roast the same way.
+ */
+const LABEL_KEYS = new Set(["profile_short_name", "profile_designer", "profile_description", "profile_modified", "recommended_level"]);
 
 /** Two header values agree: comma lists number by number to the 6 significant figures logs write, else as text. */
 function sameValue(a: string, b: string): boolean {
@@ -134,6 +139,8 @@ export interface ProfileEdits {
   shortName?: string;
   /** Plain text; newlines are stored as Kaffelogic's \v. */
   description?: string;
+  /** The level the machine offers first when the profile is picked (a suggestion; any level can still be set). */
+  recommendedLevel?: number;
   /** Stamped as profile_modified; defaults to now. */
   modified?: Date;
 }
@@ -152,6 +159,10 @@ export function writeKpro(lines: ProfileLines, edits: ProfileEdits = {}): string
   const set: Record<string, string> = { profile_modified: kaffelogicModified(edits.modified ?? new Date()) };
   if (edits.shortName !== undefined) set.profile_short_name = edits.shortName;
   if (edits.description !== undefined) set.profile_description = edits.description.replace(/\r?\n/g, "\\v");
+  if (edits.recommendedLevel !== undefined) {
+    if (!(edits.recommendedLevel >= 0 && edits.recommendedLevel <= 6)) throw new Error(`recommended level must be between 0 and 6; got ${edits.recommendedLevel}`);
+    set.recommended_level = String(edits.recommendedLevel);
+  }
   for (const [k, v] of Object.entries(set)) if (/[\r\n]/.test(v)) throw new Error(`${k} can't contain a line break`);
 
   const out: ProfileLines = lines.map(([k, v]) => [k, set[k] ?? v]);

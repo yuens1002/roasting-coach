@@ -8,12 +8,20 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 ## [0.1.1] - 2026-10-06
 
 - 2026-10-06 - feat(store): add bean:update and taste:update commands
+- 2026-10-06 - feat(profile): add profile:write; recommended level counts as a label
 
 ### Added
 
+- `profile:write`: writes a version's own `.kpro` to `profiles/out/`, named for the bean and
+  level, with the version's level as the level the machine offers first.
 - `bean:update` and `taste:update`: correct or add to a bean's intake answers or a tasting after
   the fact. Changes are merged over the stored answers and checked as a whole form; `null` clears
   an optional answer.
+
+### Changed
+
+- A profile's `recommended_level` now counts as a label, not a setting: it is only the level the
+  machine offers first, so two profiles that differ only in it roast the same way.
 
 ## [0.1.0] - 2026-10-06
 

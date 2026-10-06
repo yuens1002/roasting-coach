@@ -73,6 +73,10 @@ don't silently interpret.
 4. On the roaster's yes, `version:add` with `level` and a one-line `reason`. Leave out
    `profileName` to keep the parent's profile (the usual case); give a stock name only to
    switch profiles. Say the level to set on the machine and the end temperature it means.
+5. If the roaster wants a file for the new version, `profile:write` (`{"beanId", "version"}`,
+   optional `"name"`) writes `<bean> <level>.kpro` to `profiles/out/`: the version's profile with
+   its level as the level the machine offers first. Only labels change, so a roast on it still
+   counts as the same profile. Remind them to check the level on the machine before roasting.
 
 The level is chosen on the machine before every roast, so a level change needs no file; a
 profile's `recommended_level` is only its suggestion, and the roast's real level is the log's

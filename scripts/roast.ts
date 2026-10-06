@@ -10,6 +10,7 @@
 //   npx tsx scripts/roast.ts version:add '{"beanId": 1, "level": 3.6, "reason": "..."}'   (same profile, new level)
 //   npx tsx scripts/roast.ts version:add '{"beanId": 1, "profileName": "KL Washed", "level": 1.2, "reason": "..."}'
 //   npx tsx scripts/roast.ts history 1
+//   npx tsx scripts/roast.ts profile:write '{"beanId": 1, "version": 2}'   (a .kpro for that version, its level as the recommended level)
 //   npx tsx scripts/roast.ts bean:update  '{"beanId": 1, "answers": {"sellerNotes": "..."}}'   (merged over the stored answers; null clears)
 //   npx tsx scripts/roast.ts taste:update '{"tastingId": 2, "answers": {"wantNext": ["brighter"]}}'
 //   npx tsx scripts/roast.ts dose '{"profile": "Robusta", "level": 3, "change": -15}'   (level for a dose change)
@@ -25,10 +26,10 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { dirname } from "node:path";
 import { parseHeader, parseKpro, splitLines } from "../src/adapters/kaffelogic/parse.js";
 import { levelForDose, profileDoseAtLevel } from "../src/adapters/kaffelogic/dose.js";
-import { findBaseProfile, formatKpro, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
+import { findBaseProfile, formatKpro, profileFromKpro, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
 import { INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../src/core/intake.js";
 import { checkShape } from "../src/core/validate.js";
-import { InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, listBeans, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting } from "../src/db/store.js";
+import { InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, listBeans, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
 import { asDb, connect } from "./db.js";
 import { KAFFELOGIC_DIR, KAFFELOGIC_OUT_DIR, loadLibrary, outPath } from "./library.js";
 
@@ -157,12 +158,44 @@ async function run() {
         return await updateBean(db, json() as never);
       case "taste:update":
         return await updateTasting(db, json() as never);
+      case "profile:write": {
+        // A .kpro for one version, to load onto the machine: the version's own profile (or the
+        // roaster's copy of its stock profile) under a new name, with the version's level as the
+        // level the machine offers first. Curve and settings are unchanged, so a roast on this file
+        // still counts as the same profile.
+        const input = json();
+        const errors = checkShape(input, { beanId: { type: "integer", required: true }, version: { type: "integer" }, name: { type: "string" } });
+        if (errors.length) throw new InputError(errors);
+        const { beanId, version: number, name } = input as { beanId: number; version?: number; name?: string };
+        const history = await beanHistory(db, beanId);
+        const v = number === undefined ? history.versions[history.versions.length - 1] : history.versions.find((x) => x.number === number);
+        if (!v) throw new InputError([`Bean ${beanId} has no v${number}.`]);
+        const stored = await versionProfileFile(db, beanId, v.number);
+        const base = stored ? { lines: profileFromKpro(stored), path: `v${v.number}'s stored profile` } : findBaseProfile(loadLibrary(), { name: v.profileName });
+        if (!base) throw new InputError([`v${v.number}'s profile "${v.profileName}" isn't stored and has no copy in ${KAFFELOGIC_DIR}, so there's nothing to write from.`]);
+        const beanName = String(history.bean.name);
+        const profileName = (name ?? `${beanName} ${v.level}`).trim();
+        if (!profileName || /[\r\n]/.test(profileName)) throw new InputError(["The profile name must be one line of text."]);
+        const description = [
+          `${profileName}: v${v.number} of ${beanName}, level ${v.level} (ends at ${v.endTempC} °C), written by roasting-coach. Curve and settings are those of ${v.profileName}.`,
+          v.changeReason ?? "",
+        ].filter(Boolean).join("\n");
+        const text = writeKpro(base.lines, { shortName: profileName, description, recommendedLevel: v.level });
+        const path = outPath(profileName);
+        try {
+          mkdirSync(dirname(path), { recursive: true });
+          writeFileSync(path, text, { flag: "wx" });
+        } catch (e) {
+          throw new InputError([`Couldn't write ${path}: ${(e as Error).message}`]);
+        }
+        return { written: path, profileName, version: v.number, level: v.level, endTempC: v.endTempC, builtFrom: base.path };
+      }
       case "features:refresh":
         return await refreshFeatures(db);
       case "bean:remove":
         return await removeBean(db, beanIdArg());
       default:
-        throw new InputError([`Unknown command "${command}". Commands: fields, library, dose, beans, bean:add, bean:update, bean:remove, version:add, roast:add, taste:add, taste:update, history, features:refresh.`]);
+        throw new InputError([`Unknown command "${command}". Commands: fields, library, dose, beans, profile:write, bean:add, bean:update, bean:remove, version:add, roast:add, taste:add, taste:update, history, features:refresh.`]);
     }
   } finally {
     await client.end();

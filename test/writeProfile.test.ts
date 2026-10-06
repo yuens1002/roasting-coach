@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseHeader, parseKpro, splitLines } from "../src/adapters/kaffelogic/parse.js";
-import { LOG_ONLY_KEYS, findBaseProfile, kaffelogicModified, profileFromLog, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
+import { LOG_ONLY_KEYS, findBaseProfile, kaffelogicModified, profileFromKpro, profileFromLog, sameProfileBody, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
 import { PRIVATE_LOGS, PRIVATE_PROFILES, headerValue } from "./privateFiles.js";
 import { PROFILE, syntheticLog } from "./syntheticLog.js";
 
@@ -28,6 +28,18 @@ describe("profile from a log", () => {
     expect(text).toContain("profile_modified:04/10/2026 15:07:09 UTC\n");
     // The description goes right after the designer, as in stock files.
     expect(text.split("\n").map((l) => l.split(":")[0]).slice(0, 3)).toEqual(["profile_short_name", "profile_designer", "profile_description"]);
+  });
+
+  it("can set the level the machine offers first, which doesn't make it a different profile", () => {
+    const original = profileFromKpro(PROFILE);
+    const atLevel = writeKpro(original, { shortName: "Guji 2.2", recommendedLevel: 2.2 });
+    expect(parseKpro(atLevel).recommendedLevel).toBe(2.2);
+    expect(parseKpro(PROFILE).recommendedLevel).toBe(3.3);
+    // Only labels differ (name, modified stamp, recommended level): the profile roasts the same way.
+    expect(sameProfileBody(profileFromKpro(atLevel), original)).toBe(true);
+    // A real setting does make it different.
+    expect(sameProfileBody(profileFromKpro(atLevel.replace("roast_levels:204,", "roast_levels:205,")), original)).toBe(false);
+    expect(() => writeKpro(original, { recommendedLevel: 7 })).toThrow("recommended level must be between 0 and 6; got 7");
   });
 
   it("refuses edits that would break the line format", () => {
