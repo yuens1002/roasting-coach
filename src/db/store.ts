@@ -406,9 +406,7 @@ export async function addTasting(db: Db, t: NewTasting) {
   );
   if (!r.rows.length) throw new InputError([t.roastId === undefined ? `Bean ${t.beanId} has no roasts yet.` : `Bean ${t.beanId} has no roast ${t.roastId}.`]);
   const roast = r.rows[0];
-  const roastedOn = new Date(roast.roasted_at).toISOString().slice(0, 10);
-  const daysRested = Math.round((Date.parse(`${values.tastedOn}T00:00:00Z`) - Date.parse(`${roastedOn}T00:00:00Z`)) / 86_400_000);
-  if (daysRested < 0) throw new InputError([`Tasted on ${values.tastedOn} is before the roast on ${roastedOn}. Check the date.`]);
+  const daysRested = restDays(roast.roasted_at, values.tastedOn);
   const tastingId = await insert(db, "tasting", { roast_id: Number(roast.id), ...asColumns(values) });
   return { tastingId, roastId: Number(roast.id), version: Number(roast.number), daysRested };
 }
@@ -428,19 +426,47 @@ function rowAsAnswers(fields: Field[], row: Record<string, unknown>): Record<str
 }
 
 /**
- * Changes answers on a stored form. The changes are merged over the stored answers and the result
- * is checked as a whole form, so it stays exactly as valid as a new one. An answer of null clears
- * an optional field.
+ * Whole days from the roast's calendar date to the tasting's. One rule for adding and updating a
+ * tasting, so a tasting dated before its roast is refused either way.
  */
-async function updateForm(db: Db, table: "bean" | "tasting", id: number, fields: Field[], changes: Record<string, unknown>, notFound: string) {
-  // to_jsonb gives dates as YYYY-MM-DD and numbers as numbers, the shapes the form expects.
-  const r = await db.query<{ row: Record<string, unknown> }>(`select to_jsonb(t) as row from ${table} t where id = $1`, [id]);
-  if (!r.rows.length) throw new InputError([notFound]);
-  const values = checked(fields, { ...rowAsAnswers(fields, r.rows[0].row), ...changes });
-  const columns = fields.map((f) => fieldColumn(f.id));
-  await db.query(`update ${table} set ${columns.map((c, i) => `${c} = $${i + 2}`).join(", ")} where id = $1`, [id, ...fields.map((f) => values[f.id] ?? null)]);
-  const after = await db.query<{ row: Record<string, unknown> }>(`select to_jsonb(t) as row from ${table} t where id = $1`, [id]);
-  return after.rows[0].row;
+function restDays(roastedAt: string | Date, tastedOn: unknown): number {
+  const roastedOn = new Date(roastedAt).toISOString().slice(0, 10);
+  const days = Math.round((Date.parse(`${tastedOn}T00:00:00Z`) - Date.parse(`${roastedOn}T00:00:00Z`)) / 86_400_000);
+  if (days < 0) throw new InputError([`Tasted on ${tastedOn} is before the roast on ${roastedOn}. Check the date.`]);
+  return days;
+}
+
+/**
+ * Changes answers on a stored form. The changes are merged over the stored answers and the result
+ * is checked as a whole form, so it stays exactly as valid as a new one; `extraCheck` can add rules
+ * that need other rows. Only the answers named in `changes` are written (an answer of null clears
+ * an optional one), and the row is locked while it is read and written, so an update can't undo
+ * another one made in between.
+ */
+async function updateForm(
+  db: Db,
+  table: "bean" | "tasting",
+  id: number,
+  fields: Field[],
+  changes: Record<string, unknown>,
+  notFound: string,
+  extraCheck?: (row: Record<string, unknown>, values: Answers) => Promise<void>,
+) {
+  const read = async (lock: boolean) =>
+    // to_jsonb gives dates as YYYY-MM-DD and numbers as numbers, the shapes the form expects.
+    db.query<{ row: Record<string, unknown> }>(`select to_jsonb(t) as row from ${table} t where id = $1${lock ? " for update" : ""}`, [id]);
+  return inTransaction(db, async () => {
+    const r = await read(true);
+    if (!r.rows.length) throw new InputError([notFound]);
+    const values = checked(fields, { ...rowAsAnswers(fields, r.rows[0].row), ...changes });
+    await extraCheck?.(r.rows[0].row, values);
+    // Only fields the caller named; unknown names were already refused by the form check above.
+    // Clearing a chips field stores an empty list: those columns can't be null.
+    const named = fields.filter((f) => Object.hasOwn(changes, f.id));
+    if (named.length)
+      await db.query(`update ${table} set ${named.map((f, i) => `${fieldColumn(f.id)} = $${i + 2}`).join(", ")} where id = $1`, [id, ...named.map((f) => values[f.id] ?? (f.kind === "chips" ? [] : null))]);
+    return (await read(false)).rows[0].row;
+  });
 }
 
 /** Corrects or adds to a bean's intake answers. Versions already recorded are not changed. */
@@ -449,10 +475,13 @@ export async function updateBean(db: Db, input: { beanId: number; answers: Recor
   return updateForm(db, "bean", input.beanId, INTAKE_FIELDS, input.answers, `Bean ${input.beanId} doesn't exist.`);
 }
 
-/** Corrects or adds to a tasting, for example its "next time I want" chips. */
+/** Corrects or adds to a tasting, for example its "next time I want" chips. A new date can't fall before its roast. */
 export async function updateTasting(db: Db, input: { tastingId: number; answers: Record<string, unknown> }) {
   checkedShape(input, TASTING_UPDATE_SHAPE);
-  return updateForm(db, "tasting", input.tastingId, TASTING_FIELDS, input.answers, `Tasting ${input.tastingId} doesn't exist.`);
+  return updateForm(db, "tasting", input.tastingId, TASTING_FIELDS, input.answers, `Tasting ${input.tastingId} doesn't exist.`, async (row, values) => {
+    const roast = await db.query<{ roasted_at: string | Date }>("select roasted_at from roast where id = $1", [row.roast_id]);
+    restDays(roast.rows[0].roasted_at, values.tastedOn);
+  });
 }
 
 export async function listBeans(db: Db) {

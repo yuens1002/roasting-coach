@@ -339,6 +339,50 @@ describe("store", () => {
     await expect(updateBean(db, { beanId, answers: { colour: 50 } })).rejects.toMatchObject({ errors: ['"colour" is not a field on this form.'] });
   });
 
+  it("doesn't undo a change made to another answer while an update is in flight", async () => {
+    const { beanId } = await addBean(db, { ...GUJI, name: "Racing", origin: "Original origin" });
+    // A second change lands right after this update has read the row, before it writes.
+    let raced = false;
+    const racing = {
+      query: async (text: string, params?: unknown[]) => {
+        const result = await db.query(text, params);
+        if (!raced && /select to_jsonb\(t\) as row from bean t/.test(text)) {
+          raced = true;
+          await db.query("update bean set origin = 'Changed meanwhile' where id = $1", [beanId]);
+        }
+        return result;
+      },
+    } as unknown as Db;
+    const after = await updateBean(racing, { beanId, answers: { sellerNotes: "Updated notes" } });
+    expect(raced).toBe(true);
+    expect(after).toMatchObject({ seller_notes: "Updated notes", origin: "Changed meanwhile" });
+  });
+
+  it("treats an update with no answers as no change", async () => {
+    const { beanId } = await addBean(db, { ...GUJI, name: "Nothing to do" });
+    expect(await updateBean(db, { beanId, answers: {} })).toMatchObject({ name: "Nothing to do", seller_notes: "peach, jasmine" });
+  });
+
+  it("won't move a tasting before its roast, and allows a correct date", async () => {
+    const { beanId } = await addBean(db, { ...GUJI, name: "Moved taste" });
+    const { roastId } = await addRoast(db, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
+    const { tastingId } = await addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-12", brew: "pourover", score: 3, taste: ["sweet"] } });
+    await expect(updateTasting(db, { tastingId, answers: { tastedOn: "2026-03-09" } })).rejects.toThrow("Tasted on 2026-03-09 is before the roast on 2026-03-10. Check the date.");
+    expect((await beanHistory(db, beanId)).versions[0].roasts[0].tastings[0].tastedOn).toBe("2026-03-12");
+    expect(await updateTasting(db, { tastingId, answers: { tastedOn: "2026-03-10" } })).toMatchObject({ tasted_on: "2026-03-10" });
+  });
+
+  it("updates a tasting that had no 'next time' chips, and can clear them again", async () => {
+    const { beanId } = await addBean(db, { ...GUJI, name: "Chips" });
+    const { roastId } = await addRoast(db, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
+    const { tastingId } = await addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-11", brew: "pourover", score: 3, taste: ["sweet"] } });
+    expect(await updateTasting(db, { tastingId, answers: { notes: "Added later." } })).toMatchObject({ notes: "Added later.", want_next: [], taste: ["sweet"] });
+    expect(await updateTasting(db, { tastingId, answers: { wantNext: ["brighter"] } })).toMatchObject({ want_next: ["brighter"] });
+    expect(await updateTasting(db, { tastingId, answers: { wantNext: [] } })).toMatchObject({ want_next: [], notes: "Added later." });
+    // The required taste chips can't be cleared.
+    await expect(updateTasting(db, { tastingId, answers: { taste: [] } })).rejects.toMatchObject({ errors: ["What did you taste is required."] });
+  });
+
   it("updates a tasting's chips, keeping its date and score", async () => {
     const { beanId } = await addBean(db, { ...GUJI, name: "Retaste" });
     const { roastId } = await addRoast(db, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
