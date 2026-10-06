@@ -6,11 +6,19 @@ through their own adapters.
 
 ## The problem
 
-Automated home roasters record everything: every roast produces a detailed log, and the machine
-ships with a library of carefully designed profiles. What they don't give you is an answer to the
-one question that matters after you taste the cup: **what should I change next time?**
+Some home roasters, the Kaffelogic Nano among them, don't let you steer a roast as it happens. You
+choose a profile, set a level, press start, and the machine follows the profile. Everything depends
+on the profile you loaded before the roast began.
 
-The advice you can find is generic, and much of it is wrong for these machines:
+So after you taste the cup, the real question is: **what should I change on the profile?** That is
+where it gets hard.
+
+- **The profile graph doesn't tell you what a change will do.** The editor draws a curve of
+  temperature over time. It doesn't say what happens to the roast, or to the flavour in the cup, if
+  you move a point on it. Without that link, changing a profile is guesswork, and it's easy to fall
+  back on only touching the level.
+
+And the help you can find doesn't close the gap, because much of it is wrong for these machines:
 
 - **Textbook targets don't fit.** The common rule of "15-25% development" would call most stock
   Nano roasts overdone: its profiles run 30-40% development by design.
@@ -27,29 +35,38 @@ The advice you can find is generic, and much of it is wrong for these machines:
 
 ## The thesis
 
-Improving a bean is an iterative experiment: roast, taste, change one thing, roast again. A tool
-can make that experiment reliable if it:
+Roasts that are predictable, and matched to the cup you want. Improving a bean is an iterative
+experiment: roast, taste, change one thing, roast again. A tool can make that experiment reliable
+if it:
 
-1. **Records the journey.** Each bean is a project; each version is a profile plus the level that
+1. **Turns what you tasted into a change on the profile, and says what that change will do.** In
+   plain words, before you roast: not "move this point", but what it will do to the roast and
+   which way it should push the cup.
+2. **Gives deterministic, explained advice.** The same evidence always leads to the same
+   suggestion, from tested rules. A model never reads raw curves.
+3. **Measures what matters, grounded in research and checked against real logs.** The roast's
+   *thermal dose* (from Arrhenius reaction kinetics) says how far its chemistry went, independent
+   of button presses and fair across profiles and levels. It makes a change something you can
+   reason about: "about 15% less roasting" means the same thing on any profile, and is then turned
+   into a level for the profile at hand. See [docs/research.md](docs/research.md) for the
+   sources, the computations and what held up.
+4. **Records the journey.** Each bean is a project; each version is a profile plus the level that
    was actually roasted, with its log, the result, the tasting, and a one-line reason for the
    change. The log decides which version a roast belongs to, so the history can't drift from what
    really happened.
-2. **Gives deterministic, explained advice.** The same evidence always leads to the same
-   suggestion, in plain words, from tested rules. A model never reads raw curves.
-3. **Measures what matters, grounded in research and checked against real logs.** The roast's
-   *thermal dose* (from Arrhenius reaction kinetics) says how far its chemistry went, independent
-   of button presses and fair across profiles and levels. Changes are sized in dose, then turned
-   into a level for the profile at hand. See [docs/research.md](docs/research.md) for the sources,
-   the computations and what held up.
-4. **Judges a roast by the right yardstick.** The profile's own targets and the roaster's own
+5. **Judges a roast by the right yardstick.** The profile's own targets and the roaster's own
    history, with checks that don't depend on button presses (weight loss, thermal dose). The
    tasting decides.
 
 ## Status
 
-Alpha (0.1.0). Working today: bean intake and the starting profile, recording roasts from logs,
-versions, tastings, thermal dose, and rebuilding or writing Kaffelogic profile files. Next: the
-deterministic rule table that turns a tasting and a log into one suggested change, then curve edits.
+Alpha (0.1.x). Working today: bean intake and the starting profile, recording roasts from logs,
+versions, tastings, thermal dose, and writing Kaffelogic profile files. It can size a change to
+the roast level in thermal dose and say which level to set.
+
+Not built yet, and the part that matters most: the deterministic rule table that turns a tasting
+and a log into one suggested change, and edits to the profile's curve itself, each with a
+plain-language account of what the edit will do to the roast.
 
 There is no app or web UI. It runs in a Claude Code session: the roaster describes the bean,
 points to a log and says how the cup tasted; Claude records it through `scripts/roast.ts` (JSON in,

@@ -20,6 +20,8 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ### Changed
 
+- The README now opens with the core problem (a profile-following roaster, and a profile graph that
+  doesn't say what a change will do to the roast or the cup) and states the thesis around it.
 - A profile's `recommended_level` now counts as a label, not a setting: it is only the level the
   machine offers first, so two profiles that differ only in it roast the same way.
 
