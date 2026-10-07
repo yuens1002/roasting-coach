@@ -16,7 +16,9 @@ the count starts at the bean's first roast or at its first tasted one, and how t
 that is only a step along a deliberate ladder.
 
 Where it stands: the rules name the level, or a switch to the bean's other profile, for cups that
-are clearly under- or over-roasted, and otherwise say "no rule". The first real ladder (a bean
+are clearly under- or over-roasted. They also hold (a cup tasted too soon, a sour espresso, a good
+high-scoring cup), ask (mixed or contradictory evidence), or follow a wish for a direction. Only
+when none of those apply do they say "no rule". The first real ladder (a bean
 roasted at four levels, 3.0 down to 2.1) went from ashy to flat and monotone, not baked and not
 under-developed, and no rule covers that cup. Cups like it are what stand between the rules and
 the goal.
