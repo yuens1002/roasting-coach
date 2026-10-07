@@ -60,13 +60,8 @@ if it:
 
 ## Status
 
-Alpha (0.1.x). Working today: bean intake and the starting profile, recording roasts from logs,
-versions, tastings, thermal dose, and writing Kaffelogic profile files. It can size a change to
-the roast level in thermal dose and say which level to set.
-
-Not built yet, and the part that matters most: the deterministic rule table that turns a tasting
-and a log into one suggested change, and edits to the profile's curve itself, each with a
-plain-language account of what the edit will do to the roast.
+Alpha (0.1.x). What works, what is next and what is waiting on others is in
+[docs/ROADMAP.md](docs/ROADMAP.md).
 
 There is no app or web UI. It runs in a Claude Code session: the roaster describes the bean,
 points to a log and says how the cup tasted; Claude records it through `scripts/roast.ts` (JSON in,
@@ -85,6 +80,7 @@ session flow is in [.claude/skills/roast/SKILL.md](.claude/skills/roast/SKILL.md
 - `scripts/` the session commands (`roast.ts`), the research computations, and helpers for real
   files and the seed.
 - `docs/research.md` the research we rely on and how it was validated.
+- `docs/ROADMAP.md` the project's state: what works, what is next, what is blocked.
 
 ## Running
 

@@ -5,6 +5,20 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-07
+
+- 2026-10-07 - docs(roadmap): add ROADMAP.md as the single record of project state
+
+### Added
+
+- `docs/ROADMAP.md`: the single record of what works, what is next and what is waiting on others.
+  The README's Status section now points to it.
+
+### Changed
+
+- `docs/thread1-notes.md` records two file-format facts: a `.klog` header embeds its full profile,
+  and some logs have no `roast_date`.
+
 ## [0.1.1] - 2026-10-06
 
 - 2026-10-06 - feat(store): add bean:update and taste:update commands
