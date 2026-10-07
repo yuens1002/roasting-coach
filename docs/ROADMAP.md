@@ -7,6 +7,20 @@ someone else. Update it in the same change that moves any of these. Design ratio
 
 Last updated 2026-10-07 (0.1.x alpha).
 
+## The goal
+
+Get a bean's roast right in **no more than three roasts**, by telling the roaster which lever to
+push each time. "Right" is a cup scored **4 or better**. The levers today are the level and the
+profile; the cup can also be pointing outside the roast (the brew, the bean's age). Still open: whether
+the count starts at the bean's first roast or at its first tasted one, and how to count a roast
+that is only a step along a deliberate ladder.
+
+Where it stands: the rules name the level, or a switch to the bean's other profile, for cups that
+are clearly under- or over-roasted, and otherwise say "no rule". The first real ladder (a bean
+roasted at four levels, 3.0 down to 2.1) went from ashy to flat and monotone, not baked and not
+under-developed, and no rule covers that cup. Cups like it are what stand between the rules and
+the goal.
+
 ## Working today
 
 - **Reading Kaffelogic files**: `.kpro` profiles and `.klog` logs, mapped onto a machine-independent

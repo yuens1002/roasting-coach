@@ -5,6 +5,15 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-10-07
+
+- 2026-10-07 - docs(roadmap): record the goal, a right roast in three roasts or fewer
+
+### Added
+
+- `docs/ROADMAP.md` has a "The goal" section: get a bean's roast right (a cup scored 4 or better)
+  in no more than three roasts, with where the rules stand against it.
+
 ## [0.1.4] - 2026-10-07
 
 - 2026-10-07 - fix(profile): treat tasting_notes as a per-roast key, not part of the profile
