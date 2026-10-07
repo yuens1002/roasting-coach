@@ -32,6 +32,11 @@ Our development figure matches the machine's own `!development_percent` (38.9%).
 - **Event markers are written a few seconds late**; their value is the time, not their position.
 - Colour change and first crack are both button presses on the Nano, so they are only as good
   as the press. The parser sanity-checks them and says so in plain words.
+- **A `.klog` header embeds the full profile**: every `.kpro` key with the same value (numbers
+  written to 6 significant figures), plus per-roast keys (`LOG_ONLY_KEYS`: model code, mains
+  voltage, motor hours...), minus `profile_description`. Verified on log0046 against its `.kpro`,
+  so any log rebuilds the profile it was roasted on.
+- Some logs have no `roast_date` line (log0046); `addRoast` then asks for the date.
 
 ## 2. The finding that matters most for advice
 
