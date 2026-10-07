@@ -308,6 +308,12 @@ describe("when the level isn't helping", () => {
     expect(a).toMatchObject({ kind: "switch-profile", ruleId: "level-not-helping", profileName: "KL Washed", level: 1.2, endTempC: 217.6 });
     expect(a.reason).toBe("The cup tasted sour (under-roasted) even after the roasting went 10% more than an earlier roast on this profile, which tasted sour too. The level isn't what's wrong, so another step along it probably won't help.");
   });
+  it("compares curves, not names: an edited copy of a stock profile is a different profile", () => {
+    expect(change(run(sour(11, { profileKey: "edited" }), [sour(10, { profileKey: "stock" })])).ruleId).toBe("under-roasted");
+    expect(run(sour(11, { profileKey: "same" }), [sour(10, { profileKey: "same" })]).kind).toBe("switch-profile");
+    // Without a fingerprint on both sides, the profile name is all there is to go on.
+    expect(run(sour(11, { profileKey: "edited" }), [sour(10)]).kind).toBe("switch-profile");
+  });
   it("is the same on the over-roasted side: less roasting, still bitter", () => {
     const a = run(roast({ thermalDose: 9, taste: ["bitter"], profile: "KL Washed" }), [roast({ thermalDose: 10, taste: ["roasty"], profile: "KL Washed" })], { alternative: { profileName: "1500-2000m Rest", level: 2.5, endTempC: 220.1 } });
     expect(a).toMatchObject({ kind: "switch-profile", profileName: "1500-2000m Rest" });

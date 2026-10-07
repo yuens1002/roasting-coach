@@ -30,6 +30,9 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ### Changed
 
+- The `level-not-helping` check compares roasts by what their stored profile roasts like (a
+  fingerprint of its curve and settings, `profileKey` in `history`), not by the stock profile's name,
+  so an edited copy of a stock profile is no longer taken for the stock one.
 - "Dose" is now always "thermal dose". The `dose` command is renamed `thermal-dose`, and
   `src/adapters/kaffelogic/dose.ts` is now `thermalDose.ts`.
 - Stock "Rest" profiles record their rest days (3 to 5), used by the rest check.

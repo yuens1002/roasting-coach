@@ -234,7 +234,9 @@ roast and a bitter one; it doesn't allow for a different brew having been used f
 ### `level-not-helping` (inside rules 5 and 6)
 
 **When:** the cup is on one side, no earlier roast of this bean tasted the other side, and an earlier roast
-of this bean **on the same profile** tasted the same side with at least `noResponsePct` less roasting
+of this bean **on the same profile** (same curve and settings, compared by content; an edited copy
+of a stock profile is a different profile, and where the content isn't known the names are compared)
+tasted the same side with at least `noResponsePct` less roasting
 (for under-roasted; more for over-roasted). The level has moved the roast and the cup hasn't changed.
 **What it does:** suggests the bean's other profile (the alternative worked out from the bean's
 process and altitude as they are recorded now), at the level that profile suggests for the bean's

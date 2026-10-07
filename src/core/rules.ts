@@ -88,8 +88,10 @@ export interface TastedRoast {
   /** 1-5. */
   score: number;
   brew: string;
-  /** The profile the roast used (its stock profile when it is a copy of one). */
+  /** The profile the roast used (its stock profile when it is a copy of one). Names the rest days and the profiles tried. */
   profile?: string;
+  /** What the profile's curve and settings come to, when known: two roasts are on the same profile only when this agrees (an edited copy keeps its stock parent's name). */
+  profileKey?: string;
   /** Whole days from the roast to this tasting. */
   restedDays?: number;
   /** Days this roast's profile wants it to rest before it is judged, when the profile says (min, max). */
@@ -168,6 +170,9 @@ interface Rule {
   run: (input: AdviceInput, reading: Reading) => Advice | undefined;
 }
 
+/** Two roasts used the same profile: the same curve and settings when both are known, else the same profile name. */
+const sameProfile = (a: TastedRoast, b: TastedRoast) => (a.profileKey && b.profileKey ? a.profileKey === b.profileKey : a.profile === b.profile);
+
 /** The level moved the roast and the cup stayed on the same side: go to another profile if there is one not yet tried, else ask. */
 function levelNotHelping(side: Side, mine: string[], latest: TastedRoast, earlier: TastedRoast[], unmoved: TastedRoast, alternative: AdviceContext["alternative"]): Advice {
   const { move, verdict } = SIDES[side];
@@ -211,7 +216,7 @@ function developmentRule(side: Side): Rule["run"] {
     }
     // The level has already moved this side's result a real distance, on this profile, and the cup is
     // the same: the level isn't what's wrong, so another step along it probably won't help either.
-    const unmoved = earlier.find((e) => sideOf(e) === side && e.profile === latest.profile && (sign * (latest.thermalDose - e.thermalDose) * 100) / e.thermalDose >= RULE_SETTINGS.noResponsePct);
+    const unmoved = earlier.find((e) => sideOf(e) === side && sameProfile(e, latest) && (sign * (latest.thermalDose - e.thermalDose) * 100) / e.thermalDose >= RULE_SETTINGS.noResponsePct);
     if (unmoved) return levelNotHelping(side, mine, latest, earlier, unmoved, context?.alternative);
     const thermalDoseChangePct = sign * (mine.length >= RULE_SETTINGS.strongChipCount ? RULE_SETTINGS.strongStepPct : RULE_SETTINGS.stepPct);
     return {
@@ -324,6 +329,8 @@ export interface HistoryForAdvice {
     profileName: string;
     /** The stock profile this version is built on, when it is. */
     baseProfile?: string;
+    /** A fingerprint of the version's stored profile (see profileBodyKey), when it has one. */
+    profileKey?: string;
     roasts: {
       id: number;
       roastedAt: unknown;
@@ -360,6 +367,7 @@ export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceCon
       score: tasting.score,
       brew: tasting.brew,
       profile,
+      profileKey: version.profileKey,
       restedDays: daysBetween(roast.roastedAt as string | Date, tasting.tastedOn),
       restNeeded: context?.restNeeded?.(profile),
     };

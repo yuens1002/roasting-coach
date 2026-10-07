@@ -4,7 +4,7 @@
 import { levelToTemp, parseKlog, parseKpro } from "../adapters/kaffelogic/parse.js";
 import { MACHINE_ID, selectStartingProfile, stockProfile, stockProfileId } from "../adapters/kaffelogic/startingProfiles.js";
 import { kaffelogicToRoastLog } from "../adapters/kaffelogic/toRoastLog.js";
-import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileFromKpro, profileFromLog, sameProfileBody } from "../adapters/kaffelogic/writeProfile.js";
+import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileBodyKey, profileFromKpro, profileFromLog, sameProfileBody } from "../adapters/kaffelogic/writeProfile.js";
 import { calendarDay, daysBetween } from "../core/dates.js";
 import { extractFeatures } from "../core/features.js";
 import { type Field, type Intake, INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../core/intake.js";
@@ -501,6 +501,9 @@ export async function beanHistory(db: Db, beanId: number) {
   const b = await db.query<{ bean: Record<string, unknown> }>("select to_jsonb(b) as bean from bean b where id = $1", [beanId]);
   if (!b.rows.length) throw new InputError([`Bean ${beanId} doesn't exist.`]);
   const versions = (await db.query(`${VERSION_SELECT} where v.bean_id = $1 order by v.number`, [beanId])).rows.map(toVersion);
+  // Which versions roast the same way, whatever they are called: versions with a stored profile share a key when their bodies match.
+  const files = (await db.query<{ number: number; profile_file: string }>("select number, profile_file from profile_version where bean_id = $1 and profile_file is not null", [beanId])).rows;
+  const profileKeys = new Map(files.map((f) => [Number(f.number), profileBodyKey(profileFromKpro(f.profile_file))]));
   const roasts = (
     await db.query(
       `select r.id, r.version_id, r.roasted_at, r.log_profile_name, r.log_level, r.green_g, r.roasted_g, r.weight_loss_pct,
@@ -521,6 +524,7 @@ export async function beanHistory(db: Db, beanId: number) {
     bean: b.rows[0].bean,
     versions: versions.map((v) => ({
       ...v,
+      profileKey: profileKeys.get(v.number),
       roasts: roasts
         .filter((r) => Number(r.version_id) === v.id)
         .map((r) => {
