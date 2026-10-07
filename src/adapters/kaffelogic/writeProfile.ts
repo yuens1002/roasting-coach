@@ -32,6 +32,8 @@ export const LOG_ONLY_KEYS = [
   "firmware_version",
   "reference_load_size",
   "roast_date",
+  // What the roaster typed about this roast (often a weight); it is theirs, not part of the profile.
+  "tasting_notes",
 ] as const;
 
 /** A profile as ordered key/value lines, the way .kpro files store it. */

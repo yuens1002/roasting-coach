@@ -5,6 +5,17 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-07
+
+- 2026-10-07 - fix(profile): treat tasting_notes as a per-roast key, not part of the profile
+
+### Fixed
+
+- A log's `tasting_notes` line (what the roaster typed about the roast, often the weight) was
+  treated as part of the profile. It was copied into the stored profile of a version, would have
+  been written into a `.kpro` by `profile:write`, and made two logs of the same profile look
+  different. It is now in `LOG_ONLY_KEYS` with the other per-roast keys.
+
 ## [0.1.2] - 2026-10-07
 
 - 2026-10-07 - docs(roadmap): add ROADMAP.md as the single record of project state

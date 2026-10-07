@@ -16,6 +16,14 @@ describe("profile from a log", () => {
     expect(keys).toContain("roast_levels");
   });
 
+  it("leaves out the roaster's notes on the roast, so they neither enter a profile nor make one look different", () => {
+    const noted = (notes: string) => profileFromLog(`tasting_notes:${notes}
+${syntheticLog({ roast_end: 600 })}`);
+    expect(noted("ended at 123.7g").map(([k]) => k)).not.toContain("tasting_notes");
+    expect(sameProfileBody(noted("ended at 123.7g"), noted("ended weight 120.5g"))).toBe(true);
+    expect(sameProfileBody(noted("ended at 123.7g"), lines)).toBe(true);
+  });
+
   it("writes a .kpro that parses back to the same curve and levels", () => {
     const text = writeKpro(lines, { shortName: "Test line v2", description: "Longer Maillard.\nWhy: sour.", modified: WHEN });
     const p = parseKpro(text);
