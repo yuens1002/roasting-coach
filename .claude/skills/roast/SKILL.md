@@ -58,21 +58,24 @@ don't silently interpret.
 
 ## 4. Analysis and the next version
 
-1. `history <beanId>` for the whole chain.
-2. Judge against the profile's own targets and the roaster's own history, never textbook
-   numbers: stock Nano profiles run 30-40% development by design. Weight loss is the check that
-   doesn't depend on button presses; treat crack times with suspicion (see `dataWarnings`).
-3. Propose **one** change with a plain-language reason. Prefer a level change on the same
-   profile; switching profiles or editing the curve comes after levels are exhausted.
-   Size it in thermal dose, not level numbers (level steps are uneven: on Robusta 2.6 -> 3.0 is
-   about +15%, 3.0 -> 3.4 about +3%; see `docs/research.md`).
-   `dose '{"profile": "...", "level": 3, "change": -15}'` gives the level for a dose change on
-   that profile; say both, e.g. "level 2.5, ends at 221.4 °C, about 15% less roasting".
-   `features.thermalDose` is each roast's measured dose. Real roasts have measured 6-12.5% above
-   their curve's prediction, so expect the result to land a little further along.
-4. On the roaster's yes, `version:add` with `level` and a one-line `reason`. Leave out
-   `profileName` to keep the parent's profile (the usual case); give a stock name only to
-   switch profiles. Say the level to set on the machine and the end temperature it means.
+The advice comes from a rule engine, not from you. Your part is to run it, say what it returns,
+and run the command it hands you if the roaster says yes.
+
+1. `advise <beanId>`. It answers the most recently roasted roast that has a tasting and a measured
+   thermal dose, using the bean's other tasted roasts as its record. If `basedOn.roastId` isn't the
+   roast the roaster asked about, tell them which roast the advice is for. It returns `say` and, only when there is something to
+   record, `onYes`.
+2. Say `say` to the roaster as written. Don't add, drop, reword, round or second-guess any of it,
+   and don't judge the roast yourself: textbook numbers don't apply to Nano profiles, and the
+   rules already allow for that.
+3. If there is an `onYes` and the roaster says yes, run its `command` with its `input` exactly as
+   given (`version:add`). Then tell them the level to set on the machine and the end temperature
+   (both are in `say`). Without an `onYes`, nothing is recorded.
+4. If `say` asked the roaster something, or says no rule covers the tasting, wait for their answer.
+   A wrong or missing chip is fixed with `taste:update` and `advise` is run again. A change they
+   choose themselves is theirs, not the engine's: size it with `thermal-dose`
+   (`thermal-dose '{"profile": "...", "level": 3, "change": -15}'`, change in %), record it with
+   `version:add` and their own words as the `reason`, and say it was their choice.
 5. If the roaster wants a file for the new version, `profile:write` (`{"beanId", "version"}`,
    optional `"name"`) writes `<bean> <level>.kpro` to `profiles/out/`: the version's profile with
    its level as the level the machine offers first. Only labels change, so a roast on it still
@@ -80,5 +83,5 @@ don't silently interpret.
 
 The level is chosen on the machine before every roast, so a level change needs no file; a
 profile's `recommended_level` is only its suggestion, and the roast's real level is the log's
-`roasting_level`. A .kpro is written only when the profile itself changes (curve, fan, zones),
+`roasting_level`. A new .kpro is needed only when the profile itself changes (curve, fan, zones),
 which is not built yet.

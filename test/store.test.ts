@@ -411,4 +411,18 @@ describe("store", () => {
     expect(v3).toMatchObject({ number: 3, profileName: "Kenya slow", endTempC: 222, hasProfileFile: true });
     expect(await versionProfileFile(db, beanId, 3)).toBe(own);
   });
+
+  it("fingerprints each version's stored profile, so the same curve matches and an edit doesn't", async () => {
+    const { beanId } = await addBean(db, { ...GUJI, name: "Kenya keys" });
+    const own = PROFILE.replace("profile_short_name:Test line", "profile_short_name:Kenya keys");
+    await addVersion(db, { beanId, profileName: "Kenya keys", level: 3.6, reason: "Longer Maillard.", profileFile: own });
+    await addVersion(db, { beanId, level: 4, reason: "Still sour: darker." });
+    const edited = own.replace("roast_levels:204,", "roast_levels:205,");
+    await addVersion(db, { beanId, profileName: "Kenya keys edited", level: 3.6, reason: "Raised the first level.", profileFile: edited });
+    const keys = (await beanHistory(db, beanId)).versions.map((v) => v.profileKey);
+    expect(keys[1]).toMatch(/^[0-9a-f]{12}$/);
+    expect(keys[2]).toBe(keys[1]);
+    expect(keys[3]).toMatch(/^[0-9a-f]{12}$/);
+    expect(keys[3]).not.toBe(keys[1]);
+  });
 });

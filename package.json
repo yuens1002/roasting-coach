@@ -1,6 +1,6 @@
 {
   "name": "roasting-coach",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Helps home roasters improve each roast from their logs and tasting notes",
   "directories": {
     "test": "test"
@@ -13,7 +13,8 @@
     "db:seed": "tsx scripts/gen-seed.ts",
     "db:up": "docker compose up -d --wait",
     "db:migrate": "tsx scripts/db-migrate.ts",
-    "research": "tsx scripts/research.ts"
+    "research": "tsx scripts/research.ts",
+    "rules:steps": "tsx scripts/step-table.ts"
   },
   "license": "AGPL-3.0-only",
   "devDependencies": {
