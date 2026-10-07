@@ -14,7 +14,8 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 - A log's `tasting_notes` line (what the roaster typed about the roast, often the weight) was
   treated as part of the profile. It was copied into the stored profile of a version, would have
   been written into a `.kpro` by `profile:write`, and made two logs of the same profile look
-  different. It is now in `LOG_ONLY_KEYS` with the other per-roast keys.
+  different. It is now in `LOG_ONLY_KEYS` with the other per-roast keys, and is also ignored in a
+  profile stored before this fix.
 
 ## [0.1.3] - 2026-10-07
 
