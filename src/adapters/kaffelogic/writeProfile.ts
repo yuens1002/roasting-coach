@@ -33,6 +33,8 @@ export const LOG_ONLY_KEYS = [
   "firmware_version",
   "reference_load_size",
   "roast_date",
+  // What the roaster typed about this roast (often a weight); it is theirs, not part of the profile.
+  "tasting_notes",
 ] as const;
 
 /** A profile as ordered key/value lines, the way .kpro files store it. */
@@ -50,7 +52,8 @@ export function profileFromLog(klogText: string): ProfileLines {
 export function profileFromKpro(kproText: string): ProfileLines {
   const { header } = parseHeader(splitLines(kproText));
   if (!header.roast_profile) throw new Error("not a Kaffelogic profile: no roast_profile line");
-  return Object.entries(header);
+  // A profile stored before the notes were treated as per-roast may still carry them.
+  return Object.entries(header).filter(([k]) => k !== "tasting_notes");
 }
 
 /** A Kaffelogic file found on disk; kind is decided by content, not by name. */

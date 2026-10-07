@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseHeader, parseKpro, splitLines } from "../src/adapters/kaffelogic/parse.js";
-import { LOG_ONLY_KEYS, findBaseProfile, kaffelogicModified, profileFromKpro, profileFromLog, sameProfileBody, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
+import { LOG_ONLY_KEYS, findBaseProfile, formatKpro, kaffelogicModified, profileFromKpro, profileFromLog, sameProfileBody, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
 import { PRIVATE_LOGS, PRIVATE_PROFILES, headerValue } from "./privateFiles.js";
 import { PROFILE, syntheticLog } from "./syntheticLog.js";
 
@@ -14,6 +14,22 @@ describe("profile from a log", () => {
     expect(keys.filter((k) => (LOG_ONLY_KEYS as readonly string[]).includes(k))).toEqual([]);
     expect(keys).toContain("roast_profile");
     expect(keys).toContain("roast_levels");
+  });
+
+  it("leaves out the roaster's notes on the roast, so they neither enter a profile nor make one look different", () => {
+    const noted = (notes: string) => profileFromLog(`tasting_notes:${notes}
+${syntheticLog({ roast_end: 600 })}`);
+    expect(noted("ended at 123.7g").map(([k]) => k)).not.toContain("tasting_notes");
+    expect(sameProfileBody(noted("ended at 123.7g"), noted("ended weight 120.5g"))).toBe(true);
+    expect(sameProfileBody(noted("ended at 123.7g"), lines)).toBe(true);
+  });
+
+  it("ignores notes in a profile stored before they were left out: same profile as a new log, and not written out again", () => {
+    const legacy = formatKpro([["tasting_notes", "ended at 123.7g"], ...lines]);
+    expect(profileFromKpro(legacy).map(([k]) => k)).not.toContain("tasting_notes");
+    expect(sameProfileBody(profileFromKpro(legacy), profileFromLog(`tasting_notes:ended weight 120.5g
+${syntheticLog({ roast_end: 600 })}`))).toBe(true);
+    expect(writeKpro(profileFromKpro(legacy), { shortName: "Test line v2" })).not.toContain("tasting_notes");
   });
 
   it("writes a .kpro that parses back to the same curve and levels", () => {
