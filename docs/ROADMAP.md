@@ -22,8 +22,24 @@ Last updated 2026-10-07 (0.1.x alpha).
   `profile:write` writes a version's file. A written file is accepted by Kaffelogic Studio and the
   Nano. Curve, fan and zone edits are not built (see below), so a written file differs from its
   base only in name, description and the level it offers first.
-- **Sizing a level change in thermal dose** (`dose`, `levelForDose`), so "about 15% less
+- **Sizing a level change in thermal dose** (`thermal-dose`, `levelForThermalDose`), so "about 15% less
   roasting" becomes the right level for the profile at hand.
+- **The rulebook for audit** (`docs/RULES.md`): every rule, setting, taste word and message in
+  roasting terms, with worked examples and a step table measured from the stock profiles. A test
+  fails if it and the code disagree, so a roaster can audit what runs.
+- **First rules** (`src/core/rules.ts`, `advise <beanId>`): the clear cases of a tasting, as an
+  ordered rule table with its settings in one place (`RULE_SETTINGS`, first guesses to tune) and
+  a test per rule. Sour, grassy or bready chips mean more roasting; bitter, roasty or ashy mean
+  less: a 10% step in thermal dose, 15% when two chips agree, halfway to the nearest opposite
+  result when the bean already has one (so it stops bouncing), then turned into a level for the
+  roast's profile. It asks instead of guessing when the evidence disagrees (sour and bitter
+  together, a wish against the cup, an earlier roast that contradicts this one), holds a good,
+  well-scored cup, holds a sour cup tasted before its profile's rest is over (the Rest profiles assume
+  3 to 5 days; RTD, ready to drink, ones none), switches to the bean's alternative profile when more
+  roasting left the cup on the same side (the level isn't what's wrong; not one that already has a tasted roast), holds on espresso that is only sour (espresso fakes sourness), and says
+  "no rule" for anything else rather than improvising. The engine returns the finished answer: `say`,
+  the whole reply in plain words, and `onYes`, the exact `version:add` command for a yes. The
+  `/roast` skill only relays `say` and runs `onYes`; it interprets nothing.
 - **Session interface**: `scripts/roast.ts` (JSON in, JSON out, inputs checked against the form
   definitions) driven by the `/roast` skill. No UI by design.
 
@@ -31,21 +47,25 @@ Last updated 2026-10-07 (0.1.x alpha).
 
 Order is a suggestion; the roaster picks.
 
-1. **Rule core** (the part that matters most). Advice must come from tested rules, not from a
-   model's judgement: the same evidence always gives the same suggestion.
-   - Inputs, all already collected: taste chips, "next time I want", score, brew method, weight
-     loss, thermal dose and development against the profile's own targets and the bean's history,
-     data-sanity warnings.
-   - Output: one suggested change, sized in thermal dose and converted to a level for the profile
-     (`levelForDose`), with a plain-language reason a non-expert can follow.
-   - Shape: a rule table (data, not branching code), one test per rule, and the `/roast` skill's
-     analysis step calling it instead of reasoning.
-   - Start with a few high-confidence rules, for example under-developed chips (sour, grassy,
-     bready) mean more roasting and over-developed chips (bitter, roasty, ashy) mean less. Step
-     sizes and any thresholds are decided with the roaster from the research and their own
-     history, not invented.
-   - Chips that point at the curve rather than the level (flat, thin: possibly baked) wait for
-     curve edits; until then the rule says so instead of guessing.
+1. **Rule core, next rules** (the part that matters most; the first rules are in "Working today").
+   Advice must keep coming from tested rules, never a model's judgement.
+   - Tune `RULE_SETTINGS` (step sizes, the noise band, how big a move counts as "the level didn't help") against real roasts and tastings: they are
+     first guesses, and there is no research number for them. Open question: a percentage of
+     thermal dose is the same heat on any profile, but how far the cup moves per percent may differ
+     by bean. Each roast records its thermal dose and tasting, so after a few beans we can see
+     whether one step size holds or the step should adapt per bean.
+   - "The level isn't helping" is judged from one failed step (a 10% move that left the cup on the
+     same side). That is thin evidence for a timid first step; raise the bar (two failed steps) if
+     real tastings show it switching profiles too early. It applies to bitter cups too, by symmetry.
+   - Chips the table doesn't act on: astringent, flat, thin (ambiguous: under-development,
+     over-extraction, or the curve's shape), and the wishes sweeter, brighter and more body.
+     Flat and thin wait for curve edits; the others need evidence from real tastings of what
+     moves them.
+   - Weight loss, development against the profile's own targets and the log's data warnings are
+     not rule inputs yet; add them when there are enough real roasts to know what a good range
+     is per profile.
+   - The rules read the bean's newest tasted roast; they check the rest days only to hold a too-early
+     sour cup, not to weigh the same thermal dose tasted at different days of rest.
 2. **End-to-end session** with a real bean and log in `profiles/`: intake -> roast -> tasting ->
    next version. Note anything awkward in the forms or the skill. Cheap, and it shows which rules
    matter first; it can run before or alongside the rule core.
@@ -88,6 +108,6 @@ Order is a suggestion; the roaster picks.
   per-roast keys stripped from anything that leaves a user's database, stock profiles never
   shareable unmodified.
 - **Kaleido M1** through its own adapter.
-- **Per-profile curve-to-roast dose offset** (measured doses run 6-12.5% above the curve's
+- **Per-profile curve-to-roast thermal dose offset** (measured thermal doses run 6-12.5% above the curve's
   prediction). Worth modelling once there are more logs; see the open questions in
   [research.md](research.md).

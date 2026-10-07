@@ -5,6 +5,7 @@
 // curve points lose about 0.001), plus the per-roast keys below, and lacks only
 // profile_description. Output files are the user's data: never write them into
 // the repo (fixtures/private/ is git-ignored).
+import { createHash } from "node:crypto";
 import { parseHeader, splitLines } from "./parse.js";
 
 /** Header keys a log adds about the roast itself; they are not part of the profile. */
@@ -129,6 +130,18 @@ export function sameProfileBody(a: ProfileLines, b: ProfileLines): boolean {
   if (ma.size !== mb.size) return false;
   for (const [k, v] of ma) if (!mb.has(k) || !sameValue(v, mb.get(k)!)) return false;
   return true;
+}
+
+/**
+ * A short fingerprint of how a profile roasts: the same for profiles that `sameProfileBody` calls
+ * the same, whatever they are called. Numbers are rounded to 5 significant figures (logs write 6), so
+ * two copies that differ only in the last digit written agree; a value sitting exactly on a rounding
+ * edge can still tell two copies apart, which only ever makes them look different, never the same.
+ */
+export function profileBodyKey(lines: ProfileLines): string {
+  const normal = (value: string) => value.split(",").map((x) => (x.trim() !== "" && !Number.isNaN(Number(x)) ? String(Number(Number(x).toPrecision(5))) : x.trim())).join(",");
+  const body = lines.filter(([k]) => !LABEL_KEYS.has(k)).map(([k, v]) => `${k}:${normal(v)}`).sort();
+  return createHash("sha1").update(body.join("\n")).digest("hex").slice(0, 12);
 }
 
 /** .kpro text for profile lines exactly as given. */

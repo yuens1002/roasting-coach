@@ -13,7 +13,8 @@
 //   npx tsx scripts/roast.ts profile:write '{"beanId": 1, "version": 2}'   (a .kpro for that version, its level as the recommended level)
 //   npx tsx scripts/roast.ts bean:update  '{"beanId": 1, "answers": {"sellerNotes": "..."}}'   (merged over the stored answers; null clears)
 //   npx tsx scripts/roast.ts taste:update '{"tastingId": 2, "answers": {"wantNext": ["brighter"]}}'
-//   npx tsx scripts/roast.ts dose '{"profile": "Robusta", "level": 3, "change": -15}'   (level for a dose change)
+//   npx tsx scripts/roast.ts thermal-dose '{"profile": "Robusta", "level": 3, "change": -15}'   (level for a thermal dose change, in %)
+//   npx tsx scripts/roast.ts advise 1   (the rule table's advice for the newest tasted roast, as a level when it is a change)
 //   npx tsx scripts/roast.ts features:refresh   (recompute features of stored logs)
 //   npx tsx scripts/roast.ts bean:remove 1   (only when the roaster asks; deletes its versions, roasts, tastings)
 //   npx tsx scripts/roast.ts library   (the .kpro and .klog files in KAFFELOGIC_DIR)
@@ -25,11 +26,13 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { parseHeader, parseKpro, splitLines } from "../src/adapters/kaffelogic/parse.js";
-import { levelForDose, profileDoseAtLevel } from "../src/adapters/kaffelogic/dose.js";
+import { kaffelogicAdviceContext } from "../src/adapters/kaffelogic/adviceContext.js";
+import { type LevelThermalDose, formatMinutesSeconds, levelAfterChange, profileThermalDoseAtLevel } from "../src/adapters/kaffelogic/thermalDose.js";
 import { findBaseProfile, formatKpro, profileFromKpro, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
 import { INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../src/core/intake.js";
+import { type LevelMove, adviceReport, adviseFromHistory } from "../src/core/rules.js";
 import { checkShape } from "../src/core/validate.js";
-import { InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, listBeans, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
+import { type Db, InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, intakeFromBeanRow, listBeans, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
 import { asDb, connect } from "./db.js";
 import { KAFFELOGIC_DIR, KAFFELOGIC_OUT_DIR, loadLibrary, outPath } from "./library.js";
 
@@ -56,6 +59,13 @@ function beanIdArg(): number {
 
 const print = (v: unknown) => console.log(JSON.stringify(v, null, 2));
 
+const levelShape = (d: LevelThermalDose) => ({ level: d.level, endTempC: Math.round(d.endTemp * 10) / 10, endsAt: formatMinutesSeconds(d.endsAt), thermalDose: Math.round(d.thermalDose * 100) / 100 });
+
+/** The profile a version was roasted with: its stored .kpro, else the roaster's copy of its stock profile. */
+async function versionBase(db: Db, beanId: number, v: { number: number; profileName: string }) {
+  const stored = await versionProfileFile(db, beanId, v.number);
+  return stored ? { lines: profileFromKpro(stored), path: `v${v.number}'s stored profile` } : findBaseProfile(loadLibrary(), { name: v.profileName });
+}
 
 async function run() {
   if (command === "library") {
@@ -69,8 +79,8 @@ async function run() {
       }),
     };
   }
-  if (command === "dose") {
-    // A profile's dose at a level, and (with change, in %) the level that changes it by that much.
+  if (command === "thermal-dose") {
+    // A profile's thermal dose at a level, and (with change, in %) the level that changes it by that much.
     const input = json();
     const shapeErrors = checkShape(input, { profile: { type: "string", required: true }, level: { type: "number", required: true }, change: { type: "number" } });
     if (shapeErrors.length) throw new InputError(shapeErrors);
@@ -80,15 +90,12 @@ async function run() {
     const base = findBaseProfile(loadLibrary(), { name });
     if (!base) throw new InputError([`No copy of "${name}" in ${KAFFELOGIC_DIR} (its .kpro, or a log roasted on it).`]);
     const profile = parseKpro(formatKpro(base.lines));
-    const now = profileDoseAtLevel(profile, level);
+    const now = profileThermalDoseAtLevel(profile, level);
     if (!now) throw new InputError([`"${name}" never reaches level ${level}'s end temperature.`]);
-    // Round the whole duration first, so 599.5 s reads 10:00, not 9:60.
-    const mmss = (s: number) => `${Math.floor(Math.round(s) / 60)}:${String(Math.round(s) % 60).padStart(2, "0")}`;
-    const shape = (d: NonNullable<typeof now>) => ({ level: d.level, endTempC: Math.round(d.endTemp * 10) / 10, endsAt: mmss(d.endsAt), dose: Math.round(d.dose * 100) / 100 });
-    if (change === undefined) return { profile: name, ...shape(now) };
-    const next = levelForDose(profile, now.dose * (1 + change / 100));
-    if (!next) throw new InputError([`No level on "${name}" gives that dose.`]);
-    return { profile: name, from: shape(now), to: { ...shape(next), changePct: Math.round((next.dose / now.dose - 1) * 1000) / 10 } };
+    if (change === undefined) return { profile: name, ...levelShape(now) };
+    const next = levelAfterChange(profile, now, change);
+    if (!next) throw new InputError([`No level on "${name}" gives that thermal dose.`]);
+    return { profile: name, from: levelShape(now), to: { ...levelShape(next), changePct: Math.round((next.thermalDose / now.thermalDose - 1) * 1000) / 10 } };
   }
   if (command === "fields") {
     const form = FORMS[arg as keyof typeof FORMS];
@@ -154,6 +161,29 @@ async function run() {
         return await addTasting(db, json() as never);
       case "history":
         return await beanHistory(db, beanIdArg());
+      case "advise": {
+        // The rule table's answer for the bean's newest tasted roast, finished: `say` is the whole
+        // reply for the roaster and `onYes` the exact command to run if they agree. The advice is the
+        // rules' alone; nothing is left for the session to interpret or add.
+        const beanId = beanIdArg();
+        const history = await beanHistory(db, beanId);
+        const result = adviseFromHistory(history, kaffelogicAdviceContext(intakeFromBeanRow(history.bean)));
+        if (!result) throw new InputError([`Bean ${arg} has no tasted roast with a measured thermal dose yet. Record a roast and a tasting first.`]);
+        const { basedOn, advice } = result;
+        const done = (move?: LevelMove, problem?: string) => ({ basedOn, advice, ...(move ? { move } : {}), ...adviceReport(beanId, result, move, problem) });
+        if (advice.kind !== "change") return done();
+        const version = history.versions.find((v) => v.number === basedOn.version)!;
+        const level = basedOn.level ?? version.level;
+        const base = await versionBase(db, beanId, version);
+        if (!base) return done(undefined, `v${version.number}'s profile "${version.profileName}" isn't stored and has no copy in ${KAFFELOGIC_DIR}, so I can't turn that into a level.`);
+        const profile = parseKpro(formatKpro(base.lines));
+        const now = profileThermalDoseAtLevel(profile, level);
+        const next = now && levelAfterChange(profile, now, advice.thermalDoseChangePct);
+        if (!now || !next) return done(undefined, `"${version.profileName}" has no level that matches that change from level ${level}.`);
+        const move: LevelMove = { from: { level: now.level, endTempC: levelShape(now).endTempC }, to: { level: next.level, endTempC: levelShape(next).endTempC }, changePct: (next.thermalDose / now.thermalDose - 1) * 100 };
+        if (next.level === now.level) return done(move, `Level ${level} is already the closest the machine can set (0.1 steps), so this change is too small or past the end of the scale. The next lever is the profile itself.`);
+        return done(move);
+      }
       case "bean:update":
         return await updateBean(db, json() as never);
       case "taste:update":
@@ -170,8 +200,7 @@ async function run() {
         const history = await beanHistory(db, beanId);
         const v = number === undefined ? history.versions[history.versions.length - 1] : history.versions.find((x) => x.number === number);
         if (!v) throw new InputError([`Bean ${beanId} has no v${number}.`]);
-        const stored = await versionProfileFile(db, beanId, v.number);
-        const base = stored ? { lines: profileFromKpro(stored), path: `v${v.number}'s stored profile` } : findBaseProfile(loadLibrary(), { name: v.profileName });
+        const base = await versionBase(db, beanId, v);
         if (!base) throw new InputError([`v${v.number}'s profile "${v.profileName}" isn't stored and has no copy in ${KAFFELOGIC_DIR}, so there's nothing to write from.`]);
         const beanName = String(history.bean.name);
         const profileName = (name ?? `${beanName} ${v.level}`).trim();
@@ -195,7 +224,7 @@ async function run() {
       case "bean:remove":
         return await removeBean(db, beanIdArg());
       default:
-        throw new InputError([`Unknown command "${command}". Commands: fields, library, dose, beans, profile:write, bean:add, bean:update, bean:remove, version:add, roast:add, taste:add, taste:update, history, features:refresh.`]);
+        throw new InputError([`Unknown command "${command}". Commands: fields, library, thermal-dose, advise, beans, profile:write, bean:add, bean:update, bean:remove, version:add, roast:add, taste:add, taste:update, history, features:refresh.`]);
     }
   } finally {
     await client.end();

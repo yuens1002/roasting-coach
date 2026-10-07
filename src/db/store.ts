@@ -2,9 +2,10 @@
 // against its field definitions before anything is stored, and versions and
 // roasts are addressed the way a person talks about them: bean id plus "v3".
 import { levelToTemp, parseKlog, parseKpro } from "../adapters/kaffelogic/parse.js";
-import { MACHINE_ID, STOCK_PROFILES, selectStartingProfile, stockProfileId } from "../adapters/kaffelogic/startingProfiles.js";
+import { MACHINE_ID, selectStartingProfile, stockProfile, stockProfileId } from "../adapters/kaffelogic/startingProfiles.js";
 import { kaffelogicToRoastLog } from "../adapters/kaffelogic/toRoastLog.js";
-import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileFromKpro, profileFromLog, sameProfileBody } from "../adapters/kaffelogic/writeProfile.js";
+import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileBodyKey, profileFromKpro, profileFromLog, sameProfileBody } from "../adapters/kaffelogic/writeProfile.js";
+import { calendarDay, daysBetween } from "../core/dates.js";
 import { extractFeatures } from "../core/features.js";
 import { type Field, type Intake, INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../core/intake.js";
 import type { RoastFeatures, RoastLog } from "../core/types.js";
@@ -62,9 +63,6 @@ export const NEW_TASTING_SHAPE: Shape = {
   roastId: { type: "integer" },
   answers: { type: "object", required: true },
 };
-
-/** A stock profile by name; own keys only, so names like "constructor" aren't found on Object.prototype. */
-const stockProfile = (name: string) => (Object.hasOwn(STOCK_PROFILES, name) ? STOCK_PROFILES[name] : undefined);
 
 /** End temperature for a level on a profile's seven levels; refuses a profile whose levels are missing or broken. */
 function endTempFor(levels: number[], level: number, profileName: string): number {
@@ -414,6 +412,9 @@ export async function addTasting(db: Db, t: NewTasting) {
 export const BEAN_UPDATE_SHAPE: Shape = { beanId: { type: "integer", required: true }, answers: { type: "object", required: true } };
 export const TASTING_UPDATE_SHAPE: Shape = { tastingId: { type: "integer", required: true }, answers: { type: "object", required: true } };
 
+/** A bean row (as `beanHistory` returns it) as the intake the rules and the starting-profile choice read. */
+export const intakeFromBeanRow = (row: Record<string, unknown>) => rowAsAnswers(INTAKE_FIELDS, row) as unknown as Intake;
+
 /** A stored row as form answers: the form's own fields, empty columns left out, choices as their option text. */
 function rowAsAnswers(fields: Field[], row: Record<string, unknown>): Record<string, unknown> {
   const answers: Record<string, unknown> = {};
@@ -430,9 +431,8 @@ function rowAsAnswers(fields: Field[], row: Record<string, unknown>): Record<str
  * tasting, so a tasting dated before its roast is refused either way.
  */
 function restDays(roastedAt: string | Date, tastedOn: unknown): number {
-  const roastedOn = new Date(roastedAt).toISOString().slice(0, 10);
-  const days = Math.round((Date.parse(`${tastedOn}T00:00:00Z`) - Date.parse(`${roastedOn}T00:00:00Z`)) / 86_400_000);
-  if (days < 0) throw new InputError([`Tasted on ${tastedOn} is before the roast on ${roastedOn}. Check the date.`]);
+  const days = daysBetween(roastedAt, String(tastedOn));
+  if (days < 0) throw new InputError([`Tasted on ${tastedOn} is before the roast on ${calendarDay(roastedAt)}. Check the date.`]);
   return days;
 }
 
@@ -501,6 +501,9 @@ export async function beanHistory(db: Db, beanId: number) {
   const b = await db.query<{ bean: Record<string, unknown> }>("select to_jsonb(b) as bean from bean b where id = $1", [beanId]);
   if (!b.rows.length) throw new InputError([`Bean ${beanId} doesn't exist.`]);
   const versions = (await db.query(`${VERSION_SELECT} where v.bean_id = $1 order by v.number`, [beanId])).rows.map(toVersion);
+  // Which versions roast the same way, whatever they are called: versions with a stored profile share a key when their bodies match.
+  const files = (await db.query<{ number: number; profile_file: string }>("select number, profile_file from profile_version where bean_id = $1 and profile_file is not null", [beanId])).rows;
+  const profileKeys = new Map(files.map((f) => [Number(f.number), profileBodyKey(profileFromKpro(f.profile_file))]));
   const roasts = (
     await db.query(
       `select r.id, r.version_id, r.roasted_at, r.log_profile_name, r.log_level, r.green_g, r.roasted_g, r.weight_loss_pct,
@@ -521,6 +524,7 @@ export async function beanHistory(db: Db, beanId: number) {
     bean: b.rows[0].bean,
     versions: versions.map((v) => ({
       ...v,
+      profileKey: profileKeys.get(v.number),
       roasts: roasts
         .filter((r) => Number(r.version_id) === v.id)
         .map((r) => {
@@ -541,7 +545,7 @@ export async function beanHistory(db: Db, beanId: number) {
               : undefined,
             tastings: tastings
               .filter((t) => Number(t.roast_id) === Number(r.id))
-              .map((t) => ({ id: Number(t.id), tastedOn: t.tasted_on, brew: t.brew, score: Number(t.score), taste: t.taste, wantNext: t.want_next, notes: t.notes ?? undefined })),
+              .map((t) => ({ id: Number(t.id), tastedOn: t.tasted_on as string, brew: t.brew as string, score: Number(t.score), taste: t.taste as string[], wantNext: t.want_next as string[], notes: t.notes ?? undefined })),
           };
         }),
     })),

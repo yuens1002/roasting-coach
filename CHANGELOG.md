@@ -5,6 +5,39 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-07
+
+- 2026-10-07 - feat(rules): add the deterministic advice engine and its roaster-readable rulebook
+
+### Added
+
+- `src/core/rules.ts`: the rule engine. An ordered rule table turns the latest tasting (and the
+  earlier roasts of the bean) into one answer: change the roasting by a stated percentage of thermal
+  dose (10%, or 15% when two taste words agree), try the midpoint between two roasts that bracket
+  the cup, hold, ask, or switch profile. Among its rules are a rest check (`tasted-too-soon`) and a
+  level-versus-profile check (`level-not-helping`). The answer carries finished wording (`say`) and
+  the exact command to run on a yes (`onYes`); it says so when the nearest level gives a different
+  change than the step asked for. Supporting modules: `src/core/dates.ts` and
+  `src/adapters/kaffelogic/adviceContext.ts` (rest days and the alternative profile).
+- `advise <beanId>` command in `scripts/roast.ts`; the `/roast` skill now relays its `say` and runs
+  its `onYes` instead of interpreting a list.
+- `docs/RULES.md`: the rulebook in roasting terms, for a roaster to audit, with a step table
+  generated from your stock profiles (`npm run rules:steps`, from `scripts/step-table.ts` and
+  `src/adapters/kaffelogic/stepTable.ts`). `test/rulesDoc.test.ts` fails when the doc and the
+  program disagree on rule names, settings, taste words, rest days, examples or the step table.
+- `test/terminology.test.ts` keeps the bare word "dose" out (it means grams in an espresso basket).
+- `vitest.config.ts`: 30 s test timeout, because the in-memory Postgres tests exceed 5 s under load.
+
+### Changed
+
+- The `level-not-helping` check compares roasts by what their stored profile roasts like (a
+  fingerprint of its curve and settings, `profileKey` in `history`), not by the stock profile's name,
+  so an edited copy of a stock profile is no longer taken for the stock one.
+- "Dose" is now always "thermal dose". The `dose` command is renamed `thermal-dose`, and
+  `src/adapters/kaffelogic/dose.ts` is now `thermalDose.ts`.
+- Stock "Rest" profiles record their rest days (3 to 5), used by the rest check.
+- `docs/ROADMAP.md` lists what the rules cover and what is still open.
+
 ## [0.1.2] - 2026-10-07
 
 - 2026-10-07 - docs(roadmap): add ROADMAP.md as the single record of project state
