@@ -79,6 +79,9 @@ Picked in this order (code: `selectStartingProfile`):
 | Decaf | 2.1 → 218.8 °C @ 8:21 | 3.0 → 221.3 °C @ 8:59 | 4.0 → 222.5 °C @ 9:19 | dev 19.8% / 25% / 28% |
 | Robusta | 2.2 → 220.1 °C @ 9:47 | 3.0 → 223.4 °C @ 10:36 | 4.8 → 227.1 °C @ 11:28 | dev 25–27% |
 
+RTD means "ready to drink": those profiles suit coffee drunk within a day or two. The Rest
+profiles assume 3 to 5 days of resting before brewing.
+
 "@ m:ss" is when the profile curve reaches that end temperature. Levels are the light/medium/dark
 levels each profile's description suggests. KL Classic is left out of selection: it is the Nano's
 original built-in profile, and the others are newer and more specific.

@@ -45,7 +45,8 @@ if it:
 2. **Gives deterministic, explained advice.** The same evidence always leads to the same
    suggestion, from tested rules. A model never reads raw curves.
 3. **Measures what matters, grounded in research and checked against real logs.** The roast's
-   *thermal dose* (from Arrhenius reaction kinetics) says how far its chemistry went, independent
+   *thermal dose* (from Arrhenius reaction kinetics) says how far its chemistry went (heat exposure over the whole roast, nothing to do with the
+   grams of coffee in an espresso basket, which is also called a dose), independent
    of button presses and fair across profiles and levels. It makes a change something you can
    reason about: "about 15% less roasting" means the same thing on any profile, and is then turned
    into a level for the profile at hand. See [docs/research.md](docs/research.md) for the
@@ -72,13 +73,15 @@ session flow is in [.claude/skills/roast/SKILL.md](.claude/skills/roast/SKILL.md
 
 - `src/core/` machine-independent: the `RoastLog` model, feature extraction (phases,
   development, rate of rise, thermal dose, data sanity checks), the form definitions and their
-  validation.
+  validation, and the deterministic rule table that turns a tasting into a suggested change.
 - `src/adapters/kaffelogic/` reads `.kpro` and `.klog` files, maps them onto `RoastLog`, holds the
-  stock-profile table, rebuilds and writes profiles, and computes a profile's dose at each level.
+  stock-profile table, rebuilds and writes profiles, and computes a profile's thermal dose at each level.
 - `src/db/` the roast-project store (bean, profile version, roast, tasting).
 - `db/` Postgres schema and seed.
 - `scripts/` the session commands (`roast.ts`), the research computations, and helpers for real
   files and the seed.
+- `docs/RULES.md` the rulebook behind every suggestion, in roasting terms, for a roaster to audit.
+  It is tested against the code, so it can't say something the program doesn't do.
 - `docs/research.md` the research we rely on and how it was validated.
 - `docs/ROADMAP.md` the project's state: what works, what is next, what is blocked.
 
@@ -89,6 +92,7 @@ npm install
 npm test                                 # unit tests (synthetic data; real-file tests skip without files)
 npx tsc                                  # typecheck
 npm run research                         # reproduce the validation in docs/research.md
+npm run rules:steps                      # the step table in docs/RULES.md, from your stock profiles
 npm run analyze -- path/to/roast.klog    # features for one roast
 npm run profiles -- path/to/profiles/    # numbers behind the starting-profile table
 ```

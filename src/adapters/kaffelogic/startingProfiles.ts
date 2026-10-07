@@ -38,19 +38,27 @@ export interface StockProfile {
   developmentTarget?: Partial<Record<Goal, [number, number]>>;
   /** Temperature rise after first crack the profile says to aim for, °C, when it says. */
   riseAfterCrack?: Partial<Record<Goal, [number, number]>>;
+  /**
+   * Days to rest the roast before brewing, for the "Rest" profiles. The "RTD" (ready to drink)
+   * profiles are built to be drunk within a day or two and have none.
+   */
+  restDays?: readonly [number, number];
 }
+
+/** What the Rest profiles assume: 3 to 5 days of resting before brewing. */
+const REST: readonly [number, number] = [3, 5];
 
 const L = (level: number, endTemp: number, endsAt: string): StockLevel => ({ level, endTemp, endsAt });
 
 export const STOCK_PROFILES: Record<string, StockProfile> = {
   "0-1200m RTD": { name: "0-1200m RTD", version: "1.0", roastLevels: [208.4, 215.4, 217.6, 221, 222.3, 227.8, 241], family: "altitude", levels: { filter: L(2.2, 218.3, "9:31"), espresso: L(3.0, 221.0, "10:07"), dark: L(4.6, 225.6, "11:10") } },
-  "0-1200m Rest": { name: "0-1200m Rest", version: "1.0", roastLevels: [205, 212.8, 219.5, 227.8, 229.3, 235, 241], family: "altitude", levels: { filter: L(2.2, 221.2, "11:31"), espresso: L(3.0, 227.8, "12:27"), dark: L(5.0, 235.0, "13:27") } },
+  "0-1200m Rest": { name: "0-1200m Rest", version: "1.0", roastLevels: [205, 212.8, 219.5, 227.8, 229.3, 235, 241], family: "altitude", restDays: REST, levels: { filter: L(2.2, 221.2, "11:31"), espresso: L(3.0, 227.8, "12:27"), dark: L(5.0, 235.0, "13:27") } },
   "1200-1500m RTD": { name: "1200-1500m RTD", version: "1.0", roastLevels: [208.4, 215.4, 217.6, 221.8, 222.9, 227.8, 241], family: "altitude", levels: { filter: L(2.2, 218.4, "9:39"), espresso: L(3.0, 221.8, "10:22"), dark: L(4.6, 225.8, "11:13") } },
-  "1200-1500m Rest": { name: "1200-1500m Rest", version: "1.0", roastLevels: [205, 216.5, 218.2, 226, 228, 232.9, 241], family: "altitude", levels: { filter: L(2.2, 219.8, "8:55"), espresso: L(3.0, 226.0, "9:52"), dark: L(4.6, 230.9, "10:36") } },
+  "1200-1500m Rest": { name: "1200-1500m Rest", version: "1.0", roastLevels: [205, 216.5, 218.2, 226, 228, 232.9, 241], family: "altitude", restDays: REST, levels: { filter: L(2.2, 219.8, "8:55"), espresso: L(3.0, 226.0, "9:52"), dark: L(4.6, 230.9, "10:36") } },
   "1500-2000m RTD": { name: "1500-2000m RTD", version: "1.0", roastLevels: [204, 209, 214, 219, 222, 224, 226], family: "altitude", levels: { filter: L(2.4, 216.0, "9:32"), espresso: L(3.1, 219.3, "10:19"), dark: L(4.3, 222.6, "11:10") } },
-  "1500-2000m Rest": { name: "1500-2000m Rest", version: "1.0", roastLevels: [205, 217, 218.2, 222.1, 223.5, 228.2, 241], family: "altitude", levels: { filter: L(2.5, 220.1, "8:41"), espresso: L(3.2, 222.4, "9:17"), dark: L(4.3, 224.9, "9:59") } },
+  "1500-2000m Rest": { name: "1500-2000m Rest", version: "1.0", roastLevels: [205, 217, 218.2, 222.1, 223.5, 228.2, 241], family: "altitude", restDays: REST, levels: { filter: L(2.5, 220.1, "8:41"), espresso: L(3.2, 222.4, "9:17"), dark: L(4.3, 224.9, "9:59") } },
   "2000-2700m RTD": { name: "2000-2700m RTD", version: "1.0", roastLevels: [204, 209, 214, 219, 222, 224, 226], family: "altitude", levels: { filter: L(2.5, 216.5, "9:36"), espresso: L(3.2, 219.6, "10:24"), dark: L(4.5, 223.0, "11:16") } },
-  "2000-2700m Rest": { name: "2000-2700m Rest", version: "1.0", roastLevels: [205, 216.1, 217.1, 219.9, 221, 225, 241], family: "altitude", levels: { filter: L(2.0, 217.1, "7:55"), espresso: L(3.2, 220.1, "8:40"), dark: L(4.6, 223.4, "9:34") } },
+  "2000-2700m Rest": { name: "2000-2700m Rest", version: "1.0", roastLevels: [205, 216.1, 217.1, 219.9, 221, 225, 241], family: "altitude", restDays: REST, levels: { filter: L(2.0, 217.1, "7:55"), espresso: L(3.2, 220.1, "8:40"), dark: L(4.6, 223.4, "9:34") } },
   "KL Washed": {
     name: "KL Washed",
     version: "1.1", roastLevels: [205.8, 216.5, 222, 224.5, 226.5, 228.5, 230.5], expectFirstCrack: 209, family: "process",
@@ -117,6 +125,11 @@ export function altitudeBand(m: number | undefined): "0-1200m" | "1200-1500m" | 
   return "2000-2700m";
 }
 
+/** The level a profile suggests for a goal; its espresso level, then its first, when it has none for that goal. */
+export function startingLevel(profile: StockProfile, goal: Goal): StockLevel {
+  return profile.levels[goal] ?? profile.levels.espresso ?? Object.values(profile.levels)[0]!;
+}
+
 /**
  * Deterministic first pick. Order matters: species and decaf override everything,
  * an explicit cupping goal comes next, then process, then altitude.
@@ -129,7 +142,7 @@ export function selectStartingProfile(intake: Intake): StartingProfile {
   const altName = `${altitudeBand(intake.altitudeM)} ${timing}`;
   const pick = (name: string, g: Goal, alternative?: string): StartingProfile => {
     const profile = STOCK_PROFILES[name];
-    const level = profile.levels[g] ?? profile.levels.espresso ?? Object.values(profile.levels)[0]!;
+    const level = startingLevel(profile, g);
     if (!profile.levels[g]) why.push(`${name} has no suggested ${g} level, so this uses its ${level === profile.levels.espresso ? "espresso" : "default"} level.`);
     return { profile, goal: g, level, alternative, why };
   };
@@ -161,7 +174,7 @@ export function selectStartingProfile(intake: Intake): StartingProfile {
       ? "Altitude unknown, so this uses the 1500-2000m band, where most specialty arabica grows."
       : `Grown at ${intake.altitudeM} m, so the ${altitudeBand(intake.altitudeM)} band.`,
   );
-  why.push(timing === "Rest" ? "Rest profiles assume 3 to 5 days of resting before brewing." : "RTD profiles are built to drink within a day or two.");
+  why.push(timing === "Rest" ? `Rest profiles assume ${REST[0]} to ${REST[1]} days of resting before brewing.` : "RTD (ready to drink) profiles are built to drink within a day or two.");
   const processAlt =
     intake.process === "washed" ? "KL Washed" : intake.process === "natural" ? "KL Natural" : undefined;
   return pick(altName, goal, processAlt);

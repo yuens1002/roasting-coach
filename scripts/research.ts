@@ -4,7 +4,7 @@
 // Uses published data only (both sources are open access, CC BY 4.0, cited below) plus any real
 // Kaffelogic files in the local library (KAFFELOGIC_DIR, default profiles/), which are never
 // committed. Sections that need real files are skipped when there are none.
-import { levelForDose, profileDoseAtLevel } from "../src/adapters/kaffelogic/dose.js";
+import { levelForThermalDose, profileThermalDoseAtLevel } from "../src/adapters/kaffelogic/thermalDose.js";
 import { parseHeader, parseKlog, parseKpro, splitLines } from "../src/adapters/kaffelogic/parse.js";
 import { STOCK_PROFILES } from "../src/adapters/kaffelogic/startingProfiles.js";
 import { kaffelogicToRoastLog } from "../src/adapters/kaffelogic/toRoastLog.js";
@@ -105,15 +105,15 @@ const kproFor = (h: Record<string, string>) =>
   kpros.find((k) => k.header.profile_short_name?.trim() === h.profile_short_name?.trim() && k.header.profile_modified?.trim() === h.profile_modified?.trim());
 const logName = (h: Record<string, string>) => `${h.profile_short_name?.trim()} level ${Number(h.roasting_level)}`;
 
-console.log(`Thermal dose: minutes at a constant ${THERMAL_DOSE.referenceC} °C doing the same chemistry, Ea = ${THERMAL_DOSE.activationEnergyKjMol} kJ/mol.`);
+console.log(`Thermal thermalDose: minutes at a constant ${THERMAL_DOSE.referenceC} °C doing the same chemistry, Ea = ${THERMAL_DOSE.activationEnergyKjMol} kJ/mol.`);
 console.log(`Local library: ${logs.length} log(s), ${kpros.length} profile(s).`);
 
 console.log("\n1. Bruno et al. 2026 industrial roasts: thermal dose, and each reaction's spread across its fitted Ea");
 for (const name of Object.keys(BRUNO_MARKERS)) {
   const curve = brunoCurve(name);
-  const doses = BRUNO_EA[name].map((ea) => thermalDose(curve, ea));
+  const thermalDoses = BRUNO_EA[name].map((ea) => thermalDose(curve, ea));
   // Ratios between roasts barely depend on Ea within the fitted range, which is why one Ea suffices.
-  console.log(`   ${name.padEnd(20)} ${(curve[curve.length - 1].t / 60).toFixed(1)} min, drop ${curve[curve.length - 1].temp} °C: dose ${thermalDose(curve).toFixed(2)} (per-reaction ${Math.min(...doses).toFixed(2)}-${Math.max(...doses).toFixed(2)})`);
+  console.log(`   ${name.padEnd(20)} ${(curve[curve.length - 1].t / 60).toFixed(1)} min, drop ${curve[curve.length - 1].temp} °C: thermal dose ${thermalDose(curve).toFixed(2)} (per-reaction ${Math.min(...thermalDoses).toFixed(2)}-${Math.max(...thermalDoses).toFixed(2)})`);
 }
 for (const log of logs) {
   const roast = kaffelogicToRoastLog(parseKlog(log.text));
@@ -123,24 +123,24 @@ for (const log of logs) {
     const ratios = BRUNO_EA[name].map((ea) => thermalDose(pts, ea) / thermalDose(brunoCurve(name), ea));
     return `${name.split(" ")[0]} ${Math.min(...ratios).toFixed(2)}-${Math.max(...ratios).toFixed(2)}x`;
   });
-  console.log(`   local ${logName(log.header)} (${(f.totalTime / 60).toFixed(1)} min, drop ${f.dropTemp.toFixed(1)} °C): dose ${f.thermalDose.toFixed(2)}; vs ${vs.join(", ")}`);
+  console.log(`   local ${logName(log.header)} (${(f.totalTime / 60).toFixed(1)} min, drop ${f.dropTemp.toFixed(1)} °C): thermal dose ${f.thermalDose.toFixed(2)}; vs ${vs.join(", ")}`);
 }
 
 console.log("\n2. Debona et al. 2021, IKAWA Pro profiles: same end temperature, very different chemistry");
-console.log("   profile                    time   end      dose   SCA 750 m  SCA 1050 m");
+console.log("   profile                    time   end      thermal dose   SCA 750 m  SCA 1050 m");
 for (const [name, p] of Object.entries(IKAWA)) {
   const curve = linearCurve(p.points, p.end);
-  console.log(`   ${name.padEnd(26)} ${p.end[0].padStart(5)}  ${p.end[1]} °C  ${thermalDose(curve).toFixed(2).padStart(5)}  ${p.sca[0].toFixed(2).padStart(8)}  ${p.sca[1].toFixed(2).padStart(9)}`);
+  console.log(`   ${name.padEnd(26)} ${p.end[0].padStart(5)}  ${p.end[1]} °C  ${thermalDose(curve).toFixed(2).padStart(12)}  ${p.sca[0].toFixed(2).padStart(8)}  ${p.sca[1].toFixed(2).padStart(9)}`);
 }
 
-console.log("\n3. Does a profile's curve predict a real roast's dose? (log vs the .kpro it was roasted on)");
+console.log("\n3. Does a profile's curve predict a real roast's thermal dose? (log vs the .kpro it was roasted on)");
 let pairs = 0;
 for (const log of logs) {
   const kpro = kproFor(log.header);
   if (!kpro) continue;
   const roast = kaffelogicToRoastLog(parseKlog(log.text));
   const measured = extractFeatures(roast).thermalDose;
-  const predicted = profileDoseAtLevel(parseKpro(kpro.text), roast.nativeLevel!)?.dose;
+  const predicted = profileThermalDoseAtLevel(parseKpro(kpro.text), roast.nativeLevel!)?.thermalDose;
   if (predicted === undefined) continue;
   pairs++;
   console.log(`   ${logName(log.header).padEnd(28)} measured ${measured.toFixed(2)}, curve predicts ${predicted.toFixed(2)}: ${pct(measured / predicted - 1)}`);
@@ -155,10 +155,10 @@ for (const name of Object.keys(STOCK_PROFILES)) {
   const p = parseKpro(kpro.text);
   const steps: string[] = [];
   for (let l = 1; l < 4.5; l += 0.4) {
-    const a = profileDoseAtLevel(p, l), b = profileDoseAtLevel(p, l + 0.4);
-    if (a && b) steps.push(`${l.toFixed(1)}->${(l + 0.4).toFixed(1)} ${pct(b.dose / a.dose - 1)}`);
+    const a = profileThermalDoseAtLevel(p, l), b = profileThermalDoseAtLevel(p, l + 0.4);
+    if (a && b) steps.push(`${l.toFixed(1)}->${(l + 0.4).toFixed(1)} ${pct(b.thermalDose / a.thermalDose - 1)}`);
   }
-  const lessFromThree = levelForDose(p, profileDoseAtLevel(p, 3)!.dose * 0.85);
+  const lessFromThree = levelForThermalDose(p, profileThermalDoseAtLevel(p, 3)!.thermalDose * 0.85);
   console.log(`   ${name.padEnd(16)} ${steps.join("  ")}   (15% less than level 3.0: level ${lessFromThree?.level})`);
   shown++;
 }
