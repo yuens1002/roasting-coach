@@ -14,14 +14,17 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 - `src/core/rules.ts`: the rule engine. An ordered rule table turns the latest tasting (and the
   earlier roasts of the bean) into one answer: change the roasting by a stated percentage of thermal
   dose (10%, or 15% when two taste words agree), try the midpoint between two roasts that bracket
-  the cup, hold, ask, or switch profile. First rules: a rest check (`tasted-too-soon`) and a
+  the cup, hold, ask, or switch profile. Among its rules are a rest check (`tasted-too-soon`) and a
   level-versus-profile check (`level-not-helping`). The answer carries finished wording (`say`) and
-  the exact command to run on a yes (`onYes`).
+  the exact command to run on a yes (`onYes`); it says so when the nearest level gives a different
+  change than the step asked for. Supporting modules: `src/core/dates.ts` and
+  `src/adapters/kaffelogic/adviceContext.ts` (rest days and the alternative profile).
 - `advise <beanId>` command in `scripts/roast.ts`; the `/roast` skill now relays its `say` and runs
   its `onYes` instead of interpreting a list.
 - `docs/RULES.md`: the rulebook in roasting terms, for a roaster to audit, with a step table
-  generated from your stock profiles (`npm run rules:steps`). `test/rulesDoc.test.ts` fails when
-  the doc and the program disagree.
+  generated from your stock profiles (`npm run rules:steps`, from `scripts/step-table.ts` and
+  `src/adapters/kaffelogic/stepTable.ts`). `test/rulesDoc.test.ts` fails when the doc and the
+  program disagree on rule names, settings, taste words, rest days, examples or the step table.
 - `test/terminology.test.ts` keeps the bare word "dose" out (it means grams in an espresso basket).
 - `vitest.config.ts`: 30 s test timeout, because the in-memory Postgres tests exceed 5 s under load.
 

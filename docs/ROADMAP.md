@@ -36,7 +36,7 @@ Last updated 2026-10-07 (0.1.x alpha).
   together, a wish against the cup, an earlier roast that contradicts this one), holds a good,
   well-scored cup, holds a sour cup tasted before its profile's rest is over (the Rest profiles assume
   3 to 5 days; RTD, ready to drink, ones none), switches to the bean's alternative profile when more
-  roasting left the cup on the same side (the level isn't what's wrong; never one already tried), holds on espresso that is only sour (espresso fakes sourness), and says
+  roasting left the cup on the same side (the level isn't what's wrong; not one that already has a tasted roast), holds on espresso that is only sour (espresso fakes sourness), and says
   "no rule" for anything else rather than improvising. The engine returns the finished answer: `say`,
   the whole reply in plain words, and `onYes`, the exact `version:add` command for a yes. The
   `/roast` skill only relays `say` and runs `onYes`; it interprets nothing.
@@ -50,7 +50,10 @@ Order is a suggestion; the roaster picks.
 1. **Rule core, next rules** (the part that matters most; the first rules are in "Working today").
    Advice must keep coming from tested rules, never a model's judgement.
    - Tune `RULE_SETTINGS` (step sizes, the noise band, how big a move counts as "the level didn't help") against real roasts and tastings: they are
-     first guesses, and there is no research number for them.
+     first guesses, and there is no research number for them. Open question: a percentage of
+     thermal dose is the same heat on any profile, but how far the cup moves per percent may differ
+     by bean. Each roast records its thermal dose and tasting, so after a few beans we can see
+     whether one step size holds or the step should adapt per bean.
    - "The level isn't helping" is judged from one failed step (a 10% move that left the cup on the
      same side). That is thin evidence for a timid first step; raise the bar (two failed steps) if
      real tastings show it switching profiles too early. It applies to bitter cups too, by symmetry.

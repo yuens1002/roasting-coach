@@ -48,6 +48,9 @@ export interface StockProfile {
 /** What the Rest profiles assume: 3 to 5 days of resting before brewing. */
 const REST: readonly [number, number] = [3, 5];
 
+/** A stock profile by name; own keys only, so names like "constructor" aren't found on Object.prototype. */
+export const stockProfile = (name: string): StockProfile | undefined => (Object.hasOwn(STOCK_PROFILES, name) ? STOCK_PROFILES[name] : undefined);
+
 const L = (level: number, endTemp: number, endsAt: string): StockLevel => ({ level, endTemp, endsAt });
 
 export const STOCK_PROFILES: Record<string, StockProfile> = {

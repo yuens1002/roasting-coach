@@ -12,13 +12,15 @@ rule covers this", never a guess.
 **⚠ marks a first guess or an assumption we'd like checked.** There is no research number for
 those; they are our best starting point, kept in one place so they are easy to change.
 
-This page is tested against the code. Rule names, settings, tasting words, rest days, the worked
-examples and the step table all fail the test suite if they stop matching the program, so what you
-read here is what runs.
+This page is checked against the code by tests. Rule names, settings, tasting words, rest days, the
+worked examples and the step table fail the test suite if they stop matching the program. The
+"When" and "What it does" prose is not tested, so read it with the worked examples beside it
+(section 8 lists exactly what is checked).
 
 ## 1. What the engine looks at
 
-For the roast just tasted (the most recent roast that has a tasting, using its newest tasting):
+For the roast just tasted (the most recent roast that has a tasting and a measured thermal dose,
+using its newest tasting; a newer roast without a measured thermal dose is skipped):
 
 - **The cup:** the taste words, "next time I want", the 1-5 score, how it was brewed, and the
   date it was tasted.
@@ -49,14 +51,16 @@ much as holding 200 °C for ten minutes. Ten degrees hotter does about 74% more 
 minute, so a short, hot roast can do more than a longer one that ends at the same temperature.
 
 **Why not development time ratio (DTR).** DTR needs the first-crack press, which on the Nano is a
-button you press, often early or late. The stock Nano profiles also run 30 to 40% DTR at their
-medium levels by design, so textbook "15 to 25%" targets would call them over-developed. Thermal dose
-comes from the whole temperature trace and needs no button.
+button you press, often early or late. The altitude profiles measured 30 to 40% DTR on the logs we
+have, and other stock profiles state their own targets, so a single textbook "15 to 25%" target
+doesn't fit them. Thermal dose comes from the whole temperature trace and needs no button.
 
 **How a percentage becomes a level.** The engine takes the profile's own curve, ends it at the
 level you roasted, and measures its thermal dose. It changes that by the step, then finds the level
 (in the machine's 0.1 steps) whose curve gives the new figure. Level numbers are an uneven ruler
-(section 6 shows how uneven), which is why steps are decided in thermal dose first.
+(section 6 shows how uneven), which is why steps are decided in thermal dose first. When the
+nearest level gives a different change than the step (rounded to a whole percent), the engine says
+so, for example "The nearest level on this profile gives about 6% less roasting, not 10%".
 
 ⚠ **Check this:** real roasts measured 6 to 12.5% *above* what their profile's curve predicts (three
 logs). The engine assumes a step on the curve is the same proportion on the real roast. That is
@@ -90,7 +94,10 @@ roast on them yet. A tasting with only these words gets "no rule covers this".
 
 ⚠ **Check this:** `bitter` can also be over-extraction, and `sour` can be under-extraction, so a cup
 can be misread by the brew rather than the roast. The rules only partly allow for that (espresso,
-section 5, rule 4). `bready` and `grassy` are treated as equal in weight to `sour`.
+section 5, rule 4). `bready` and `grassy` are treated as equal in weight to `sour`. `bready` is the
+one to look at first: a baked or stalled roast also tastes bready, and that is a problem with the
+curve, where more roasting could make it worse. If you'd rather not act on it, move it to the "not
+acted on" list above (one line in `TASTE_CHIPS`).
 
 ## 4. The settings
 
@@ -144,13 +151,15 @@ Each worked example below is the engine's own wording for the evidence described
 
 **When:** the cup has at least one under word and at least one over word.
 **What it does:** asks; changes nothing.
-**Why:** sharp and burnt together is the classic sign of an uneven roast (some beans scorched while
-others stayed underdeveloped), which no level change can fix. The cure is in the curve.
+**Why:** sharp and burnt together means the roast was uneven: scorched outside with an underdeveloped
+inside, or some beans taken too far while others weren't, which no level change can fix. The cure
+is in the curve.
 
 > Example: tasted sour and bitter. "The cup tasted both sour (under-roasted) and bitter (over-roasted). That usually means an uneven roast, which a level change can't fix: some beans went too far while others didn't go far enough. Check how the beans looked after the roast (uneven colour, dark tips) before changing anything; the cure is probably in the profile's curve."
 
-⚠ **Check this:** sour and bitter in one cup can also be uneven *extraction* in the brew (channelling),
-not an uneven roast. The message blames the roast. Is that fair?
+✔ **Settled by the roaster:** sour and bitter can't come from one good roast, so a cup that tastes
+both is a roasting fault, not a brewing one. Uneven extraction (channelling) is deliberately not
+considered here; the message blames the roast.
 
 ### 2. `tasted-too-soon`
 
@@ -227,15 +236,18 @@ roast and a bitter one; it doesn't allow for a different brew having been used f
 **When:** the cup is on one side, no earlier roast of this bean tasted the other side, and an earlier roast
 of this bean **on the same profile** tasted the same side with at least `noResponsePct` less roasting
 (for under-roasted; more for over-roasted). The level has moved the roast and the cup hasn't changed.
-**What it does:** suggests the bean's other profile (the alternative chosen from the bean's process
-and altitude when it was first picked), at the level that profile suggests for the bean's goal.
-It never sends you back to a profile you've already roasted this bean on; if there isn't one, or
-you've used it, it asks instead and says the next lever is the curve, which this tool can't edit yet.
+**What it does:** suggests the bean's other profile (the alternative worked out from the bean's
+process and altitude as they are recorded now), at the level that profile suggests for the bean's
+goal. The comparison is with the first earlier roast on this profile that qualifies, not necessarily
+the one just before. It won't send you back to a profile that already has a tasted roast with a
+measured thermal dose for this bean (an untasted roast isn't counted, so check the history yourself);
+if there isn't an alternative, or you've used it, it asks instead and says the next lever is the
+curve, which this tool can't edit yet.
 **Why:** one lever at a time. When the level has had a fair chance to fix the cup and hasn't, the
 trouble is likely the profile's shape (heat going in too fast or slow for this bean), not where it
 stops.
 
-> Example: sour on 1500-2000m Rest after a roast with 10% less roasting also tasted sour; KL Washed is the alternative. "The cup tasted sour (under-roasted) even after the roasting went 10% more; the roast before it tasted sour too. The level isn't what's wrong, so another step along it probably won't help. Next, try KL Washed instead: pick it on the Nano and set level 1.2 (ends at 217.6 °C). Shall I record that as the next version?"
+> Example: sour on 1500-2000m Rest after a roast with 10% less roasting also tasted sour; KL Washed is the alternative. "The cup tasted sour (under-roasted) even after the roasting went 10% more than an earlier roast on this profile, which tasted sour too. The level isn't what's wrong, so another step along it probably won't help. Next, try KL Washed instead: pick it on the Nano and set level 1.2 (ends at 217.6 °C). Shall I record that as the next version?"
 
 ⚠ **Check this:** this is judged from **one** unsuccessful step. For a timid first step that is thin
 evidence; it may switch profiles too early. Requiring two unsuccessful steps is a one-line change if
@@ -266,7 +278,9 @@ direction (or unmapped wish) in "next time I want" beyond `same`.
 **When:** none of the above applies (for example only `flat`, `thin` or `astringent`, or a wish like
 `brighter`).
 **What it does:** says no rule covers it, names what isn't covered, and asks the roaster what to try.
-It never fills the gap with a guess.
+It never fills the gap with a guess. When every word is one the rules know but they still point
+nowhere (a good cup scoring below `holdMinScore` and asking for nothing, say), nothing can be named,
+so it says "Nothing in this tasting points to a change a rule can make" instead.
 
 > Example: flat and thin, scoring 2. "No rule covers flat and thin yet, and nothing else in this tasting points to a change. Ask the roaster what they'd like to try rather than guessing."
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { levelAfterChange, levelForThermalDose, profileThermalDoseAtLevel } from "../src/adapters/kaffelogic/thermalDose.js";
 import { parseKlog, parseKpro } from "../src/adapters/kaffelogic/parse.js";
+import { STOCK_PROFILES } from "../src/adapters/kaffelogic/startingProfiles.js";
 import { kaffelogicToRoastLog } from "../src/adapters/kaffelogic/toRoastLog.js";
 import { THERMAL_DOSE, extractFeatures, thermalDose } from "../src/core/features.js";
 import { addBean, addRoast, beanHistory, refreshFeatures } from "../src/db/store.js";
@@ -99,13 +100,19 @@ describe.skipIf(!pairs.length)("the profile curve predicts a real roast's therma
       const measured = extractFeatures(roast).thermalDose;
       const predicted = profileThermalDoseAtLevel(parseKpro(kpro.text), roast.nativeLevel!)!.thermalDose;
       // Real roasts have measured 6-12.5% above their curve; within 15% is close enough to choose a level step.
-      expect(Math.abs(measured / predicted - 1)).toBeLessThan(0.15);
+      expect(measured / predicted, "measured is at or above the curve").toBeGreaterThan(1);
+      expect(measured / predicted - 1).toBeLessThan(0.15);
     });
   }
 });
 
 describe.skipIf(!PRIVATE_PROFILES.some((p) => headerValue(p.text, "profile_short_name")?.trim() === "Robusta"))("level steps on the real Robusta profile", () => {
-  const robusta = parseKpro(PRIVATE_PROFILES.find((p) => headerValue(p.text, "profile_short_name")?.trim() === "Robusta")!.text);
+  const file = PRIVATE_PROFILES.find((p) => headerValue(p.text, "profile_short_name")?.trim() === "Robusta")!;
+  const robusta = parseKpro(file.text);
+
+  it("is the stock Robusta profile, so the numbers below mean what they say", () => {
+    expect(robusta.roastLevels, file.file).toEqual(STOCK_PROFILES.Robusta.roastLevels);
+  });
 
   it("are uneven: 2.6 to 3.0 adds far more than 3.0 to 3.4", () => {
     const d = (l: number) => profileThermalDoseAtLevel(robusta, l)!.thermalDose;
@@ -115,7 +122,11 @@ describe.skipIf(!PRIVATE_PROFILES.some((p) => headerValue(p.text, "profile_short
 
   it("take 15% off level 3.0 at level 2.5", () => {
     const from = profileThermalDoseAtLevel(robusta, 3)!;
-    const got = levelForThermalDose(robusta, from.thermalDose * 0.85)!;
-    expect(got.level, JSON.stringify({ from, got, files: PRIVATE_PROFILES.map((p) => [p.file, headerValue(p.text, "profile_short_name")]) })).toBe(2.5);
+    const target = from.thermalDose * 0.85;
+    const got = levelForThermalDose(robusta, target)!;
+    const context = JSON.stringify({ file: file.file, modified: headerValue(file.text, "profile_modified"), from, target, got });
+    // The thermal dose first: a level that is far from the target means the search fell off its end, not that 2.5 is wrong.
+    expect(Math.abs(got.thermalDose / target - 1), context).toBeLessThan(0.05);
+    expect(got.level, context).toBe(2.5);
   });
 });

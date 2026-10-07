@@ -81,7 +81,7 @@ session flow is in [.claude/skills/roast/SKILL.md](.claude/skills/roast/SKILL.md
 - `scripts/` the session commands (`roast.ts`), the research computations, and helpers for real
   files and the seed.
 - `docs/RULES.md` the rulebook behind every suggestion, in roasting terms, for a roaster to audit.
-  It is tested against the code, so it can't say something the program doesn't do.
+  Tests check its rule names, settings, taste words, rest days, examples and step table against the code.
 - `docs/research.md` the research we rely on and how it was validated.
 - `docs/ROADMAP.md` the project's state: what works, what is next, what is blocked.
 

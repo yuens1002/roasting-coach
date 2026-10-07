@@ -180,7 +180,7 @@ async function run() {
         const now = profileThermalDoseAtLevel(profile, level);
         const next = now && levelAfterChange(profile, now, advice.thermalDoseChangePct);
         if (!now || !next) return done(undefined, `"${version.profileName}" has no level that matches that change from level ${level}.`);
-        const move: LevelMove = { from: { level: now.level, endTempC: levelShape(now).endTempC }, to: { level: next.level, endTempC: levelShape(next).endTempC } };
+        const move: LevelMove = { from: { level: now.level, endTempC: levelShape(now).endTempC }, to: { level: next.level, endTempC: levelShape(next).endTempC }, changePct: (next.thermalDose / now.thermalDose - 1) * 100 };
         if (next.level === now.level) return done(move, `Level ${level} is already the closest the machine can set (0.1 steps), so this change is too small or past the end of the scale. The next lever is the profile itself.`);
         return done(move);
       }

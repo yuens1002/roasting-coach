@@ -105,7 +105,7 @@ const kproFor = (h: Record<string, string>) =>
   kpros.find((k) => k.header.profile_short_name?.trim() === h.profile_short_name?.trim() && k.header.profile_modified?.trim() === h.profile_modified?.trim());
 const logName = (h: Record<string, string>) => `${h.profile_short_name?.trim()} level ${Number(h.roasting_level)}`;
 
-console.log(`Thermal thermalDose: minutes at a constant ${THERMAL_DOSE.referenceC} °C doing the same chemistry, Ea = ${THERMAL_DOSE.activationEnergyKjMol} kJ/mol.`);
+console.log(`Thermal dose: minutes at a constant ${THERMAL_DOSE.referenceC} °C doing the same chemistry, Ea = ${THERMAL_DOSE.activationEnergyKjMol} kJ/mol.`);
 console.log(`Local library: ${logs.length} log(s), ${kpros.length} profile(s).`);
 
 console.log("\n1. Bruno et al. 2026 industrial roasts: thermal dose, and each reaction's spread across its fitted Ea");

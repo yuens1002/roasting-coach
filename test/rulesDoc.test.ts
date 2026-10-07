@@ -1,10 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseKpro } from "../src/adapters/kaffelogic/parse.js";
 import { STOCK_PROFILES } from "../src/adapters/kaffelogic/startingProfiles.js";
-import { stepTable } from "../src/adapters/kaffelogic/stepTable.js";
-import { findBaseProfile, formatKpro } from "../src/adapters/kaffelogic/writeProfile.js";
+import { stepTable, stockProfilesFrom } from "../src/adapters/kaffelogic/stepTable.js";
 import { OUTCOME_IDS, RULES, RULE_SETTINGS, TASTE_CHIPS, WANT_NEXT_MOVE, advise } from "../src/core/rules.js";
 import { PRIVATE_PROFILES } from "./privateFiles.js";
 import { EXAMPLES, sayFor } from "./rulesDocExamples.js";
@@ -65,14 +63,11 @@ describe("docs/RULES.md matches the program", () => {
   // The step table is measured from real Kaffelogic files, which are never committed, so this
   // checks every stock profile you have locally and skips the rest.
   const library = PRIVATE_PROFILES.map((f) => ({ path: f.file, text: f.text }));
-  const profiles = Object.fromEntries(
-    Object.keys(STOCK_PROFILES).flatMap((name) => {
-      const base = findBaseProfile(library, { name });
-      return base ? [[name, parseKpro(formatKpro(base.lines))]] : [];
-    }),
-  );
+  const profiles = stockProfilesFrom(library);
   it.skipIf(!Object.keys(profiles).length)("step table: every row measured from your stock profile files is in the doc", () => {
     const stated = doc.split("<!-- steps:start -->")[1]?.split("<!-- steps:end -->")[0] ?? "";
-    for (const row of stepTable(profiles).split("\n")) expect(stated, row).toContain(row);
+    const measuredRows = stepTable(profiles).split("\n");
+    expect(measuredRows.length, "at least one profile row was measured, not just the header").toBeGreaterThan(2);
+    for (const row of measuredRows) expect(stated, row).toContain(row);
   }, 60_000);
 });

@@ -2,7 +2,7 @@
 // against its field definitions before anything is stored, and versions and
 // roasts are addressed the way a person talks about them: bean id plus "v3".
 import { levelToTemp, parseKlog, parseKpro } from "../adapters/kaffelogic/parse.js";
-import { MACHINE_ID, STOCK_PROFILES, selectStartingProfile, stockProfileId } from "../adapters/kaffelogic/startingProfiles.js";
+import { MACHINE_ID, selectStartingProfile, stockProfile, stockProfileId } from "../adapters/kaffelogic/startingProfiles.js";
 import { kaffelogicToRoastLog } from "../adapters/kaffelogic/toRoastLog.js";
 import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileFromKpro, profileFromLog, sameProfileBody } from "../adapters/kaffelogic/writeProfile.js";
 import { calendarDay, daysBetween } from "../core/dates.js";
@@ -63,9 +63,6 @@ export const NEW_TASTING_SHAPE: Shape = {
   roastId: { type: "integer" },
   answers: { type: "object", required: true },
 };
-
-/** A stock profile by name; own keys only, so names like "constructor" aren't found on Object.prototype. */
-const stockProfile = (name: string) => (Object.hasOwn(STOCK_PROFILES, name) ? STOCK_PROFILES[name] : undefined);
 
 /** End temperature for a level on a profile's seven levels; refuses a profile whose levels are missing or broken. */
 function endTempFor(levels: number[], level: number, profileName: string): number {

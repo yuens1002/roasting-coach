@@ -172,7 +172,7 @@ interface Rule {
 function levelNotHelping(side: Side, mine: string[], latest: TastedRoast, earlier: TastedRoast[], unmoved: TastedRoast, alternative: AdviceContext["alternative"]): Advice {
   const { move, verdict } = SIDES[side];
   const moved = pct((latest.thermalDose / unmoved.thermalDose - 1) * 100);
-  const seen = `The cup tasted ${words(mine)} (${verdict}) even after the roasting went ${moved}% ${move}; the roast before it tasted ${words(pick(unmoved.taste, TASTE_CHIPS[side]))} too. The level isn't what's wrong, so another step along it probably won't help.`;
+  const seen = `The cup tasted ${words(mine)} (${verdict}) even after the roasting went ${moved}% ${move} than an earlier roast on this profile, which tasted ${words(pick(unmoved.taste, TASTE_CHIPS[side]))} too. The level isn't what's wrong, so another step along it probably won't help.`;
   const tried = alternative && [latest, ...earlier].some((r) => r.profile === alternative.profileName);
   if (alternative && !tried) return { kind: "switch-profile", ruleId: "level-not-helping", profileName: alternative.profileName, level: alternative.level, endTempC: alternative.endTempC, reason: seen };
   const why = alternative ? `You've already roasted this bean on ${alternative.profileName}, the one other profile I'd suggest.` : "There's no other stock profile I'd suggest for this bean.";
@@ -378,6 +378,8 @@ export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceCon
 export interface LevelMove {
   from: { level: number; endTempC: number };
   to: { level: number; endTempC: number };
+  /** The thermal dose change the new level really gives, in percent: levels come in 0.1 steps on an uneven scale, so it can differ from the change asked for. */
+  changePct?: number;
 }
 
 /** The finished answer to one tasting. */
@@ -405,8 +407,11 @@ export function adviceReport(beanId: number, { basedOn, advice }: AdviceResult, 
   if (advice.kind !== "change") return { say: advice.reason };
   if (!move || problem) return { say: `${advice.reason} ${problem ?? "That can't be turned into a level for this roast's profile."}` };
   const direction = move.to.level > move.from.level ? "up" : "down";
+  const asked = Math.round(Math.abs(advice.thermalDoseChangePct));
+  const got = move.changePct === undefined ? asked : Math.round(Math.abs(move.changePct));
+  const shortfall = got === asked ? "" : ` The nearest level on this profile gives about ${got}% ${advice.thermalDoseChangePct > 0 ? "more" : "less"} roasting, not ${asked}%; levels come in 0.1 steps on an uneven scale.`;
   return {
-    say: `${advice.reason} That is level ${move.to.level} (ends at ${move.to.endTempC} °C), ${direction} from level ${move.from.level} (${move.from.endTempC} °C). Shall I record it as the next version?`,
+    say: `${advice.reason} That is level ${move.to.level} (ends at ${move.to.endTempC} °C), ${direction} from level ${move.from.level} (${move.from.endTempC} °C).${shortfall} Shall I record it as the next version?`,
     onYes: { command: "version:add", input: { beanId, parent: basedOn.version, level: move.to.level, reason: advice.reason } },
   };
 }

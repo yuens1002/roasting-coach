@@ -61,8 +61,9 @@ don't silently interpret.
 The advice comes from a rule engine, not from you. Your part is to run it, say what it returns,
 and run the command it hands you if the roaster says yes.
 
-1. `advise <beanId>`. It answers the most recently roasted roast that has a tasting, using the
-   bean's other tasted roasts as its record. It returns `say` and, only when there is something to
+1. `advise <beanId>`. It answers the most recently roasted roast that has a tasting and a measured
+   thermal dose, using the bean's other tasted roasts as its record. If `basedOn.roastId` isn't the
+   roast the roaster asked about, tell them which roast the advice is for. It returns `say` and, only when there is something to
    record, `onYes`.
 2. Say `say` to the roaster as written. Don't add, drop, reword, round or second-guess any of it,
    and don't judge the roast yourself: textbook numbers don't apply to Nano profiles, and the
@@ -82,5 +83,5 @@ and run the command it hands you if the roaster says yes.
 
 The level is chosen on the machine before every roast, so a level change needs no file; a
 profile's `recommended_level` is only its suggestion, and the roast's real level is the log's
-`roasting_level`. A .kpro is written only when the profile itself changes (curve, fan, zones),
+`roasting_level`. A new .kpro is needed only when the profile itself changes (curve, fan, zones),
 which is not built yet.

@@ -106,6 +106,10 @@ describe("the guards", () => {
     expect(change(advise(input({ taste: ["sour", "grassy"], brew: "espresso" }))).ruleId).toBe("under-roasted");
     expect(change(advise(input({ taste: ["sour"], brew: "aeropress" }))).ruleId).toBe("under-roasted");
   });
+  it("holds even when a wish for less sourness agrees, but a wish against the cup comes first", () => {
+    expect(advise(input({ taste: ["sour"], brew: "espresso", wantNext: ["less-sour"] }))).toMatchObject({ ruleId: "espresso-sour-only" });
+    expect(advise(input({ taste: ["sour"], brew: "espresso", wantNext: ["lighter"] }))).toMatchObject({ ruleId: "wish-against-taste" });
+  });
 });
 
 describe("asking for a change when the cup points nowhere", () => {
@@ -136,11 +140,13 @@ describe("when no rule applies", () => {
     expect(a).toMatchObject({ kind: "none", ruleId: "no-rule" });
     expect(a.reason).toContain("No rule covers flat and thin yet");
     expect(advise(input({ taste: ["balanced"], wantNext: ["brighter"] })).reason).toContain("No rule covers brighter yet");
+    // Every word known but nothing to act on: nothing can be named.
+    expect(advise(input({ taste: ["balanced"], score: 3 }))).toMatchObject({ ruleId: "no-rule", reason: "Nothing in this tasting points to a change a rule can make. Ask the roaster what they'd like to try rather than guessing." });
   });
 });
 
 describe("the table itself", () => {
-  it("has unique rule ids, and every rule is exercised above", () => {
+  it("has unique rule ids, in the order they are tried", () => {
     const ids = RULES.map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual(["mixed-signals", "tasted-too-soon", "wish-against-taste", "espresso-sour-only", "under-roasted", "over-roasted", "asked-for-change", "keep-as-is"]);
@@ -226,6 +232,14 @@ describe("the finished answer", () => {
     expect(r.say).toBe("The cup tasted ashy, which means the beans were over-roasted. Roast about 10% less. That is level 2.7 (ends at 222.2 °C), down from level 3 (223.4 °C). Shall I record it as the next version?");
     expect(r.onYes).toEqual({ command: "version:add", input: { beanId: 2, parent: 2, level: 2.7, reason: "The cup tasted ashy, which means the beans were over-roasted. Roast about 10% less." } });
   });
+  it("says so when the nearest level gives a different change than the rule asked for", () => {
+    const r = adviceReport(2, answer({ taste: ["ashy"] }), { ...move, changePct: -6.4 });
+    expect(r.say).toContain("That is level 2.7 (ends at 222.2 °C), down from level 3 (223.4 °C). The nearest level on this profile gives about 6% less roasting, not 10%;");
+    expect(r.onYes).toBeDefined();
+  });
+  it("stays quiet when the level gives the change asked for, to the nearest percent", () => {
+    for (const changePct of [-10, -9.6, -10.4]) expect(adviceReport(2, answer({ taste: ["ashy"] }), { ...move, changePct }).say).not.toContain("nearest level");
+  });
   it("says up when the level goes up", () => {
     const r = adviceReport(2, answer({ taste: ["grassy"] }), { from: move.to, to: move.from });
     expect(r.say).toContain("up from level 2.7");
@@ -292,12 +306,12 @@ describe("when the level isn't helping", () => {
   it("suggests the other profile when more roasting left the cup just as sour", () => {
     const a = run(sour(11), [sour(10)]);
     expect(a).toMatchObject({ kind: "switch-profile", ruleId: "level-not-helping", profileName: "KL Washed", level: 1.2, endTempC: 217.6 });
-    expect(a.reason).toBe("The cup tasted sour (under-roasted) even after the roasting went 10% more; the roast before it tasted sour too. The level isn't what's wrong, so another step along it probably won't help.");
+    expect(a.reason).toBe("The cup tasted sour (under-roasted) even after the roasting went 10% more than an earlier roast on this profile, which tasted sour too. The level isn't what's wrong, so another step along it probably won't help.");
   });
   it("is the same on the over-roasted side: less roasting, still bitter", () => {
     const a = run(roast({ thermalDose: 9, taste: ["bitter"], profile: "KL Washed" }), [roast({ thermalDose: 10, taste: ["roasty"], profile: "KL Washed" })], { alternative: { profileName: "1500-2000m Rest", level: 2.5, endTempC: 220.1 } });
     expect(a).toMatchObject({ kind: "switch-profile", profileName: "1500-2000m Rest" });
-    expect(a.reason).toContain("even after the roasting went 10% less; the roast before it tasted roasty too");
+    expect(a.reason).toContain("even after the roasting went 10% less than an earlier roast on this profile, which tasted roasty too");
   });
   it("needs the change to have been real: a move inside the noise doesn't count", () => {
     const small = 10 * (1 + (RULE_SETTINGS.noResponsePct - 1) / 100);
@@ -362,6 +376,9 @@ describe("rest and profile switching, from what the store returns", () => {
     const { beanId } = await addBean(db, intake);
     const { roastId } = await addRoast(db, { beanId, klog: syntheticLog({ first_crack: 540, roast_end: 600 }), answers: { greenG: 120, roastedG: 101.5 } });
     const context = kaffelogicAdviceContext(intake);
+    // The synthetic log isn't a Rest-profile roast, but the version keeps the stock profile it was planned on
+    // (the store only replaces that link when a log names another stock profile). The hold depends on that link.
+    expect((await beanHistory(db, beanId)).versions[0].baseProfile).toBe("1500-2000m Rest");
     // The synthetic roast is dated 2025-06-25.
     await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-26", brew: "pourover", score: 2, taste: ["sour", "grassy"] } });
     const early = adviseFromHistory(await beanHistory(db, beanId), context)!;
