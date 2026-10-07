@@ -2,13 +2,14 @@
 // the level, the end temperature and when the curve gets there. It is the same arithmetic as the
 // advice (levelAfterChange), shown for every selectable stock profile at its suggested filter and
 // espresso levels, so the step sizes in docs/RULES.md can be judged without reading any code.
+import { RULE_SETTINGS } from "../../core/rules.js";
 import { type KaffelogicProfile, parseKpro } from "./parse.js";
 import { STOCK_PROFILES, type Goal } from "./startingProfiles.js";
 import { type LevelThermalDose, formatMinutesSeconds, levelAfterChange, profileThermalDoseAtLevel } from "./thermalDose.js";
 import { findBaseProfile, formatKpro } from "./writeProfile.js";
 
 /** The steps shown, as % of the roast's thermal dose: the rules' two step sizes, each way. */
-export const STEP_TABLE_STEPS = [-15, -10, 10, 15] as const;
+export const STEP_TABLE_STEPS = [-RULE_SETTINGS.strongStepPct, -RULE_SETTINGS.stepPct, RULE_SETTINGS.stepPct, RULE_SETTINGS.strongStepPct];
 const GOALS: Goal[] = ["filter", "espresso"];
 
 const cell = (d: LevelThermalDose | undefined) => (d ? `${d.level.toFixed(1)} · ${(Math.round(d.endTemp * 10) / 10).toFixed(1)} °C · ${formatMinutesSeconds(d.endsAt)}` : "-");
