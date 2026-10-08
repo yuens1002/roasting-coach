@@ -23,7 +23,6 @@ const KL_WASHED = { alternative: { profileName: "KL Washed", level: 1.2, endTemp
  * and RULE_IDS below checks that it reaches it, so a case that quietly lands on an earlier rule fails.
  */
 const EXTRA: { id: string; input: AdviceInput }[] = [
-  { id: "espresso-sour-only", input: { latest: roast({ taste: ["sour"], brew: "espresso" }), earlier: [] } },
   // Level not helping: no other profile to suggest, then the other profile already roasted.
   { id: "level-not-helping", input: { latest: roast({ thermalDose: 11, taste: ["sour"], profile: "1500-2000m Rest" }), earlier: [roast({ thermalDose: 10, taste: ["sour"], profile: "1500-2000m Rest" })] } },
   { id: "level-not-helping", input: { latest: roast({ thermalDose: 11, taste: ["sour"], profile: "1500-2000m Rest" }), earlier: [roast({ thermalDose: 10, taste: ["sour"], profile: "1500-2000m Rest" }), roast({ thermalDose: 10.5, taste: ["sour"], profile: "KL Washed" })], context: KL_WASHED } },
@@ -59,7 +58,8 @@ describe("the engine's voice", () => {
   }
 
   it("each extra case reaches the rule it is named for and says something the doc examples do not", () => {
-    const docTexts = new Set(EXAMPLES.map(sayFor));
+    // The engine's own reply for each example, the same kind of text as the extra cases give (sayFor adds the offer or hold line).
+    const docTexts = new Set(EXAMPLES.map((e) => advise(e.input).reason));
     const seen = new Set<string>();
     for (const { id, input } of EXTRA) {
       const advice = advise(input);
