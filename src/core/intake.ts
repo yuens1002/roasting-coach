@@ -70,11 +70,34 @@ export const ROAST_FIELDS: Field[] = [
   },
 ];
 
+/**
+ * The roast quality scale, anchored to roast defects, not to liking: a cup with a defect is a 1 or 2,
+ * a clean one a 3 or better. The form's options and the engine's messages are both made from this.
+ */
+export const QUALITY_ANCHORS: Record<number, string> = {
+  1: "a roast defect dominates the cup",
+  2: "a roast defect is there, but doesn't dominate",
+  3: "clean, with little character",
+  4: "clean and expressive",
+  5: "clean, expressive, balanced and sweet",
+};
+
+/** What a quality means, or a plain fallback for a value off the scale (the form never stores one, but the engine can be called directly). */
+export const qualityMeaning = (quality: number) => QUALITY_ANCHORS[quality] ?? "off the 1 to 5 scale";
+
 /** After resting and brewing. This is the field that matters most; keep it quick. */
 export const TASTING_FIELDS: Field[] = [
   { id: "tastedOn", label: "Tasted on", kind: "date", required: true, help: "Defaults to today.", usedFor: "Days of rest" },
   { id: "brew", label: "Brewed as", kind: "choice", required: true, options: opts(["espresso", "Espresso"], ["pourover", "Pour over"], ["immersion", "French press / immersion"], ["aeropress", "AeroPress"], ["moka", "Moka pot"], ["other", "Other"]), usedFor: "Espresso exaggerates sourness; filter exaggerates flatness" },
-  { id: "score", label: "Overall", kind: "choice", required: true, options: opts(["1", "1 Bad"], ["2", "2 Meh"], ["3", "3 OK"], ["4", "4 Good"], ["5", "5 Great"]), usedFor: "Ranks versions of the profile" },
+  {
+    id: "quality",
+    label: "Roast quality",
+    kind: "choice",
+    required: true,
+    options: Object.entries(QUALITY_ANCHORS).map(([n, meaning]) => ({ value: n, label: `${n} ${meaning[0].toUpperCase()}${meaning.slice(1)}` })),
+    help: "How well the roast came out, judged by defects. Not whether you like the cup.",
+    usedFor: "Whether the roast is good, and whether a change helped",
+  },
   {
     id: "taste",
     label: "What did you taste",
@@ -95,13 +118,6 @@ export const TASTING_FIELDS: Field[] = [
       ["thin", "Thin body"],
     ),
     usedFor: "Maps to under-, over- or baked development",
-  },
-  {
-    id: "wantNext",
-    label: "Next time I want",
-    kind: "chips",
-    options: opts(["same", "The same"], ["sweeter", "Sweeter"], ["brighter", "Brighter"], ["less-sour", "Less sour"], ["less-bitter", "Less bitter"], ["more-body", "More body"], ["lighter", "Lighter roast"], ["darker", "Darker roast"]),
-    usedFor: "The direction for the next version",
   },
   { id: "notes", label: "Notes", kind: "text", usedFor: "Your own words; kept with the version" },
 ];

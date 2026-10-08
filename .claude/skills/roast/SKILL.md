@@ -52,9 +52,37 @@ A reference cup the roaster describes (say, the farm's or the seller's) goes in 
 ## 3. Tasting
 
 Use `taste:add` with `beanId` (and `roastId` if not the newest roast). Ask for date, brew method,
-1-5 score and taste chips (required); "next time I want" and notes are optional but the most
-useful. Translate the roaster's words into chips and **confirm the chips** before `taste:add`;
-don't silently interpret.
+roast quality (1-5) and taste chips (required); notes are optional. Translate the roaster's words
+into chips and **confirm the chips** before `taste:add`; don't silently interpret.
+
+The quality is how well the roast came out, judged by defects, **not whether the roaster likes the
+cup** (the tool doesn't ask that and doesn't use it). Offer the scale in these words (`roast.ts fields
+tasting` has them): 1 a roast defect dominates the cup, 2 a defect is there but doesn't dominate,
+3 clean with little character, 4 clean and expressive, 5 clean, expressive, balanced and sweet. A flat
+cup with no defect is a 3 however little they like it. If the roaster gives a liking ("I'd give it a
+1, it's dull"), ask the quality question again in these terms; don't convert it yourself. The engine
+checks quality against the chips (a defect word means 1 or 2; none means 3 or more) and asks when
+they disagree: relay that and fix whichever the roaster says is wrong with `taste:update`.
+
+A tasting recorded before roast quality replaced the overall score holds an old liking, not a quality,
+so `advise` leaves it out until it is rated (`taste:update` with a `quality` answer marks it rated). If
+`advise` lists `unratedTastings` (ids only; `history` shows each one's date, brew and words), tell
+the roaster those were left out, say which by date and brew, and offer to rate them; if it
+refuses because every tasting is unrated, relay its message and ask for the ratings in the anchored terms.
+
+## 3b. The roaster's own settings and taste words
+
+Step sizes, the roast quality that counts as good enough, and what a taste word means to the rules are
+personal; the defaults are in `docs/RULES.md` and the roaster's own values are in their database.
+`calibration` shows every setting and word, its default and whether it is the roaster's own.
+When the roaster says what they mean by a word ("my flat means under-roasted"), how big their
+steps should be, or what roast quality they call good, work out the exact change, **say it back in one
+line and wait for a yes**, then `calibration:set` (`{"settings": {"stepPct": 8}, "words": {"flat": "under"}}`;
+a word is `under`, `over`, `good` or `none`; `null` puts one back to its default). Only change
+these when the roaster asks. Never to make advice come out differently. A refusal lists the
+allowed values in plain words: pass them on. `advise` lists the roaster's departures from the
+defaults under `personal`; after relaying `say`, add one line naming them, so the answer can be
+checked against `docs/RULES.md`.
 
 ## 4. Analysis and the next version
 
@@ -65,7 +93,8 @@ and run the command it hands you if the roaster says yes.
    thermal dose, using the bean's other tasted roasts as its record. If `basedOn.roastId` isn't the
    roast the roaster asked about, tell them which roast the advice is for. It returns `say` and, only when there is something to
    record, `onYes`.
-2. Say `say` to the roaster as written. Don't add, drop, reword, round or second-guess any of it,
+2. Say `say` to the roaster as written, adding only the one `personal` line from 3b and, when `advise` lists `unratedTastings`, the one note from step 3 (it can be several lines: for a clean cup below the bar it lists
+   the levers that can raise the quality, each with what it changes; relay every line). Don't add, drop, reword, round or second-guess any of it,
    and don't judge the roast yourself: textbook numbers don't apply to Nano profiles, and the
    rules already allow for that.
 3. If there is an `onYes` and the roaster says yes, run its `command` with its `input` exactly as
@@ -75,7 +104,10 @@ and run the command it hands you if the roaster says yes.
    A wrong or missing chip is fixed with `taste:update` and `advise` is run again. A change they
    choose themselves is theirs, not the engine's: size it with `thermal-dose`
    (`thermal-dose '{"profile": "...", "level": 3, "change": -15}'`, change in %), record it with
-   `version:add` and their own words as the `reason`, and say it was their choice.
+   `version:add` and their own words as the `reason`, and say it was their choice. A switch to the
+   other profile they choose (the ledger names it, with a level) is recorded the same way with
+   `"profileName"` and the level the ledger gave, and it costs a roast. A rest or brew test needs no
+   record until it is tasted: add that tasting with `taste:add` on the same roast.
 5. If the roaster wants a file for the new version, `profile:write` (`{"beanId", "version"}`,
    optional `"name"`) writes `<bean> <level>.kpro` to `profiles/out/`: the version's profile with
    its level as the level the machine offers first. Only labels change, so a roast on it still

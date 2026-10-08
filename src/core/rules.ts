@@ -9,6 +9,8 @@
 // each lives in RULE_SETTINGS so the rules and tests can see it.
 
 import { daysBetween } from "./dates.js";
+import { QUALITY_ANCHORS, qualityMeaning } from "./intake.js";
+import { PCT_EPSILON, cleanBelowBarMessage, leverLedger, sameProfile } from "./levers.js";
 
 export const RULE_SETTINGS = {
   /** Thermal dose change, as % of the tasted roast's thermal dose, when one chip points the way. */
@@ -24,8 +26,19 @@ export const RULE_SETTINGS = {
    * within `noisePct` of its target, so this is `stepPct` less `noisePct`.
    */
   noResponsePct: 7,
-  /** A cup scoring at least this, with nothing wrong and nothing asked for, is left alone. */
-  holdMinScore: 4,
+  /**
+   * Steps of `noResponsePct` or more the level takes on one profile, in the same direction, without the
+   * roast quality improving, before the level counts as tried out (see levers.ts).
+   */
+  plateauSteps: 2,
+  /** Days apart, between the first and last tasting of one roast, that make resting a fair test (Kaffelogic's own Rest profiles start at 3). */
+  restTestDays: 3,
+  /** Different brews of one roast that make changing the brew a fair test. */
+  brewTestCount: 3,
+  /** Tasted roasts on the bean's other profile that make switching to it a fair test. */
+  profileTestRoasts: 2,
+  /** A cup of at least this roast quality, with nothing wrong, is left alone; a clean cup below it gets the lever ledger. (A level can't be called exhausted at or above it.) */
+  holdMinQuality: 4,
 } as const;
 
 /**
@@ -39,14 +52,35 @@ export const TASTE_CHIPS = {
   good: ["sweet", "bright", "balanced"],
 } as const;
 
+/** The settings as numbers, for a roaster whose own values replace the defaults. */
+export type RuleSettings = { -readonly [K in keyof typeof RULE_SETTINGS]: number };
+
+/** What the taste words mean, as lists a roaster can reassign words between. */
+export interface ChipMeanings {
+  under: readonly string[];
+  over: readonly string[];
+  good: readonly string[];
+}
+
+/**
+ * What the rules read besides the tasting: the settings and the taste-word meanings. The defaults are
+ * the ones in this file; a roaster's own overrides (src/core/calibration.ts) replace some of them.
+ */
+export interface Calibration {
+  settings: RuleSettings;
+  chips: ChipMeanings;
+}
+
+export const DEFAULT_CALIBRATION: Calibration = { settings: RULE_SETTINGS, chips: TASTE_CHIPS };
+
 /**
  * Every answer the engine can give, by rule id. Advice can carry no other id (the type below makes
  * the compiler enforce that), and docs/RULES.md must describe each one (a test checks that).
  */
 export const OUTCOME_IDS = [
+  "quality-vs-words",
   "mixed-signals",
   "tasted-too-soon",
-  "wish-against-taste",
   "espresso-sour-only",
   "under-roasted",
   "under-roasted-bracketed",
@@ -55,7 +89,7 @@ export const OUTCOME_IDS = [
   "over-roasted-bracketed",
   "over-roasted-contradicted",
   "level-not-helping",
-  "asked-for-change",
+  "clean-below-bar",
   "keep-as-is",
   "no-rule",
 ] as const;
@@ -63,15 +97,6 @@ export type OutcomeId = (typeof OUTCOME_IDS)[number];
 
 export type Side = "under" | "over";
 type Move = "more" | "less";
-
-/** The "next time I want" chips that name a direction for the roasting. The others ask for something no rule maps yet. */
-export const WANT_NEXT_MOVE: Record<string, Move> = {
-  darker: "more",
-  "less-sour": "more",
-  lighter: "less",
-  "less-bitter": "less",
-};
-const WANT_NEXT_NO_CHANGE = "same";
 
 /** What each side of the table means, in one place: the opposite side, which way to move, how to say it. */
 const SIDES = {
@@ -84,9 +109,8 @@ export interface TastedRoast {
   /** The roast's measured thermal dose (equivalent minutes at 200 °C). */
   thermalDose: number;
   taste: string[];
-  wantNext: string[];
-  /** 1-5. */
-  score: number;
+  /** Roast quality, 1-5 (QUALITY_ANCHORS in intake.ts): judged by defects, not by liking. */
+  quality: number;
   brew: string;
   /** The profile the roast used (its stock profile when it is a copy of one). Names the rest days and the profiles tried. */
   profile?: string;
@@ -94,6 +118,10 @@ export interface TastedRoast {
   profileKey?: string;
   /** Whole days from the roast to this tasting. */
   restedDays?: number;
+  /** The level the roast was made at, for telling roasts apart in what the engine says. */
+  level?: number;
+  /** Every tasting of this roast (the fields above are its newest), for judging rest and brew. */
+  tastings?: { restedDays: number; brew: string; quality: number }[];
   /** Days this roast's profile wants it to rest before it is judged, when the profile says (min, max). */
   restNeeded?: readonly [number, number];
 }
@@ -104,6 +132,8 @@ export interface AdviceContext {
   restNeeded?: (profile: string) => readonly [number, number] | undefined;
   /** Where to go when the level isn't helping: another profile, at the level it suggests for this bean's goal. */
   alternative?: { profileName: string; level: number; endTempC: number };
+  /** What the roaster says this coffee should taste like (the supplier's or producer's description, or their own cup), when they know. */
+  reference?: string;
 }
 
 export interface AdviceInput {
@@ -112,6 +142,8 @@ export interface AdviceInput {
   /** The bean's other tasted roasts. */
   earlier: TastedRoast[];
   context?: AdviceContext;
+  /** The roaster's settings and taste-word meanings; the defaults when left out. */
+  calibration?: Calibration;
 }
 
 export type Advice =
@@ -137,28 +169,23 @@ interface Reading {
   under: string[];
   over: string[];
   good: string[];
-  moves: Set<Move>;
-  /** "next time I want" chips no rule maps to a direction (and that aren't "same"). */
-  unmappedWants: string[];
 }
 
 const pick = (taste: string[], chips: readonly string[]) => taste.filter((c) => chips.includes(c));
 const words = (items: string[]) => (items.length < 3 ? items.join(" and ") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`);
 const pct = (n: number) => Math.round(Math.abs(n) * 10) / 10;
 
-function read(t: TastedRoast): Reading {
+function read(t: TastedRoast, { chips }: Calibration): Reading {
   return {
-    under: pick(t.taste, TASTE_CHIPS.under),
-    over: pick(t.taste, TASTE_CHIPS.over),
-    good: pick(t.taste, TASTE_CHIPS.good),
-    moves: new Set(t.wantNext.flatMap((c) => (WANT_NEXT_MOVE[c] ? [WANT_NEXT_MOVE[c]] : []))),
-    unmappedWants: t.wantNext.filter((c) => !(c in WANT_NEXT_MOVE) && c !== WANT_NEXT_NO_CHANGE),
+    under: pick(t.taste, chips.under),
+    over: pick(t.taste, chips.over),
+    good: pick(t.taste, chips.good),
   };
 }
 
 /** Which side one tasting points to: only when it names one side and not the other. */
-function sideOf(t: TastedRoast): Side | undefined {
-  const r = read(t);
+function sideOf(t: TastedRoast, calibration: Calibration): Side | undefined {
+  const r = read(t, calibration);
   if (r.under.length && !r.over.length) return "under";
   if (r.over.length && !r.under.length) return "over";
   return undefined;
@@ -167,17 +194,14 @@ function sideOf(t: TastedRoast): Side | undefined {
 interface Rule {
   id: string;
   /** The advice if this rule applies, else undefined. The first rule that applies wins. */
-  run: (input: AdviceInput, reading: Reading) => Advice | undefined;
+  run: (input: AdviceInput, reading: Reading, calibration: Calibration) => Advice | undefined;
 }
 
-/** Two roasts used the same profile: the same curve and settings when both are known, else the same profile name. */
-const sameProfile = (a: TastedRoast, b: TastedRoast) => (a.profileKey && b.profileKey ? a.profileKey === b.profileKey : a.profile === b.profile);
-
 /** The level moved the roast and the cup stayed on the same side: go to another profile if there is one not yet tried, else ask. */
-function levelNotHelping(side: Side, mine: string[], latest: TastedRoast, earlier: TastedRoast[], unmoved: TastedRoast, alternative: AdviceContext["alternative"]): Advice {
+function levelNotHelping(side: Side, mine: string[], latest: TastedRoast, earlier: TastedRoast[], unmoved: TastedRoast, alternative: AdviceContext["alternative"], { chips }: Calibration): Advice {
   const { move, verdict } = SIDES[side];
   const moved = pct((latest.thermalDose / unmoved.thermalDose - 1) * 100);
-  const seen = `The cup tasted ${words(mine)} (${verdict}) even after the roasting went ${moved}% ${move} than an earlier roast on this profile, which tasted ${words(pick(unmoved.taste, TASTE_CHIPS[side]))} too. The level isn't what's wrong, so another step along it probably won't help.`;
+  const seen = `The cup tasted ${words(mine)} (${verdict}) even after the roasting went ${moved}% ${move} than an earlier roast on this profile, which tasted ${words(pick(unmoved.taste, chips[side]))} too. The level isn't what's wrong, so another step along it probably won't help.`;
   const tried = alternative && [latest, ...earlier].some((r) => r.profile === alternative.profileName);
   if (alternative && !tried) return { kind: "switch-profile", ruleId: "level-not-helping", profileName: alternative.profileName, level: alternative.level, endTempC: alternative.endTempC, reason: seen };
   const why = alternative ? `You've already roasted this bean on ${alternative.profileName}, the one other profile I'd suggest.` : "There's no other stock profile I'd suggest for this bean.";
@@ -187,20 +211,21 @@ function levelNotHelping(side: Side, mine: string[], latest: TastedRoast, earlie
 /** A clear under- or over-roasted cup: step that way, or halve the gap to a result on the other side. */
 function developmentRule(side: Side): Rule["run"] {
   const { opposite, sign, move, verdict } = SIDES[side];
-  return ({ latest, earlier, context }, reading) => {
+  return ({ latest, earlier, context }, reading, calibration) => {
+    const { settings } = calibration;
     const mine = reading[side];
     if (!mine.length || reading[opposite].length) return undefined;
     const ruleId = verdict;
     // How far each opposite-side result sits from this roast, in % of this roast's thermal dose, counted in
     // the direction we'd move: positive means further along that way.
-    const gaps = earlier.filter((e) => sideOf(e) === opposite).map((e) => ({ e, along: (sign * (e.thermalDose - latest.thermalDose) * 100) / latest.thermalDose }));
-    const disagree = gaps.find((g) => g.along <= RULE_SETTINGS.noisePct);
+    const gaps = earlier.filter((e) => sideOf(e, calibration) === opposite).map((e) => ({ e, along: (sign * (e.thermalDose - latest.thermalDose) * 100) / latest.thermalDose }));
+    const disagree = gaps.find((g) => g.along <= settings.noisePct);
     if (disagree) {
-      const backwards = disagree.along < -RULE_SETTINGS.noisePct;
+      const backwards = disagree.along < -settings.noisePct;
       return {
         kind: "ask",
         ruleId: `${ruleId}-contradicted` as const,
-        reason: `This cup tasted ${words(mine)} (${verdict}), but an earlier roast with ${backwards ? `${pct(disagree.along)}% ${sign === 1 ? "less" : "more"}` : "about the same"} roasting tasted ${words(read(disagree.e)[opposite])} (${SIDES[opposite].verdict}). ${backwards ? `That's backwards: the roast with ${sign === 1 ? "less" : "more"} roasting shouldn't taste ${sign === 1 ? "more" : "less"} roasted.` : "Roasts with this little difference shouldn't taste opposite."} So something other than the roast is varying: the brew, the days of rest, or the batch. Worth finding out before changing the roast.`,
+        reason: `This cup tasted ${words(mine)} (${verdict}), but an earlier roast with ${backwards ? `${pct(disagree.along)}% ${sign === 1 ? "less" : "more"}` : "about the same"} roasting tasted ${words(read(disagree.e, calibration)[opposite])} (${SIDES[opposite].verdict}). ${backwards ? `That's backwards: the roast with ${sign === 1 ? "less" : "more"} roasting shouldn't taste ${sign === 1 ? "more" : "less"} roasted.` : "Roasts with this little difference shouldn't taste opposite."} So something other than the roast is varying: the brew, the days of rest, or the batch. Worth finding out before changing the roast.`,
       };
     }
     const bracket = gaps.reduce<(typeof gaps)[number] | undefined>((nearest, g) => (!nearest || g.along < nearest.along ? g : nearest), undefined);
@@ -211,14 +236,14 @@ function developmentRule(side: Side): Rule["run"] {
         ruleId: `${ruleId}-bracketed` as const,
         thermalDoseChangePct,
         basis: "midpoint",
-        reason: `The cup tasted ${words(mine)} (${verdict}), while an earlier roast with ${pct(bracket.along)}% ${move} roasting tasted ${words(read(bracket.e)[opposite])} (${SIDES[opposite].verdict}). The best roast is between them, so go halfway: about ${pct(thermalDoseChangePct)}% ${move} roasting.`,
+        reason: `The cup tasted ${words(mine)} (${verdict}), while an earlier roast with ${pct(bracket.along)}% ${move} roasting tasted ${words(read(bracket.e, calibration)[opposite])} (${SIDES[opposite].verdict}). The best roast is between them, so go halfway: about ${pct(thermalDoseChangePct)}% ${move} roasting.`,
       };
     }
     // The level has already moved this side's result a real distance, on this profile, and the cup is
     // the same: the level isn't what's wrong, so another step along it probably won't help either.
-    const unmoved = earlier.find((e) => sideOf(e) === side && sameProfile(e, latest) && (sign * (latest.thermalDose - e.thermalDose) * 100) / e.thermalDose >= RULE_SETTINGS.noResponsePct);
-    if (unmoved) return levelNotHelping(side, mine, latest, earlier, unmoved, context?.alternative);
-    const thermalDoseChangePct = sign * (mine.length >= RULE_SETTINGS.strongChipCount ? RULE_SETTINGS.strongStepPct : RULE_SETTINGS.stepPct);
+    const unmoved = earlier.find((e) => sideOf(e, calibration) === side && sameProfile(e, latest) && (sign * (latest.thermalDose - e.thermalDose) * 100) / e.thermalDose >= settings.noResponsePct - PCT_EPSILON);
+    if (unmoved) return levelNotHelping(side, mine, latest, earlier, unmoved, context?.alternative, calibration);
+    const thermalDoseChangePct = sign * (mine.length >= settings.strongChipCount ? settings.strongStepPct : settings.stepPct);
     return {
       kind: "change",
       ruleId,
@@ -231,6 +256,23 @@ function developmentRule(side: Side): Rule["run"] {
 
 /** The table, in the order the rules are tried. */
 export const RULES: Rule[] = [
+  {
+    // Quality is judged by defects, so it has to agree with the words: a cup with a roast defect is a 1 or 2,
+    // a clean one a 3 or better. When they disagree, one of them is wrong, and advice built on either would be too.
+    id: "quality-vs-words",
+    run: ({ latest }, r, { chips }) => {
+      const defects = [...r.under, ...r.over];
+      const said = `You rated the roast quality ${latest.quality} (${qualityMeaning(latest.quality)})`;
+      const fix = "Which is right? Correct whichever is wrong and I'll go on from there.";
+      if (defects.length && latest.quality >= 3) {
+        return { kind: "ask", ruleId: "quality-vs-words", reason: `${said}, but the cup tasted ${words(defects)}, which is a roast defect. A cup with a roast defect is a 1 or 2; a clean cup is a 3 or better. ${fix}` };
+      }
+      if (!defects.length && latest.quality <= 2) {
+        return { kind: "ask", ruleId: "quality-vs-words", reason: `${said}, but ${latest.taste.length ? `none of the taste words (${words(latest.taste)})` : "no taste word"} names a roast defect (under-roasted words: ${words([...chips.under])}; over-roasted words: ${words([...chips.over])}). A 1 or 2 means a defect. ${fix}` };
+      }
+      return undefined;
+    },
+  },
   {
     id: "mixed-signals",
     run: (_input, r) =>
@@ -256,69 +298,55 @@ export const RULES: Rule[] = [
     },
   },
   {
-    id: "wish-against-taste",
-    run: ({ latest }, r) => {
-      const side = (["under", "over"] as const).find((s) => r[s].length);
-      if (!side || !r.moves.has(SIDES[SIDES[side].opposite].move)) return undefined;
+    id: "espresso-sour-only",
+    run: ({ latest }, r, { chips }) => {
+      if (latest.brew !== "espresso" || r.under.length !== 1 || r.under[0] !== "sour" || r.over.length) return undefined;
+      // The other words that would say the roast is the suspect, as the roaster reads them.
+      const others = chips.under.filter((c) => c !== "sour");
+      const orList = others.length < 2 ? others.join("") : `${others.slice(0, -1).join(", ")} or ${others[others.length - 1]}`;
       return {
-        kind: "ask",
-        ruleId: "wish-against-taste",
-        reason: `The cup tasted ${words(r[side])}, which says roast ${SIDES[side].move === "more" ? "further" : "less"}, but what you want next (${latest.wantNext.join(", ")}) points the other way. Which should win?`,
+        kind: "hold",
+        ruleId: "espresso-sour-only",
+        reason: `Sour is the one taste espresso can fake: a shot that runs too fast tastes sour from any roast. Adjust the grind or the shot first. If it's still sour${others.length ? `, or the next cup tastes ${orList} too` : ""}, then roast further.`,
       };
     },
-  },
-  {
-    id: "espresso-sour-only",
-    run: ({ latest }, r) =>
-      latest.brew === "espresso" && r.under.length === 1 && r.under[0] === "sour" && !r.over.length
-        ? {
-            kind: "hold",
-            ruleId: "espresso-sour-only",
-            reason: "Sour is the one taste espresso can fake: a shot that runs too fast tastes sour from any roast. Adjust the grind or the shot first. If it's still sour, or the next cup tastes grassy or bready too, then roast further.",
-          }
-        : undefined,
   },
   { id: SIDES.under.verdict, run: developmentRule("under") },
   { id: SIDES.over.verdict, run: developmentRule("over") },
   {
-    id: "asked-for-change",
-    run: ({ latest }, r) => {
-      if (r.under.length || r.over.length || r.moves.size !== 1) return undefined;
-      const move = [...r.moves][0];
-      const thermalDoseChangePct = move === "more" ? RULE_SETTINGS.stepPct : -RULE_SETTINGS.stepPct;
-      return {
-        kind: "change",
-        ruleId: "asked-for-change",
-        thermalDoseChangePct,
-        basis: "step",
-        reason: `The cup didn't point either way, but you asked for ${latest.wantNext.join(", ")}. Taking that at the smallest step: about ${pct(thermalDoseChangePct)}% ${move} roasting.`,
-      };
+    // A clean cup (no roast defect) below the bar: the level has nothing to fix, because only a defect word shows
+    // which way to move it. Say what else can change the cup, and what the roasts say about each lever (levers.ts).
+    id: "clean-below-bar",
+    run: ({ latest, earlier, context }, r, calibration) => {
+      if (r.under.length || r.over.length || latest.quality >= calibration.settings.holdMinQuality) return undefined;
+      return { kind: "ask", ruleId: "clean-below-bar", reason: cleanBelowBarMessage(leverLedger(latest, earlier, calibration, context), latest, calibration, context?.reference) };
     },
   },
   {
     id: "keep-as-is",
-    run: ({ latest }, r) =>
-      !r.under.length && !r.over.length && r.good.length && latest.score >= RULE_SETTINGS.holdMinScore && !r.moves.size && !r.unmappedWants.length
-        ? { kind: "hold", ruleId: "keep-as-is", reason: `The cup tasted ${words(r.good)} and scored ${latest.score}. Keep this roast as it is.` }
+    run: ({ latest }, r, { settings }) =>
+      !r.under.length && !r.over.length && r.good.length && latest.quality >= settings.holdMinQuality
+        ? { kind: "hold", ruleId: "keep-as-is", reason: `The cup tasted ${words(r.good)} and the roast quality is ${latest.quality} (${qualityMeaning(latest.quality)}). Keep this roast as it is.` }
         : undefined,
   },
 ];
 
 /** The advice for a tasting, from the table; the first rule that applies. */
 export function advise(input: AdviceInput): Advice {
-  const reading = read(input.latest);
+  const calibration = input.calibration ?? DEFAULT_CALIBRATION;
+  const reading = read(input.latest, calibration);
   for (const rule of RULES) {
-    const advice = rule.run(input, reading);
+    const advice = rule.run(input, reading, calibration);
     if (advice) return advice;
   }
-  const covered: readonly string[] = [...TASTE_CHIPS.under, ...TASTE_CHIPS.over, ...TASTE_CHIPS.good];
-  const uncovered = [...input.latest.taste.filter((c) => !covered.includes(c)), ...reading.unmappedWants];
+  const covered: readonly string[] = [...calibration.chips.under, ...calibration.chips.over, ...calibration.chips.good];
+  const uncovered = input.latest.taste.filter((c) => !covered.includes(c));
   return {
     kind: "none",
     ruleId: "no-rule",
     reason: uncovered.length
-      ? `No rule covers ${words(uncovered)} yet, and nothing else in this tasting points to a change. Ask the roaster what they'd like to try rather than guessing.`
-      : "Nothing in this tasting points to a change a rule can make. Ask the roaster what they'd like to try rather than guessing.",
+      ? `No rule covers ${words(uncovered)} yet, and nothing else in this tasting points to a change. Ask the roaster what to test next rather than guessing.`
+      : "Nothing in this tasting points to a change a rule can make. Ask the roaster what to test next rather than guessing.",
   };
 }
 
@@ -326,6 +354,7 @@ export function advise(input: AdviceInput): Advice {
 export interface HistoryForAdvice {
   versions: {
     number: number;
+    level?: number;
     profileName: string;
     /** The stock profile this version is built on, when it is. */
     baseProfile?: string;
@@ -336,7 +365,8 @@ export interface HistoryForAdvice {
       roastedAt: unknown;
       logLevel?: number;
       features?: { thermalDose: number };
-      tastings: { id: number; tastedOn: string; score: number; taste: string[]; wantNext: string[]; brew: string }[];
+      /** qualityRated is false for a tasting recorded before roast quality replaced the overall score and not yet rated by it. */
+      tastings: { id: number; tastedOn: string; quality: number; qualityRated?: boolean; taste: string[]; brew: string }[];
     }[];
   }[];
 }
@@ -352,9 +382,10 @@ export interface AdviceResult {
  * Each roast counts once, by its newest tasting. Roasts without a measured thermal dose can't be compared,
  * so they're left out; undefined when no roast with a thermal dose has been tasted.
  */
-export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceContext): AdviceResult | undefined {
+export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceContext, calibration?: Calibration): AdviceResult | undefined {
   const tasted = history.versions
-    .flatMap((version) => version.roasts.map((roast) => ({ version, roast })))
+    // A tasting recorded before roast quality replaced the overall score holds a liking, not a quality: it isn't used until rated.
+    .flatMap((version) => version.roasts.map((roast) => ({ version, roast: { ...roast, tastings: roast.tastings.filter((t) => t.qualityRated !== false) } })))
     .filter(({ roast }) => roast.features && Number.isFinite(roast.features.thermalDose) && roast.tastings.length)
     .sort((a, b) => new Date(a.roast.roastedAt as string).getTime() - new Date(b.roast.roastedAt as string).getTime() || a.roast.id - b.roast.id);
   const asRoast = ({ version, roast }: (typeof tasted)[number]): TastedRoast => {
@@ -363,13 +394,14 @@ export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceCon
     return {
       thermalDose: roast.features!.thermalDose,
       taste: tasting.taste,
-      wantNext: tasting.wantNext,
-      score: tasting.score,
+      quality: tasting.quality,
       brew: tasting.brew,
       profile,
       profileKey: version.profileKey,
       restedDays: daysBetween(roast.roastedAt as string | Date, tasting.tastedOn),
       restNeeded: context?.restNeeded?.(profile),
+      level: roast.logLevel ?? version.level,
+      tastings: roast.tastings.map((t) => ({ restedDays: daysBetween(roast.roastedAt as string | Date, t.tastedOn), brew: t.brew, quality: t.quality })),
     };
   };
   const newest = tasted[tasted.length - 1];
@@ -378,9 +410,20 @@ export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceCon
   const latest = asRoast(newest);
   return {
     basedOn: { version: newest.version.number, roastId: newest.roast.id, tastingId: tasting.id, level: newest.roast.logLevel, measuredThermalDose: latest.thermalDose },
-    advice: advise({ latest, earlier: tasted.slice(0, -1).map(asRoast), context }),
+    advice: advise({ latest, earlier: tasted.slice(0, -1).map(asRoast), context, calibration }),
   };
 }
+
+/**
+ * The ids of a bean's tastings that still hold an old overall score and wait to be rated by roast quality.
+ * Only roasts with a measured thermal dose count: rating a tasting of any other roast would not change the advice.
+ */
+export const unratedTastingIds = (history: HistoryForAdvice) =>
+  history.versions.flatMap((v) => v.roasts.filter((r) => r.features && Number.isFinite(r.features.thermalDose)).flatMap((r) => r.tastings.filter((t) => t.qualityRated === false).map((t) => t.id)));
+
+/** What to tell the roaster when there is nothing to advise on because the tastings are not rated by roast quality yet. */
+export const unratedTastingsMessage = (ids: number[]) =>
+  `${ids.length === 1 ? `Tasting ${ids[0]} was` : `Tastings ${ids.join(", ")} were`} recorded before roast quality replaced the overall score, so ${ids.length === 1 ? "it isn't" : "they aren't"} used until rated. Rate ${ids.length === 1 ? "it" : "each"} by roast quality, 1 to 5 (${Object.entries(QUALITY_ANCHORS).map(([n, meaning]) => `${n} ${meaning}`).join(", ")}), then advise again.`;
 
 /** Where a level change lands on the roast's profile: both ends, with the end temperature the machine will aim for. */
 export interface LevelMove {

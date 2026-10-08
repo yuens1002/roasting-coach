@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { TASTING_FIELDS } from "../src/core/intake.js";
+import { QUALITY_ANCHORS, TASTING_FIELDS } from "../src/core/intake.js";
 import { migratedDb } from "./pg.js";
 import { syntheticLog } from "./syntheticLog.js";
-import { addBean, addRoast, addTasting, beanHistory } from "../src/db/store.js";
+import { addBean, addRoast, addTasting, beanHistory, updateTasting } from "../src/db/store.js";
 import { kaffelogicAdviceContext } from "../src/adapters/kaffelogic/adviceContext.js";
-import { RULES, RULE_SETTINGS, TASTE_CHIPS, WANT_NEXT_MOVE, type AdviceContext, type AdviceInput, type HistoryForAdvice, type TastedRoast, adviceReport, advise, adviseFromHistory } from "../src/core/rules.js";
+import { RULES, RULE_SETTINGS, TASTE_CHIPS, type AdviceContext, type AdviceInput, type HistoryForAdvice, type TastedRoast, adviceReport, advise, adviseFromHistory, unratedTastingIds, unratedTastingsMessage } from "../src/core/rules.js";
 
-const roast = (over: Partial<TastedRoast> = {}): TastedRoast => ({ thermalDose: 10, taste: ["balanced"], wantNext: [], score: 3, brew: "pourover", ...over });
+const DEFECTS: readonly string[] = [...TASTE_CHIPS.under, ...TASTE_CHIPS.over];
+/** A cup's roast quality agrees with its words unless a test says otherwise: 2 with a roast defect, 3 without. */
+const roast = (over: Partial<TastedRoast> = {}): TastedRoast => ({ thermalDose: 10, taste: ["balanced"], quality: (over.taste ?? ["balanced"]).some((c) => DEFECTS.includes(c)) ? 2 : 3, brew: "pourover", ...over });
 const input = (latest: Partial<TastedRoast>, earlier: TastedRoast[] = []): AdviceInput => ({ latest: roast(latest), earlier });
 const change = (a: ReturnType<typeof advise>) => {
   if (a.kind !== "change") throw new Error(`expected a change, got ${a.kind} (${a.ruleId})`);
@@ -24,8 +26,10 @@ describe("the table's chips are real form options", () => {
     expect(all.filter((c) => !options("taste").includes(c))).toEqual([]);
     expect(new Set(all).size).toBe(all.length);
   });
-  it("maps only 'next time I want' chips the form offers", () => {
-    expect(Object.keys(WANT_NEXT_MOVE).filter((c) => !options("wantNext").includes(c))).toEqual([]);
+  it("offers a quality for each anchor, and no question about what the roaster wants next", () => {
+    expect(options("quality")).toEqual(Object.keys(QUALITY_ANCHORS));
+    expect(TASTING_FIELDS.map((f) => f.id)).not.toContain("wantNext");
+    expect(TASTING_FIELDS.map((f) => f.id)).not.toContain("score");
   });
 });
 
@@ -67,7 +71,7 @@ describe("under-roasted cups", () => {
     expect(a).toMatchObject({ ruleId: "under-roasted-bracketed", thermalDoseChangePct: RULE_SETTINGS.noisePct });
   });
   it("is not moved by earlier good cups, or by under-roasted cups that had at least as much roasting", () => {
-    const a = change(advise(input({ taste: ["sour", "grassy"], brew: "pourover" }, [roast({ thermalDose: 12, taste: ["sweet"], score: 5 }), roast({ thermalDose: 10.5, taste: ["sour"] })])));
+    const a = change(advise(input({ taste: ["sour", "grassy"], brew: "pourover" }, [roast({ thermalDose: 12, taste: ["sweet"], quality: 5 }), roast({ thermalDose: 10.5, taste: ["sour"] })])));
     expect(a).toMatchObject({ ruleId: "under-roasted", basis: "step", thermalDoseChangePct: 15 });
   });
 });
@@ -93,55 +97,64 @@ describe("the guards", () => {
     expect(a).toMatchObject({ kind: "ask", ruleId: "mixed-signals" });
     expect(a.reason).toContain("uneven roast");
   });
-  it("asks when what they want contradicts the cup", () => {
-    expect(advise(input({ taste: ["sour"], wantNext: ["lighter"], brew: "pourover" }))).toMatchObject({ kind: "ask", ruleId: "wish-against-taste" });
-    expect(advise(input({ taste: ["bitter"], wantNext: ["less-sour"] }))).toMatchObject({ kind: "ask", ruleId: "wish-against-taste" });
-  });
-  it("goes with a wish that agrees with the cup", () => {
-    expect(change(advise(input({ taste: ["sour"], wantNext: ["less-sour"], brew: "pourover" }))).ruleId).toBe("under-roasted");
-  });
   it("holds on espresso that is only sour, since espresso fakes sourness", () => {
     expect(advise(input({ taste: ["sour"], brew: "espresso" }))).toMatchObject({ kind: "hold", ruleId: "espresso-sour-only" });
     // Any further under-roasted chip, or another brew method, and the roast is the suspect.
     expect(change(advise(input({ taste: ["sour", "grassy"], brew: "espresso" }))).ruleId).toBe("under-roasted");
     expect(change(advise(input({ taste: ["sour"], brew: "aeropress" }))).ruleId).toBe("under-roasted");
   });
-  it("holds even when a wish for less sourness agrees, but a wish against the cup comes first", () => {
-    expect(advise(input({ taste: ["sour"], brew: "espresso", wantNext: ["less-sour"] }))).toMatchObject({ ruleId: "espresso-sour-only" });
-    expect(advise(input({ taste: ["sour"], brew: "espresso", wantNext: ["lighter"] }))).toMatchObject({ ruleId: "wish-against-taste" });
-  });
 });
 
-describe("asking for a change when the cup points nowhere", () => {
-  it("takes one direction at the smallest step", () => {
-    expect(change(advise(input({ taste: ["balanced"], wantNext: ["darker"] })))).toMatchObject({ ruleId: "asked-for-change", thermalDoseChangePct: 10 });
-    expect(change(advise(input({ taste: ["sweet"], wantNext: ["less-bitter"], score: 4 }))).thermalDoseChangePct).toBe(-10);
+describe("roast quality has to agree with the words", () => {
+  it("asks when a cup with a roast defect is rated clean", () => {
+    const a = advise(input({ taste: ["ashy"], quality: 4 }));
+    expect(a).toMatchObject({ kind: "ask", ruleId: "quality-vs-words" });
+    expect(a.reason).toBe("You rated the roast quality 4 (clean and expressive), but the cup tasted ashy, which is a roast defect. A cup with a roast defect is a 1 or 2; a clean cup is a 3 or better. Which is right? Correct whichever is wrong and I'll go on from there.");
+    expect(advise(input({ taste: ["sour"], quality: 3 })).ruleId).toBe("quality-vs-words");
   });
-  it("won't pick between two opposite wishes", () => {
-    expect(advise(input({ taste: ["balanced"], wantNext: ["darker", "lighter"] })).kind).toBe("none");
+  it("asks when a cup with no roast defect is rated as having one", () => {
+    const a = advise(input({ taste: ["flat"], quality: 1 }));
+    expect(a).toMatchObject({ kind: "ask", ruleId: "quality-vs-words" });
+    expect(a.reason).toBe("You rated the roast quality 1 (a roast defect dominates the cup), but none of the taste words (flat) names a roast defect (under-roasted words: sour, grassy and bready; over-roasted words: bitter, roasty and ashy). A 1 or 2 means a defect. Which is right? Correct whichever is wrong and I'll go on from there.");
+    expect(advise(input({ taste: ["sweet"], quality: 2 })).ruleId).toBe("quality-vs-words");
+  });
+  it("lets a defect with quality 1 or 2, and a clean cup with 3 or more, through to the other rules", () => {
+    expect(advise(input({ taste: ["sour"], quality: 1, brew: "pourover" })).ruleId).toBe("under-roasted");
+    expect(advise(input({ taste: ["sour"], quality: 2, brew: "pourover" })).ruleId).toBe("under-roasted");
+    expect(advise(input({ taste: ["flat"], quality: 3 })).ruleId).toBe("clean-below-bar");
+  });
+  it("never prints 'undefined' or empty parentheses for a quality off the scale or a cup with no words", () => {
+    const off = advise(input({ taste: ["ashy"], quality: 7 }));
+    expect(off.reason).toContain("You rated the roast quality 7 (off the 1 to 5 scale), but the cup tasted ashy");
+    const none = advise(input({ taste: [], quality: 1 }));
+    expect(none.reason).toContain("but no taste word names a roast defect");
+    expect(none.reason).not.toContain("()");
+    expect(none.reason).not.toContain("undefined");
+  });
+  it("is judged first: it comes before every other answer", () => {
+    expect(advise(input({ taste: ["sour", "bitter"], quality: 4 })).ruleId).toBe("quality-vs-words");
   });
 });
 
 describe("keeping a good roast", () => {
-  it("holds a good, well-scored cup with nothing asked for", () => {
-    const a = advise(input({ taste: ["sweet", "balanced"], score: 4, wantNext: ["same"] }));
+  it("holds a clean cup of good roast quality that tasted good", () => {
+    const a = advise(input({ taste: ["sweet", "balanced"], quality: 4 }));
     expect(a).toMatchObject({ kind: "hold", ruleId: "keep-as-is" });
-    expect(a.reason).toBe("The cup tasted sweet and balanced and scored 4. Keep this roast as it is.");
+    expect(a.reason).toBe("The cup tasted sweet and balanced and the roast quality is 4 (clean and expressive). Keep this roast as it is.");
   });
-  it("doesn't hold a low score, or when something else was asked for", () => {
-    expect(advise(input({ taste: ["balanced"], score: 3 })).kind).toBe("none");
-    expect(advise(input({ taste: ["balanced"], score: 5, wantNext: ["brighter"] })).kind).toBe("none");
+  it("doesn't hold a lower quality: a clean cup below the bar gets the list of what else can raise it", () => {
+    expect(advise(input({ taste: ["balanced"], quality: 3 }))).toMatchObject({ kind: "ask", ruleId: "clean-below-bar" });
   });
 });
 
 describe("when no rule applies", () => {
   it("says so and names what isn't covered, instead of guessing", () => {
-    const a = advise(input({ taste: ["flat", "thin"], score: 2 }));
+    // A clean cup at the bar with no good word: nothing for a rule to act on.
+    const a = advise(input({ taste: ["flat", "thin"], quality: 4 }));
     expect(a).toMatchObject({ kind: "none", ruleId: "no-rule" });
-    expect(a.reason).toContain("No rule covers flat and thin yet");
-    expect(advise(input({ taste: ["balanced"], wantNext: ["brighter"] })).reason).toContain("No rule covers brighter yet");
-    // Every word known but nothing to act on: nothing can be named.
-    expect(advise(input({ taste: ["balanced"], score: 3 }))).toMatchObject({ ruleId: "no-rule", reason: "Nothing in this tasting points to a change a rule can make. Ask the roaster what they'd like to try rather than guessing." });
+    expect(a.reason).toBe("No rule covers flat and thin yet, and nothing else in this tasting points to a change. Ask the roaster what to test next rather than guessing.");
+    // No word to name at all: nothing can be named.
+    expect(advise(input({ taste: [], quality: 4 }))).toMatchObject({ ruleId: "no-rule", reason: "Nothing in this tasting points to a change a rule can make. Ask the roaster what to test next rather than guessing." });
   });
 });
 
@@ -149,7 +162,7 @@ describe("the table itself", () => {
   it("has unique rule ids, in the order they are tried", () => {
     const ids = RULES.map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual(["mixed-signals", "tasted-too-soon", "wish-against-taste", "espresso-sour-only", "under-roasted", "over-roasted", "asked-for-change", "keep-as-is"]);
+    expect(ids).toEqual(["quality-vs-words", "mixed-signals", "tasted-too-soon", "espresso-sour-only", "under-roasted", "over-roasted", "clean-below-bar", "keep-as-is"]);
   });
   it("gives the same advice for the same evidence", () => {
     const e = input({ taste: ["grassy"] }, [roast({ thermalDose: 12, taste: ["bitter"] })]);
@@ -158,7 +171,7 @@ describe("the table itself", () => {
 });
 
 describe("advice from a bean's history", () => {
-  const tasting = (id: number, taste: string[], extra: Partial<HistoryForAdvice["versions"][0]["roasts"][0]["tastings"][0]> = {}) => ({ id, tastedOn: "2026-10-10", score: 3, taste, wantNext: [] as string[], brew: "pourover", ...extra });
+  const tasting = (id: number, taste: string[], extra: Partial<HistoryForAdvice["versions"][0]["roasts"][0]["tastings"][0]> = {}) => ({ id, tastedOn: "2026-10-10", quality: taste.some((c) => DEFECTS.includes(c)) ? 2 : 3, taste, brew: "pourover", ...extra });
   const roastRow = (id: number, roastedAt: string, thermalDose: number | undefined, tastings: ReturnType<typeof tasting>[], logLevel = 3) => ({ id, roastedAt, logLevel, features: thermalDose === undefined ? undefined : { thermalDose }, tastings });
 
   it("answers the newest tasted roast and uses the others as the bean's record", () => {
@@ -185,7 +198,7 @@ describe("advice from a bean's history", () => {
 
   it("counts each roast once, by its newest tasting", () => {
     const history: HistoryForAdvice = {
-      versions: [{ number: 1, profileName: "Test", roasts: [roastRow(1, "2026-10-01", 10, [tasting(1, ["sour"], { brew: "pourover" }), tasting(2, ["balanced", "sweet"], { score: 5 })])] }],
+      versions: [{ number: 1, profileName: "Test", roasts: [roastRow(1, "2026-10-01", 10, [tasting(1, ["sour"], { brew: "pourover" }), tasting(2, ["balanced", "sweet"], { quality: 5 })])] }],
     };
     const r = adviseFromHistory(history)!;
     expect(r.basedOn.tastingId).toBe(2);
@@ -214,7 +227,7 @@ describe("advice from what the store actually returns", () => {
     const { beanId } = await addBean(db, { name: "Rules bean", species: "arabica", decaf: false, process: "washed", goal: "filter", drinkWhen: "soon" });
     const { roastId } = await addRoast(db, { beanId, klog: syntheticLog({ first_crack: 540, roast_end: 600 }), answers: { greenG: 120, roastedG: 101.5 } });
     expect(adviseFromHistory(await beanHistory(db, beanId))).toBeUndefined();
-    await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-29", brew: "pourover", score: 2, taste: ["sour", "grassy"], wantNext: ["less-sour"] } });
+    await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-29", brew: "pourover", quality: 2, taste: ["sour", "grassy"] } });
     const result = adviseFromHistory(await beanHistory(db, beanId))!;
     expect(result.basedOn).toMatchObject({ version: 1, roastId, level: 3.3 });
     expect(result.basedOn.measuredThermalDose).toBeGreaterThan(0);
@@ -252,13 +265,17 @@ describe("the finished answer", () => {
     expect(adviceReport(2, answer({ taste: ["ashy"] }), undefined).say).toContain("can't be turned into a level");
   });
   it("gives a hold, a question or a no-rule as plain words and never a command", () => {
-    const hold = adviceReport(2, answer({ taste: ["sweet"], score: 5 }), undefined);
-    expect(hold).toEqual({ say: "The cup tasted sweet and scored 5. Keep this roast as it is. No new version is needed." });
+    const hold = adviceReport(2, answer({ taste: ["sweet"], quality: 5 }), undefined);
+    expect(hold).toEqual({ say: "The cup tasted sweet and the roast quality is 5 (clean, expressive, balanced and sweet). Keep this roast as it is. No new version is needed." });
     expect(adviceReport(2, answer({ taste: ["sour", "bitter"] }), undefined).onYes).toBeUndefined();
-    expect(adviceReport(2, answer({ taste: ["flat"] }), undefined).onYes).toBeUndefined();
+    // A clean cup below the bar is a question; a clean cup at the bar with no good word is a real no-rule.
+    expect(adviceReport(2, answer({ taste: ["flat"] }), undefined)).toMatchObject({ say: expect.stringContaining("What can raise it:") });
+    const noRule = adviceReport(2, answer({ taste: ["flat"], quality: 4 }), undefined);
+    expect(noRule.onYes).toBeUndefined();
+    expect(noRule.say).toContain("No rule covers flat yet");
   });
   it("has a command only for a change, whatever the evidence", () => {
-    const cases: Partial<TastedRoast>[] = [{ taste: ["sour"] }, { taste: ["sour", "bitter"] }, { taste: ["flat"] }, { taste: ["balanced"], score: 5 }, { taste: ["balanced"], wantNext: ["darker"] }, { taste: ["sour"], wantNext: ["lighter"] }];
+    const cases: Partial<TastedRoast>[] = [{ taste: ["sour"] }, { taste: ["sour", "bitter"] }, { taste: ["flat"] }, { taste: ["flat"], quality: 4 }, { taste: ["balanced"], quality: 5 }];
     for (const c of cases) {
       const a = answer(c);
       expect(adviceReport(2, a, move).onYes !== undefined, JSON.stringify(c)).toBe(a.advice.kind === "change");
@@ -286,7 +303,7 @@ describe("a roast tasted before its profile is ready", () => {
   });
   it("only holds sour-side cups: resting doesn't explain bitter or ashy", () => {
     expect(change(early(1, ["ashy"])).ruleId).toBe("over-roasted");
-    expect(advise(input({ taste: ["sweet"], score: 5, restNeeded: rest, restedDays: 1 })).ruleId).toBe("keep-as-is");
+    expect(advise(input({ taste: ["sweet"], quality: 5, restNeeded: rest, restedDays: 1 })).ruleId).toBe("keep-as-is");
   });
   it("does nothing for a profile with no rest to wait for, or an unknown number of days", () => {
     expect(change(early(1, ["sour"], { restNeeded: undefined })).ruleId).toBe("under-roasted");
@@ -294,6 +311,13 @@ describe("a roast tasted before its profile is ready", () => {
   });
   it("comes after the mixed-signals check, which is about the roast itself", () => {
     expect(early(1, ["sour", "bitter"]).ruleId).toBe("mixed-signals");
+  });
+  it("comes after the quality check, and before the espresso check", () => {
+    // A sour cup rated clean contradicts itself, whatever the rest says.
+    expect(early(1, ["sour"], { quality: 4 }).ruleId).toBe("quality-vs-words");
+    // Sour on espresso on day 1 of a Rest profile: the rest comes first.
+    expect(early(1, ["sour"], { brew: "espresso" }).ruleId).toBe("tasted-too-soon");
+    expect(advise(input({ taste: ["sour"], brew: "espresso", profile: "1500-2000m Rest", restNeeded: rest, restedDays: 4 })).ruleId).toBe("espresso-sour-only");
   });
 });
 
@@ -386,12 +410,58 @@ describe("rest and profile switching, from what the store returns", () => {
     // (the store only replaces that link when a log names another stock profile). The hold depends on that link.
     expect((await beanHistory(db, beanId)).versions[0].baseProfile).toBe("1500-2000m Rest");
     // The synthetic roast is dated 2025-06-25.
-    await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-26", brew: "pourover", score: 2, taste: ["sour", "grassy"] } });
+    await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-26", brew: "pourover", quality: 2, taste: ["sour", "grassy"] } });
     const early = adviseFromHistory(await beanHistory(db, beanId), context)!;
     expect(early.advice).toMatchObject({ kind: "hold", ruleId: "tasted-too-soon" });
     expect(early.advice.reason).toContain("1500-2000m Rest");
-    await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-29", brew: "pourover", score: 2, taste: ["sour", "grassy"] } });
+    await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-29", brew: "pourover", quality: 2, taste: ["sour", "grassy"] } });
     const later = adviseFromHistory(await beanHistory(db, beanId), context)!;
     expect(later.advice).toMatchObject({ kind: "change", ruleId: "under-roasted", thermalDoseChangePct: 15 });
+  });
+});
+
+describe("tastings recorded before roast quality replaced the overall score", () => {
+  const intake = { name: "Legacy bean", species: "arabica", decaf: false, process: "washed", goal: "filter", drinkWhen: "soon", altitudeM: 1950 } as const;
+  async function beanWithTasting() {
+    const db = await migratedDb();
+    const { beanId } = await addBean(db, intake);
+    const { roastId } = await addRoast(db, { beanId, klog: syntheticLog({ first_crack: 540, roast_end: 600 }), answers: { greenG: 120, roastedG: 101.5 } });
+    const { tastingId } = await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-29", brew: "pourover", quality: 4, taste: ["sweet", "balanced"] } });
+    // What migration 005 does to a tasting that predates it.
+    await db.query("update tasting set quality_rated = false where id = $1", [tastingId]);
+    return { db, beanId, tastingId };
+  }
+
+  it("are skipped by the advice, and the history says which", async () => {
+    const { db, beanId, tastingId } = await beanWithTasting();
+    const history = await beanHistory(db, beanId);
+    expect(history.versions[0].roasts[0].tastings[0]).toMatchObject({ id: tastingId, quality: 4, qualityRated: false });
+    expect(adviseFromHistory(history)).toBeUndefined();
+    expect(unratedTastingIds(history)).toEqual([tastingId]);
+  });
+  it("count again once rated by roast quality, however the rating compares with the old score", async () => {
+    const { db, beanId, tastingId } = await beanWithTasting();
+    // Re-rating to the same number still rates it; changing only the notes does not.
+    await updateTasting(db, { tastingId, answers: { notes: "just a note" } });
+    expect(unratedTastingIds(await beanHistory(db, beanId))).toEqual([tastingId]);
+    await updateTasting(db, { tastingId, answers: { quality: 4 } });
+    const history = await beanHistory(db, beanId);
+    expect(unratedTastingIds(history)).toEqual([]);
+    expect(adviseFromHistory(history)).toMatchObject({ advice: { ruleId: "keep-as-is" } });
+  });
+  it("leave a rated tasting of the same roast in charge, even when it is the older one", async () => {
+    // The unrated tasting (dated 2025-06-29) is the newest by date: without the filter it would decide the advice.
+    const { db, beanId } = await beanWithTasting();
+    const roastId = (await beanHistory(db, beanId)).versions[0].roasts[0].id;
+    await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-28", brew: "pourover", quality: 2, taste: ["sour"] } });
+    const result = adviseFromHistory(await beanHistory(db, beanId))!;
+    expect(result.advice.ruleId).toBe("under-roasted");
+  });
+  it("are explained in plain words when nothing else can be advised on", () => {
+    expect(unratedTastingsMessage([3])).toBe("Tasting 3 was recorded before roast quality replaced the overall score, so it isn't used until rated. Rate it by roast quality, 1 to 5 (1 a roast defect dominates the cup, 2 a roast defect is there, but doesn't dominate, 3 clean, with little character, 4 clean and expressive, 5 clean, expressive, balanced and sweet), then advise again.");
+    // It uses the scale's own words, so it can't drift from the form.
+    for (const meaning of Object.values(QUALITY_ANCHORS)) expect(unratedTastingsMessage([3])).toContain(meaning);
+    expect(unratedTastingsMessage([1, 2])).toContain("Tastings 1, 2 were recorded before");
+    expect(unratedTastingsMessage([1, 2])).toContain("they aren't used until rated. Rate each by roast quality");
   });
 });

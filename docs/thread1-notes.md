@@ -103,13 +103,14 @@ chaff, seller's tasting notes.
 crack when I heard it" (untick to stop trusting development time), colour reading, how the beans
 look (even, uneven, dark tips, oily, chaff).
 
-**Tasting (after rest).** Required: date (gives days rested), brew method, 1–5 score, taste
-chips (sweet, bright, balanced, sour, grassy, bready, astringent, flat, bitter, roasty, ashy,
-thin). Optional: **"next time I want"** chips (same, sweeter, brighter, less sour, less bitter,
-more body, lighter, darker) and notes.
+**Tasting (after rest).** Required: date (gives days rested), brew method, roast quality (1–5,
+anchored to roast defects, see `docs/RULES.md` section 3), taste chips (sweet, bright, balanced,
+sour, grassy, bready, astringent, flat, bitter, roasty, ashy, thin). Optional: notes.
 
-"Next time I want" is new relative to the earlier data model. It gives the rules a direction
-straight from the person, which is easier to act on than inferring one from taste chips.
+An earlier design asked for an overall 1–5 score and optional "next time I want" chips (same,
+sweeter, brighter, less sour, less bitter, more body, lighter, darker), to give the rules a direction
+straight from the person. Both were dropped on 2026-10-08: the tool coaches the roast, not the
+taste, so it asks for the roast's quality and never how much the roaster likes the cup.
 
 ## 5. Kaffelogic's files and an open-source repo
 

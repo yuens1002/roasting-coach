@@ -1,10 +1,17 @@
 // The worked examples quoted in docs/RULES.md. The engine's own words are checked against the doc
 // (test/rulesDoc.test.ts), so an example there can't drift from what the engine really says.
-import { type AdviceContext, type AdviceInput, type OutcomeId, type TastedRoast, adviceReport, advise } from "../src/core/rules.js";
+import { type AdviceContext, type AdviceInput, type OutcomeId, TASTE_CHIPS, type TastedRoast, adviceReport, advise } from "../src/core/rules.js";
 
-const roast = (over: Partial<TastedRoast>): TastedRoast => ({ thermalDose: 10, taste: ["balanced"], wantNext: [], score: 3, brew: "pourover", ...over });
+const DEFECTS: readonly string[] = [...TASTE_CHIPS.under, ...TASTE_CHIPS.over];
+/** The roast quality agrees with the words unless an example says otherwise: 2 with a roast defect, 3 without. */
+const roast = (over: Partial<TastedRoast>): TastedRoast => ({ thermalDose: 10, taste: ["balanced"], quality: (over.taste ?? ["balanced"]).some((c) => DEFECTS.includes(c)) ? 2 : 3, brew: "pourover", ...over });
 const REST: AdviceContext["restNeeded"] = () => [3, 5];
 const KL_WASHED: AdviceContext = { alternative: { profileName: "KL Washed", level: 1.2, endTempC: 217.6 } };
+
+/** Four pour-over cups tasted the day after roasting, each roast about 10% less than the one before: ashy at first (quality 2), then flat and clean (3, 3, 3). */
+const LADDER: TastedRoast[] = [2, 3, 3, 3].map((quality, i) =>
+  roast({ thermalDose: 12 * 0.9 ** i, taste: i === 0 ? ["ashy", "flat"] : ["flat"], quality, level: [3, 2.7, 2.4, 2.1][i], profile: "Robusta", restedDays: 1, tastings: [{ restedDays: 1, brew: "pourover", quality }] }),
+);
 
 export interface Example {
   /** The outcome this example shows (one of OUTCOME_IDS). */
@@ -15,13 +22,13 @@ export interface Example {
 }
 
 export const EXAMPLES: Example[] = [
+  { id: "quality-vs-words", scenario: "ashy, rated roast quality 4", input: { latest: roast({ taste: ["ashy"], quality: 4 }), earlier: [] } },
   { id: "mixed-signals", scenario: "tasted sour and bitter", input: { latest: roast({ taste: ["sour", "bitter"] }), earlier: [] } },
   {
     id: "tasted-too-soon",
     scenario: "sour, on 1500-2000m Rest, tasted 1 day after roasting",
     input: { latest: roast({ taste: ["sour"], profile: "1500-2000m Rest", restedDays: 1, restNeeded: REST("") }), earlier: [] },
   },
-  { id: "wish-against-taste", scenario: "sour, pour over, asking for a lighter roast next time", input: { latest: roast({ taste: ["sour"], wantNext: ["lighter"] }), earlier: [] } },
   { id: "espresso-sour-only", scenario: "only sour, brewed as espresso", input: { latest: roast({ taste: ["sour"], brew: "espresso" }), earlier: [] } },
   { id: "under-roasted", scenario: "sour and grassy, no earlier roasts", input: { latest: roast({ taste: ["sour", "grassy"] }), earlier: [] } },
   {
@@ -54,9 +61,13 @@ export const EXAMPLES: Example[] = [
       context: KL_WASHED,
     },
   },
-  { id: "asked-for-change", scenario: "balanced, scoring 3, asking for a darker roast next time", input: { latest: roast({ taste: ["balanced"], wantNext: ["darker"] }), earlier: [] } },
-  { id: "keep-as-is", scenario: "sweet and balanced, scoring 4", input: { latest: roast({ taste: ["sweet", "balanced"], score: 4 }), earlier: [] } },
-  { id: "no-rule", scenario: "flat and thin, scoring 2", input: { latest: roast({ taste: ["flat", "thin"], score: 2 }), earlier: [] } },
+  {
+    id: "clean-below-bar",
+    scenario: "flat, clean, roast quality 3, the day after roasting, pour over, after three steps of about 10% less roasting (the first roast was ashy, quality 2; then 3, 3, 3); a reference of lively, fruit-forward; no other profile to suggest",
+    input: { latest: LADDER[3], earlier: LADDER.slice(0, 3), context: { reference: "Lively and fruit-forward." } },
+  },
+  { id: "keep-as-is", scenario: "sweet and balanced, roast quality 4", input: { latest: roast({ taste: ["sweet", "balanced"], quality: 4 }), earlier: [] } },
+  { id: "no-rule", scenario: "thin, roast quality 4", input: { latest: roast({ taste: ["thin"], quality: 4 }), earlier: [] } },
 ];
 
 /** The words the engine says for an example; for a level change or profile switch, the full reply with a made-up level move. */
