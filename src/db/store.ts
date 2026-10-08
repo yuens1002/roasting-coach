@@ -464,8 +464,10 @@ async function updateForm(
     // Only fields the caller named; unknown names were already refused by the form check above.
     // Clearing a chips field stores an empty list: those columns can't be null.
     const named = fields.filter((f) => Object.hasOwn(changes, f.id));
+    // Giving a tasting a roast quality is what turns an old overall score (marked unrated by migration 005) into a rating.
+    const rates = table === "tasting" && named.some((f) => f.id === "quality") ? ["quality_rated = true"] : [];
     if (named.length)
-      await db.query(`update ${table} set ${named.map((f, i) => `${fieldColumn(f.id)} = $${i + 2}`).join(", ")} where id = $1`, [id, ...named.map((f) => values[f.id] ?? (f.kind === "chips" ? [] : null))]);
+      await db.query(`update ${table} set ${[...named.map((f, i) => `${fieldColumn(f.id)} = $${i + 2}`), ...rates].join(", ")} where id = $1`, [id, ...named.map((f) => values[f.id] ?? (f.kind === "chips" ? [] : null))]);
     return (await read(false)).rows[0].row;
   });
 }
@@ -539,15 +541,18 @@ export async function beanHistory(db: Db, beanId: number) {
   const files = (await db.query<{ number: number; profile_file: string }>("select number, profile_file from profile_version where bean_id = $1 and profile_file is not null order by number", [beanId])).rows;
   // A copy that sameProfileBody calls the same as any earlier copy takes that copy's key: rounding to a
   // fixed number of figures can put two near-identical copies (a .kpro and the copy inside a log) on
-  // either side of an edge. Every copy is kept to compare against, so a chain of near-copies stays one profile.
-  const profileKeys = new Map<number, string>();
-  const known: { lines: ProfileLines; key: string }[] = [];
+  // either side of an edge. Every copy is kept to compare against, so a chain of near-copies stays one
+  // profile, and a copy that bridges two groups joins them under the first group's key.
+  const known: { number: number; lines: ProfileLines; key: string }[] = [];
   for (const f of files) {
     const lines = profileFromKpro(f.profile_file);
-    const key = known.find((k) => sameProfileBody(k.lines, lines))?.key ?? profileBodyKey(lines);
-    known.push({ lines, key });
-    profileKeys.set(Number(f.number), key);
+    const matches = known.filter((k) => sameProfileBody(k.lines, lines));
+    const key = matches[0]?.key ?? profileBodyKey(lines);
+    const joined = new Set(matches.map((m) => m.key));
+    for (const k of known) if (joined.has(k.key)) k.key = key;
+    known.push({ number: Number(f.number), lines, key });
   }
+  const profileKeys = new Map(known.map((k) => [k.number, k.key]));
   const roasts = (
     await db.query(
       `select r.id, r.version_id, r.roasted_at, r.log_profile_name, r.log_level, r.green_g, r.roasted_g, r.weight_loss_pct,
@@ -558,7 +563,7 @@ export async function beanHistory(db: Db, beanId: number) {
   ).rows;
   const tastings = (
     await db.query(
-      `select t.id, t.roast_id, t.tasted_on::text as tasted_on, t.brew, t.quality, t.taste, t.notes
+      `select t.id, t.roast_id, t.tasted_on::text as tasted_on, t.brew, t.quality, t.quality_rated, t.taste, t.notes
          from tasting t join roast r on r.id = t.roast_id join profile_version v on v.id = r.version_id
         where v.bean_id = $1 order by t.tasted_on, t.id`,
       [beanId],
@@ -589,7 +594,7 @@ export async function beanHistory(db: Db, beanId: number) {
               : undefined,
             tastings: tastings
               .filter((t) => Number(t.roast_id) === Number(r.id))
-              .map((t) => ({ id: Number(t.id), tastedOn: t.tasted_on as string, brew: t.brew as string, quality: Number(t.quality), taste: t.taste as string[], notes: t.notes ?? undefined })),
+              .map((t) => ({ id: Number(t.id), tastedOn: t.tasted_on as string, brew: t.brew as string, quality: Number(t.quality), qualityRated: Boolean(t.quality_rated), taste: t.taste as string[], notes: t.notes ?? undefined })),
           };
         }),
     })),

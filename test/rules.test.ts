@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { QUALITY_ANCHORS, TASTING_FIELDS } from "../src/core/intake.js";
 import { migratedDb } from "./pg.js";
 import { syntheticLog } from "./syntheticLog.js";
-import { addBean, addRoast, addTasting, beanHistory } from "../src/db/store.js";
+import { addBean, addRoast, addTasting, beanHistory, updateTasting } from "../src/db/store.js";
 import { kaffelogicAdviceContext } from "../src/adapters/kaffelogic/adviceContext.js";
-import { RULES, RULE_SETTINGS, TASTE_CHIPS, type AdviceContext, type AdviceInput, type HistoryForAdvice, type TastedRoast, adviceReport, advise, adviseFromHistory } from "../src/core/rules.js";
+import { RULES, RULE_SETTINGS, TASTE_CHIPS, type AdviceContext, type AdviceInput, type HistoryForAdvice, type TastedRoast, adviceReport, advise, adviseFromHistory, unratedTastingIds, unratedTastingsMessage } from "../src/core/rules.js";
 
 const DEFECTS: readonly string[] = [...TASTE_CHIPS.under, ...TASTE_CHIPS.over];
 /** A cup's roast quality agrees with its words unless a test says otherwise: 2 with a roast defect, 3 without. */
@@ -417,5 +417,51 @@ describe("rest and profile switching, from what the store returns", () => {
     await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-29", brew: "pourover", quality: 2, taste: ["sour", "grassy"] } });
     const later = adviseFromHistory(await beanHistory(db, beanId), context)!;
     expect(later.advice).toMatchObject({ kind: "change", ruleId: "under-roasted", thermalDoseChangePct: 15 });
+  });
+});
+
+describe("tastings recorded before roast quality replaced the overall score", () => {
+  const intake = { name: "Legacy bean", species: "arabica", decaf: false, process: "washed", goal: "filter", drinkWhen: "soon", altitudeM: 1950 } as const;
+  async function beanWithTasting() {
+    const db = await migratedDb();
+    const { beanId } = await addBean(db, intake);
+    const { roastId } = await addRoast(db, { beanId, klog: syntheticLog({ first_crack: 540, roast_end: 600 }), answers: { greenG: 120, roastedG: 101.5 } });
+    const { tastingId } = await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-29", brew: "pourover", quality: 4, taste: ["sweet", "balanced"] } });
+    // What migration 005 does to a tasting that predates it.
+    await db.query("update tasting set quality_rated = false where id = $1", [tastingId]);
+    return { db, beanId, tastingId };
+  }
+
+  it("are skipped by the advice, and the history says which", async () => {
+    const { db, beanId, tastingId } = await beanWithTasting();
+    const history = await beanHistory(db, beanId);
+    expect(history.versions[0].roasts[0].tastings[0]).toMatchObject({ id: tastingId, quality: 4, qualityRated: false });
+    expect(adviseFromHistory(history)).toBeUndefined();
+    expect(unratedTastingIds(history)).toEqual([tastingId]);
+  });
+  it("count again once rated by roast quality, however the rating compares with the old score", async () => {
+    const { db, beanId, tastingId } = await beanWithTasting();
+    // Re-rating to the same number still rates it; changing only the notes does not.
+    await updateTasting(db, { tastingId, answers: { notes: "just a note" } });
+    expect(unratedTastingIds(await beanHistory(db, beanId))).toEqual([tastingId]);
+    await updateTasting(db, { tastingId, answers: { quality: 4 } });
+    const history = await beanHistory(db, beanId);
+    expect(unratedTastingIds(history)).toEqual([]);
+    expect(adviseFromHistory(history)).toMatchObject({ advice: { ruleId: "keep-as-is" } });
+  });
+  it("leave a rated tasting of the same roast in charge, even when it is the older one", async () => {
+    // The unrated tasting (dated 2025-06-29) is the newest by date: without the filter it would decide the advice.
+    const { db, beanId } = await beanWithTasting();
+    const roastId = (await beanHistory(db, beanId)).versions[0].roasts[0].id;
+    await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-28", brew: "pourover", quality: 2, taste: ["sour"] } });
+    const result = adviseFromHistory(await beanHistory(db, beanId))!;
+    expect(result.advice.ruleId).toBe("under-roasted");
+  });
+  it("are explained in plain words when nothing else can be advised on", () => {
+    expect(unratedTastingsMessage([3])).toBe("Tasting 3 was recorded before roast quality replaced the overall score, so it isn't used until rated. Rate it by roast quality, 1 to 5 (1 a roast defect dominates the cup, 2 a roast defect is there, but doesn't dominate, 3 clean, with little character, 4 clean and expressive, 5 clean, expressive, balanced and sweet), then advise again.");
+    // It uses the scale's own words, so it can't drift from the form.
+    for (const meaning of Object.values(QUALITY_ANCHORS)) expect(unratedTastingsMessage([3])).toContain(meaning);
+    expect(unratedTastingsMessage([1, 2])).toContain("Tastings 1, 2 were recorded before");
+    expect(unratedTastingsMessage([1, 2])).toContain("they aren't used until rated. Rate each by roast quality");
   });
 });

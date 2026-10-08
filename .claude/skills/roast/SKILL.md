@@ -64,6 +64,12 @@ cup with no defect is a 3 however little they like it. If the roaster gives a li
 checks quality against the chips (a defect word means 1 or 2; none means 3 or more) and asks when
 they disagree: relay that and fix whichever the roaster says is wrong with `taste:update`.
 
+A tasting recorded before roast quality replaced the overall score holds an old liking, not a quality,
+so `advise` leaves it out until it is rated (`taste:update` with a `quality` answer marks it rated). If
+`advise` lists `unratedTastings` (ids only; `history` shows each one's date, brew and words), tell
+the roaster those were left out, say which by date and brew, and offer to rate them; if it
+refuses because every tasting is unrated, relay its message and ask for the ratings in the anchored terms.
+
 ## 3b. The roaster's own settings and taste words
 
 Step sizes, the roast quality that counts as good enough, and what a taste word means to the rules are
@@ -87,7 +93,7 @@ and run the command it hands you if the roaster says yes.
    thermal dose, using the bean's other tasted roasts as its record. If `basedOn.roastId` isn't the
    roast the roaster asked about, tell them which roast the advice is for. It returns `say` and, only when there is something to
    record, `onYes`.
-2. Say `say` to the roaster as written, adding only the one `personal` line from 3b (it can be several lines: for a clean cup below the bar it lists
+2. Say `say` to the roaster as written, adding only the one `personal` line from 3b and, when `advise` lists `unratedTastings`, the one note from step 3 (it can be several lines: for a clean cup below the bar it lists
    the levers that can raise the quality, each with what it changes; relay every line). Don't add, drop, reword, round or second-guess any of it,
    and don't judge the roast yourself: textbook numbers don't apply to Nano profiles, and the
    rules already allow for that.

@@ -87,7 +87,9 @@ below the bar the answer is `clean-below-bar` (rule 7).
 
 **Roast quality.** The tasting asks for the quality of the roast, not whether you like the cup. It is
 judged by defects, so it can be checked against the words: a cup with a roast defect (an under or an
-over word) is a 1 or 2, and a clean cup is a 3 or better.
+over word) is a 1 or 2, and a clean cup is a 3 or better. Tastings recorded before this scale existed
+held an overall score instead; they are marked unrated and the advice skips them until you rate them
+by this scale (`taste:update` with a `quality`).
 
 | Quality | Meaning |
 |---|---|
@@ -119,6 +121,7 @@ your copy (`calibration:set`, section 4).
 | `plateauSteps` | 2 | 1 to 6 | ⚠ Steps of `noResponsePct` or more, the same way on one profile, at the end of the run without the roast quality improving, before the level counts as tried out. |
 | `restTestDays` | 3 | 1 to 14 | ⚠ Days between the first and last tasting of one roast that make resting a fair test. (Kaffelogic's Rest profiles start at 3.) |
 | `brewTestCount` | 3 | 2 to 6 | ⚠ Different brews of one roast that make changing the brew a fair test. |
+| `profileTestRoasts` | 2 | 1 to 6 | ⚠ Tasted roasts on the bean's other profile that make switching to it a fair test. |
 | `holdMinQuality` | 4 | 1 to 5 | ⚠ A cup of at least this roast quality, with nothing wrong and at least one good word, is left alone. A clean cup below it gets the list of what else can raise it. |
 
 **Your own values.** The values above and the taste-word table in section 3 are the defaults. They
@@ -334,8 +337,10 @@ How each is judged:
   later day, brew the best each brew reached), *exhausted* if not although the test was fair, *unclear* if
   the test was small, *untested* if no roast was tasted a second way.
 - **Profile** is *untested* while the bean's other profile hasn't been roasted, *unavailable* when there is
-  none to suggest, and *moving* or *unclear* once it has been roasted (one roast is too few to rule it out,
-  so the profile is never *exhausted*, and the verdict below stays open while an alternative exists).
+  none to suggest. Once it has been roasted it is *moving* if its best roast beat the best on the other
+  profile, *exhausted* if it has at least `profileTestRoasts` tasted roasts, there is a roast on the other
+  profile to compare with, and none beat it, and *unclear* otherwise (too few roasts, or nothing on the
+  other profile to compare with). The verdict below stays open until the profile is exhausted or unavailable.
 - **Curve** is always *unavailable*: this tool can't edit it yet.
 
 **The verdict.** While any lever the tool can reach is still to try, the answer says so: "I wouldn't blame

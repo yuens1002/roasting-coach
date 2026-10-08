@@ -26,6 +26,7 @@ export const SETTING_SPECS = {
   plateauSteps: { min: 1, max: 6, integer: true, plain: "steps the level takes without the roast quality improving before it counts as tried out" },
   restTestDays: { min: 1, max: 14, integer: true, plain: "days between the first and last tasting of one roast that make resting a fair test" },
   brewTestCount: { min: 2, max: 6, integer: true, plain: "different brews of one roast that make changing the brew a fair test" },
+  profileTestRoasts: { min: 1, max: 6, integer: true, plain: "tasted roasts on the bean's other profile that make switching to it a fair test" },
   holdMinQuality: { min: 1, max: 5, integer: true, plain: "the roast quality at which a clean cup is left alone" },
 } as const satisfies Record<keyof RuleSettings, SettingSpec>;
 

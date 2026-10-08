@@ -33,7 +33,7 @@ import { type LevelThermalDose, formatMinutesSeconds, levelAfterChange, profileT
 import { findBaseProfile, formatKpro, profileFromKpro, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
 import { describeCalibration, personalChanges, resolveCalibration } from "../src/core/calibration.js";
 import { INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../src/core/intake.js";
-import { type LevelMove, adviceReport, adviseFromHistory } from "../src/core/rules.js";
+import { type LevelMove, adviceReport, adviseFromHistory, unratedTastingIds, unratedTastingsMessage } from "../src/core/rules.js";
 import { checkShape } from "../src/core/validate.js";
 import { type Db, InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, changeCalibration, intakeFromBeanRow, listBeans, loadOverrides, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
 import { asDb, connect } from "./db.js";
@@ -173,10 +173,14 @@ async function run() {
         // The roaster's own settings and taste-word meanings, where they've set any; `personal` lists them so the answer can be audited.
         const overrides = await loadOverrides(db);
         const result = adviseFromHistory(history, kaffelogicAdviceContext(intakeFromBeanRow(history.bean)), resolveCalibration(overrides));
-        if (!result) throw new InputError([`Bean ${arg} has no tasted roast with a measured thermal dose yet. Record a roast and a tasting first.`]);
+        // Tastings recorded before roast quality replaced the overall score are left out until rated; say which.
+        const unratedTastings = unratedTastingIds(history);
+        if (!result) {
+          throw new InputError([unratedTastings.length ? unratedTastingsMessage(unratedTastings) : `Bean ${arg} has no tasted roast with a measured thermal dose yet. Record a roast and a tasting first.`]);
+        }
         const { basedOn, advice } = result;
         const personal = personalChanges(overrides);
-        const done = (move?: LevelMove, problem?: string) => ({ basedOn, advice, ...(personal.length ? { personal } : {}), ...(move ? { move } : {}), ...adviceReport(beanId, result, move, problem) });
+        const done = (move?: LevelMove, problem?: string) => ({ basedOn, advice, ...(personal.length ? { personal } : {}), ...(unratedTastings.length ? { unratedTastings } : {}), ...(move ? { move } : {}), ...adviceReport(beanId, result, move, problem) });
         if (advice.kind !== "change") return done();
         const version = history.versions.find((v) => v.number === basedOn.version)!;
         const level = basedOn.level ?? version.level;

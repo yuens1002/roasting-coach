@@ -446,3 +446,21 @@ describe("store", () => {
     expect(keys[2]).toBe(keys[1]);
   });
 });
+
+describe("profile keys across a chain of near-identical copies", () => {
+  it("joins two groups that a later copy bridges, so the level ladder doesn't split", async () => {
+    const db = await migratedDb();
+    const { beanId } = await addBean(db, { name: "Kenya chain", species: "arabica", decaf: false, process: "washed", goal: "filter", drinkWhen: "soon", altitudeM: 1950 });
+    // 204.1044 and 204.1056 round to different 5-figure keys and are further apart than the 6-figure tolerance;
+    // 204.105 is within the tolerance of both, so it bridges them.
+    const withFirstLevel = (value: string) => PROFILE.replace("profile_short_name:Test line", "profile_short_name:Kenya chain").replace("roast_levels:204,", `roast_levels:${value},`);
+    await addVersion(db, { beanId, profileName: "Kenya chain", level: 3.6, reason: "Copy A.", profileFile: withFirstLevel("204.1044") });
+    await addVersion(db, { beanId, profileName: "Kenya chain", level: 3.3, reason: "Copy C.", profileFile: withFirstLevel("204.1056") });
+    const apart = (await beanHistory(db, beanId)).versions.map((v) => v.profileKey);
+    expect(apart[1]).not.toBe(apart[2]);
+    await addVersion(db, { beanId, profileName: "Kenya chain", level: 3.0, reason: "Copy B, between them.", profileFile: withFirstLevel("204.105") });
+    const keys = (await beanHistory(db, beanId)).versions.map((v) => v.profileKey);
+    expect(keys[2]).toBe(keys[1]);
+    expect(keys[3]).toBe(keys[1]);
+  });
+});

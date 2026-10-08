@@ -59,8 +59,8 @@ it; profile facts (rest days, alternatives) that the roaster can correct.
 (column `quality`, migration 005), and "next time I want" is no longer asked or used (its column is kept
 so earlier answers aren't lost). Rules removed: `wish-against-taste`, `asked-for-change`. Rules added:
 `quality-vs-words` (the quality has to agree with the words) and `clean-below-bar`. Tastings recorded
-before the change held liking scores, so they need re-rating by the new anchors (`taste:update`); until
-they are, the rules read them as quality.
+before the change held liking scores, so migration 005 marks them unrated (`quality_rated`) and the
+advice skips them until they are rated by the new anchors (`taste:update` with a `quality`).
 
 **Decided: the reference cup is optional.** It says what the coffee can be. It can be unknown, when the
 producer doesn't specify the coffee. When the supplier or producer gives a description, that description is
@@ -72,11 +72,11 @@ it lists the levers (rest, brew, level, profile, curve), each moving, exhausted,
 unavailable, every state read from recorded roasts and tastings, with what each lever changes
 (`docs/RULES.md` rule 7). The level is exhausted when the last `plateauSteps` (2) real steps the same way on
 one profile did not raise the quality. The answer says "what is left is the curve, or the coffee itself" only
-when rest, brew, the level and the profile are all exhausted or unavailable (the profile can only reach
-"unclear" after one roast on the alternative, so with an alternative to try the verdict stays open); until
-then it says which levers are still to try. A reference cup, when there is one, is quoted so the coffee
-isn't written off. A real first ladder (a bean roasted at four levels, ashy to flat) reads as qualities
-2, 2, 3, 3 on the new scale: the level took the defect out and then stopped adding anything.
+when rest, brew, the level and the profile are all exhausted or unavailable (the profile is exhausted after
+`profileTestRoasts` (2) tasted roasts on the alternative that did not beat the other profile); until then
+it says which levers are still to try. A reference cup, when there is one, is quoted so the coffee
+isn't written off. The worked example in `docs/RULES.md` rule 7 is a ladder that starts ashy and then goes
+flat and clean: qualities 2, 3, 3, 3. The level took the defect out and then stopped adding anything.
 
 ### Levers and ideas considered
 

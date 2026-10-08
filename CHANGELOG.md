@@ -22,14 +22,15 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
   read from recorded roasts and tastings, with what each lever changes. Rest is compared only between
   tastings of the same brew and brew only between tastings on the same day, a repeat of the same level
   counts once, and the level is judged by its last steps. What is left (the curve, or the coffee itself) is
-  only named once rest, brew and the level are exhausted and the profile is exhausted or unavailable;
+  only named once rest, brew and the level are exhausted and the profile is exhausted (after
+  `profileTestRoasts` tasted roasts on the other profile that did not beat it) or unavailable;
   until then the answer says which levers are still to try. A reference for the coffee (the bean's
   `sellerNotes`, optional) is quoted so the coffee isn't written off.
 - Per-roaster settings and taste-word meanings: `calibration` shows every setting and word with its
   default, `calibration:set` changes them (checked before storing, `null` restores the default), and
   `advise` lists the roaster's departures from the defaults under `personal`. Stored in
   `roaster_setting` and `roaster_taste_word` (`db/004_roaster_calibration.sql`). New settings:
-  `plateauSteps`, `restTestDays`, `brewTestCount`. A change that would stop the level counting its own
+  `plateauSteps`, `restTestDays`, `brewTestCount`, `profileTestRoasts`. A change that would stop the level counting its own
   steps (`noResponsePct` above `stepPct`, or `noisePct` at or above `noResponsePct`) is refused.
 - `docs/RULES.md` has the quality scale, the allowed range of every setting, the lever table and the
   new rules, each checked against the code by `test/rulesDoc.test.ts`.
@@ -37,10 +38,13 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 ### Changed
 
 - The tasting's `score` column is now `quality` (`db/005_roast_quality.sql`). Scores recorded before
-  this were an overall liking and need re-rating by the new anchors (`taste:update`).
+  this were an overall liking, so the migration marks every existing tasting unrated (`quality_rated`):
+  `advise` skips it, says so (`unratedTastings`, or a plain message when nothing else is left), and a
+  `taste:update` with a `quality` rates it.
 - `holdMinScore` is now `holdMinQuality`. The `no-rule` answer asks what to test next.
 - A profile key now follows `sameProfileBody`: two copies of one profile that rounding put on either
-  side of an edge share a key, so the level ladder doesn't drop a roast.
+  side of an edge share a key, and a later copy that matches two separate groups joins them, so the
+  level ladder doesn't drop a roast.
 - The roadmap states the goal as the best roast of a coffee, judged by roast quality; liking is not a goal.
 
 ### Removed

@@ -172,3 +172,26 @@ describe("roasts and tastings", () => {
     expect(Number(r.rows[0].n)).toBe(0);
   });
 });
+
+describe("migration 005 marks earlier scores as unrated", () => {
+  it("keeps an old overall score but flags it, and rates new tastings from the start", async () => {
+    const { PGlite } = await import("@electric-sql/pglite");
+    const { readdirSync } = await import("node:fs");
+    const { DB_DIR, readSql } = await import("./pg.js");
+    const old = new PGlite();
+    // The database as it was before 005: a tasting with an overall score.
+    for (const file of readdirSync(DB_DIR).filter((f) => f.endsWith(".sql") && f < "005").sort()) await old.exec(readSql(file));
+    await old.exec(`
+      insert into bean (name, species, decaf, process, goal, drink_when) values ('Old bean', 'arabica', false, 'washed', 'filter', 'rest');
+      insert into profile_version (bean_id, number, machine_id, stock_profile_id, profile_name, level, end_temp_c)
+        select id, 1, 'kaffelogic-nano7', 'kaffelogic-nano7/1500-2000m-rest', '1500-2000m Rest', 2.5, 220.1 from bean;
+      insert into roast (version_id, roasted_at, green_g, roasted_g) select id, '2026-10-01T09:00:00Z', 120, 102 from profile_version;
+      insert into tasting (roast_id, tasted_on, brew, score, taste) select id, '2026-10-05', 'pourover', 4, '{sweet}' from roast;`);
+    await old.exec(readSql("005_roast_quality.sql"));
+    const before = await old.query<{ quality: number; quality_rated: boolean }>("select quality, quality_rated from tasting");
+    expect(before.rows).toEqual([{ quality: 4, quality_rated: false }]);
+    await old.exec("insert into tasting (roast_id, tasted_on, brew, quality, taste) select id, '2026-10-06', 'pourover', 3, '{flat}' from roast");
+    const after = await old.query<{ quality_rated: boolean }>("select quality_rated from tasting order by id");
+    expect(after.rows.map((r) => r.quality_rated)).toEqual([false, true]);
+  });
+});

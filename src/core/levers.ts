@@ -207,18 +207,25 @@ function cupLever(lever: "rest" | "brew", all: TastedRoast[], calibration: Calib
   return { lever, state: "unclear", evidence: `${comparisons[0].said} ${test.noGain} That is too small a test to rule it out.`, next: test.next };
 }
 
-function profileLever(all: TastedRoast[], alternative: AdviceContext["alternative"]): Lever {
+function profileLever(all: TastedRoast[], alternative: AdviceContext["alternative"], { settings }: Calibration): Lever {
   if (!alternative) return { lever: "profile", state: "unavailable", evidence: "There's no other stock profile I'd suggest for this bean." };
   const tried = all.filter((r) => r.profile === alternative.profileName);
   if (!tried.length) {
     return { lever: "profile", state: "untested", evidence: `${alternative.profileName} hasn't been roasted for this bean.`, next: `Roast it on ${alternative.profileName} at level ${alternative.level} (ends at ${alternative.endTempC} °C); it costs a roast.` };
   }
   const there = Math.max(...tried.map((r) => r.quality));
-  const others = all.filter((r) => r.profile !== alternative.profileName);
+  // "The other profile" is everything not on the alternative. A renamed copy of the alternative (same curve and
+  // settings, so the same key) is the alternative, however its stock parent is recorded.
+  const triedKeys = new Set(tried.flatMap((r) => (r.profileKey ? [r.profileKey] : [])));
+  const others = all.filter((r) => r.profile !== alternative.profileName && !(r.profileKey && triedKeys.has(r.profileKey)));
   const against = others.length ? `, against ${Math.max(...others.map((r) => r.quality))} on the other profile` : "";
   const evidence = `${alternative.profileName} has ${plural(tried.length, "tasted roast")}, best roast quality ${there}${against}.`;
   const better = others.length > 0 && there > Math.max(...others.map((r) => r.quality));
-  return better ? { lever: "profile", state: "moving", evidence } : { lever: "profile", state: "unclear", evidence: `${evidence} That is too few roasts to rule it out.` };
+  if (better) return { lever: "profile", state: "moving", evidence };
+  // A fair test is enough roasts on the other profile, with something to compare them with, and none better.
+  if (others.length > 0 && tried.length >= settings.profileTestRoasts) return { lever: "profile", state: "exhausted", evidence: `${evidence} ${alternative.profileName} has not improved a cup yet.` };
+  if (others.length === 0) return { lever: "profile", state: "unclear", evidence: `${evidence} There is no roast on the other profile to compare it with.` };
+  return { lever: "profile", state: "unclear", evidence: `${evidence} That is too few roasts to rule it out.` };
 }
 
 const CURVE: Lever = { lever: "curve", state: "unavailable", evidence: "This tool can't edit a curve yet.", next: "If you edit one in Kaffelogic Studio, tell me and I'll record the roast as a new version." };
@@ -226,7 +233,7 @@ const CURVE: Lever = { lever: "curve", state: "unavailable", evidence: "This too
 /** Every lever with where it stands for this roast and the bean's earlier ones. */
 export function leverLedger(latest: TastedRoast, earlier: TastedRoast[], calibration: Calibration, context?: AdviceContext): Lever[] {
   const all = [...earlier, latest];
-  return [cupLever("rest", all, calibration), cupLever("brew", all, calibration), levelLever(latest, earlier, calibration), profileLever(all, context?.alternative), CURVE];
+  return [cupLever("rest", all, calibration), cupLever("brew", all, calibration), levelLever(latest, earlier, calibration), profileLever(all, context?.alternative, calibration), CURVE];
 }
 
 /**

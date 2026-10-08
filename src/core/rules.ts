@@ -9,7 +9,7 @@
 // each lives in RULE_SETTINGS so the rules and tests can see it.
 
 import { daysBetween } from "./dates.js";
-import { qualityMeaning } from "./intake.js";
+import { QUALITY_ANCHORS, qualityMeaning } from "./intake.js";
 import { PCT_EPSILON, cleanBelowBarMessage, leverLedger, sameProfile } from "./levers.js";
 
 export const RULE_SETTINGS = {
@@ -35,6 +35,8 @@ export const RULE_SETTINGS = {
   restTestDays: 3,
   /** Different brews of one roast that make changing the brew a fair test. */
   brewTestCount: 3,
+  /** Tasted roasts on the bean's other profile that make switching to it a fair test. */
+  profileTestRoasts: 2,
   /** A cup of at least this roast quality, with nothing wrong, is left alone; a clean cup below it gets the lever ledger. (A level can't be called exhausted at or above it.) */
   holdMinQuality: 4,
 } as const;
@@ -363,7 +365,8 @@ export interface HistoryForAdvice {
       roastedAt: unknown;
       logLevel?: number;
       features?: { thermalDose: number };
-      tastings: { id: number; tastedOn: string; quality: number; taste: string[]; brew: string }[];
+      /** qualityRated is false for a tasting recorded before roast quality replaced the overall score and not yet rated by it. */
+      tastings: { id: number; tastedOn: string; quality: number; qualityRated?: boolean; taste: string[]; brew: string }[];
     }[];
   }[];
 }
@@ -381,7 +384,8 @@ export interface AdviceResult {
  */
 export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceContext, calibration?: Calibration): AdviceResult | undefined {
   const tasted = history.versions
-    .flatMap((version) => version.roasts.map((roast) => ({ version, roast })))
+    // A tasting recorded before roast quality replaced the overall score holds a liking, not a quality: it isn't used until rated.
+    .flatMap((version) => version.roasts.map((roast) => ({ version, roast: { ...roast, tastings: roast.tastings.filter((t) => t.qualityRated !== false) } })))
     .filter(({ roast }) => roast.features && Number.isFinite(roast.features.thermalDose) && roast.tastings.length)
     .sort((a, b) => new Date(a.roast.roastedAt as string).getTime() - new Date(b.roast.roastedAt as string).getTime() || a.roast.id - b.roast.id);
   const asRoast = ({ version, roast }: (typeof tasted)[number]): TastedRoast => {
@@ -409,6 +413,17 @@ export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceCon
     advice: advise({ latest, earlier: tasted.slice(0, -1).map(asRoast), context, calibration }),
   };
 }
+
+/**
+ * The ids of a bean's tastings that still hold an old overall score and wait to be rated by roast quality.
+ * Only roasts with a measured thermal dose count: rating a tasting of any other roast would not change the advice.
+ */
+export const unratedTastingIds = (history: HistoryForAdvice) =>
+  history.versions.flatMap((v) => v.roasts.filter((r) => r.features && Number.isFinite(r.features.thermalDose)).flatMap((r) => r.tastings.filter((t) => t.qualityRated === false).map((t) => t.id)));
+
+/** What to tell the roaster when there is nothing to advise on because the tastings are not rated by roast quality yet. */
+export const unratedTastingsMessage = (ids: number[]) =>
+  `${ids.length === 1 ? `Tasting ${ids[0]} was` : `Tastings ${ids.join(", ")} were`} recorded before roast quality replaced the overall score, so ${ids.length === 1 ? "it isn't" : "they aren't"} used until rated. Rate ${ids.length === 1 ? "it" : "each"} by roast quality, 1 to 5 (${Object.entries(QUALITY_ANCHORS).map(([n, meaning]) => `${n} ${meaning}`).join(", ")}), then advise again.`;
 
 /** Where a level change lands on the roast's profile: both ends, with the end temperature the machine will aim for. */
 export interface LevelMove {

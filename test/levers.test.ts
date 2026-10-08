@@ -201,12 +201,37 @@ describe("the profile lever", () => {
     expect(l.state).toBe("unclear");
     expect(l.evidence).toBe("KL Washed has 1 tasted roast, best roast quality 3, against 3 on the other profile. That is too few roasts to rule it out.");
   });
+  it("is exhausted once enough roasts on the alternative have not beaten the other profile, and not before", () => {
+    const worse = [roast(9, 3, { profile: "KL Washed" }), roast(8, 2, { profile: "KL Washed" })];
+    const l = lever("profile", roast(10, 3), worse, DEFAULT_CALIBRATION, alt);
+    expect(l).toMatchObject({ state: "exhausted", evidence: "KL Washed has 2 tasted roasts, best roast quality 3, against 3 on the other profile. KL Washed has not improved a cup yet." });
+    expect(l.next).toBeUndefined();
+    // One roast is too few, and so is two when the roaster wants three.
+    expect(lever("profile", roast(10, 3), worse.slice(0, 1), DEFAULT_CALIBRATION, alt).state).toBe("unclear");
+    expect(lever("profile", roast(10, 3), worse, mine({ settings: { profileTestRoasts: 3 } }), alt).state).toBe("unclear");
+    // The roaster can call one unbeaten roast a fair test.
+    expect(lever("profile", roast(10, 3), worse.slice(0, 1), mine({ settings: { profileTestRoasts: 1 } }), alt).state).toBe("exhausted");
+    // Better than the other profile at any point is movement, not exhaustion.
+    expect(lever("profile", roast(10, 2), [roast(9, 4, { profile: "KL Washed" }), roast(8, 3, { profile: "KL Washed" })], DEFAULT_CALIBRATION, alt).state).toBe("moving");
+  });
   it("compares against the profile it started on once the bean has been switched to the alternative", () => {
     const l = lever("profile", roast(10, 3, { profile: "KL Washed" }), [roast(9, 2)], DEFAULT_CALIBRATION, alt);
     expect(l).toMatchObject({ state: "moving", evidence: "KL Washed has 1 tasted roast, best roast quality 3, against 2 on the other profile." });
     // Only roasted on the alternative: nothing to compare with, and not called better.
     const only = lever("profile", roast(10, 3, { profile: "KL Washed" }), [], DEFAULT_CALIBRATION, alt);
-    expect(only).toMatchObject({ state: "unclear", evidence: "KL Washed has 1 tasted roast, best roast quality 3. That is too few roasts to rule it out." });
+    expect(only).toMatchObject({ state: "unclear", evidence: "KL Washed has 1 tasted roast, best roast quality 3. There is no roast on the other profile to compare it with." });
+    // However many roasts it has: with nothing to compare against, it is never exhausted.
+    const many = lever("profile", roast(10, 3, { profile: "KL Washed" }), [roast(9, 3, { profile: "KL Washed" }), roast(8, 3, { profile: "KL Washed" })], DEFAULT_CALIBRATION, alt);
+    expect(many).toMatchObject({ state: "unclear", evidence: "KL Washed has 3 tasted roasts, best roast quality 3. There is no roast on the other profile to compare it with." });
+  });
+  it("does not count a renamed copy of the alternative (same curve and settings) as the other profile", () => {
+    // The copy is KL Washed under another name: same key, though its stock parent is recorded as the first profile.
+    const copy = roast(9, 3, { profile: "1500-2000m Rest", profileKey: "washed-body" });
+    const onAlt = [roast(8, 3, { profile: "KL Washed", profileKey: "washed-body" }), roast(7.5, 3, { profile: "KL Washed", profileKey: "washed-body" })];
+    const l = lever("profile", roast(10, 3), [copy, ...onAlt], DEFAULT_CALIBRATION, alt);
+    // Three roasts carry the alternative's key; only the latest roast is on the other profile.
+    expect(l.evidence).toBe("KL Washed has 2 tasted roasts, best roast quality 3, against 3 on the other profile. KL Washed has not improved a cup yet.");
+    expect(l.state).toBe("exhausted");
   });
 });
 
@@ -241,6 +266,15 @@ describe("the clean-below-bar rule", () => {
     expect(a.reason).toContain("- rest (exhausted):");
     expect(a.reason).toContain("- brew (exhausted):");
     expect(a.reason).toContain("Everything this tool can move has had a fair test, the level in the direction it was tried. What is left is the curve, which the tool can't edit yet, or the coffee itself");
+    expect(a.reason).not.toContain("I wouldn't blame the coffee");
+  });
+  it("can reach the 'curve or the coffee' verdict with another profile on offer, once that profile has had a fair test", () => {
+    const alternative = { profileName: "KL Washed", level: 1.2, endTempC: 217.6 };
+    const tried = rs.map((r, i) => (i === 3 ? { ...r, tastings: [{ restedDays: 0, brew: "pourover", quality: 3 }, { restedDays: 4, brew: "pourover", quality: 3 }, { restedDays: 4, brew: "espresso", quality: 3 }, { restedDays: 4, brew: "immersion", quality: 3 }] } : r));
+    const onAlt = [roast(9, 3, { profile: "KL Washed" }), roast(8.5, 3, { profile: "KL Washed" })];
+    const a = run({ latest: tried[3], earlier: [...tried.slice(0, 3), ...onAlt], context: { alternative } });
+    expect(a.reason).toContain("- profile (exhausted):");
+    expect(a.reason).toContain("Everything this tool can move has had a fair test");
     expect(a.reason).not.toContain("I wouldn't blame the coffee");
   });
   it("quotes the roaster's reference when there is one, and says nothing about one when there isn't", () => {
