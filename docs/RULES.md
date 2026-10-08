@@ -7,7 +7,9 @@ quote the rule and the roast.
 
 The advice is deterministic: the same tasting, roast and history always give the same answer,
 word for word. No model judges a curve or a cup. If no rule covers a tasting, the answer is "no
-rule covers this", never a guess.
+rule covers this", never a guess. The answers state what your roasts and tastings show and what a
+rule does about it; they do not give the tool's opinion of the coffee, and a test checks the worked
+examples below and further cases for first-person opinion and hedged belief.
 
 **⚠ marks a first guess or an assumption we'd like checked.** There is no research number for
 those; they are our best starting point, kept in one place so they are easy to change.
@@ -193,10 +195,10 @@ roaster, which this tool doesn't use.
 **When:** the cup has at least one under word and at least one over word.
 **What it does:** asks; changes nothing.
 **Why:** sharp and burnt together means the roast was uneven: scorched outside with an underdeveloped
-inside, or some beans taken too far while others weren't, which no level change can fix. The cure
-is in the curve.
+inside, or some beans taken too far while others weren't, which a level change does not address.
+The curve is what changes how evenly the heat is applied.
 
-> Example: tasted sour and bitter. "The cup tasted both sour (under-roasted) and bitter (over-roasted). That usually means an uneven roast, which a level change can't fix: some beans went too far while others didn't go far enough. Check how the beans looked after the roast (uneven colour, dark tips) before changing anything; the cure is probably in the profile's curve."
+> Example: tasted sour and bitter. "The cup tasted both sour (under-roasted) and bitter (over-roasted). That is the pattern of an uneven roast, which a level change does not address: some beans went too far while others didn't go far enough. Check how the beans looked after the roast (uneven colour, dark tips) before changing anything; the curve is what changes how evenly the heat is applied."
 
 ✔ **Settled by the roaster:** sour and bitter can't come from one good roast, so a cup that tastes
 both is a roasting fault, not a brewing one. Uneven extraction (channelling) is deliberately not
@@ -211,7 +213,7 @@ ready for a 3-day profile.
 **Why:** a Rest profile is written for several days of rest. A cup on day 1 may just not be ready,
 and changing the roast for it would chase the wrong thing.
 
-> Example: sour, on 1500-2000m Rest, tasted 1 day after roasting. "The cup tasted sour, but this roast's profile (1500-2000m Rest) is written for 3 to 5 days of resting before brewing, and it was tasted 1 day after roasting. It may simply not be ready. Taste it again on day 3 or later before changing anything. No new version is needed."
+> Example: sour, on 1500-2000m Rest, tasted 1 day after roasting. "The cup tasted sour, but this roast's profile (1500-2000m Rest) is written for 3 to 5 days of resting before brewing, and it was tasted 1 day after roasting. The rest the profile asks for is not over. Taste it again on day 3 or later before changing anything. No new version is needed."
 
 ⚠ **Check this:** only sour-side cups are held (rest doesn't explain bitter or ashy). The rule
 assumes sourness is what an early taste shows; it doesn't know your espresso might need longer than
@@ -239,8 +241,8 @@ Within a side, the first of these that applies wins:
    side, but it had the same roasting (within `noisePct`) or was on the wrong side of this one (for
    example less roasting yet more roasted-tasting). Asks, changes nothing.
 2. **Bracketed** (`…-bracketed`): an earlier roast tasted the other side, with more roasting
-   than this one (for under-roasted; less for over-roasted), beyond the noise. The best roast is
-   between them, so go halfway in thermal dose. Uses the nearest such roast.
+   than this one (for under-roasted; less for over-roasted), beyond the noise. The step goes
+   halfway to it in thermal dose. Uses the nearest such roast.
 3. **Level not helping** (`level-not-helping`, below).
 4. **A plain step** (`under-roasted`, `over-roasted`): `stepPct` for one word, `strongStepPct` for two
    or more words on that side.
@@ -249,13 +251,13 @@ Within a side, the first of these that applies wins:
 
 > Example, over-roasted step: ashy, no earlier roasts. "The cup tasted ashy, which means the beans were over-roasted. Roast about 10% less. That is level 2.7 (ends at 222.2 °C), down from level 3 (223.4 °C). Shall I record it as the next version?"
 
-> Example, bracketed: grassy; an earlier roast with 20% more roasting tasted bitter. "The cup tasted grassy (under-roasted), while an earlier roast with 20% more roasting tasted bitter (over-roasted). The best roast is between them, so go halfway: about 10% more roasting. That is level 3.3 (ends at 224.6 °C), up from level 3 (223.4 °C). Shall I record it as the next version?"
+> Example, bracketed: grassy; an earlier roast with 20% more roasting tasted bitter. "The cup tasted grassy (under-roasted), while an earlier roast with 20% more roasting tasted bitter (over-roasted). Halving the gap between them: about 10% more roasting. That is level 3.3 (ends at 224.6 °C), up from level 3 (223.4 °C). Shall I record it as the next version?"
 
-> Example, bracketed (other side): bitter; an earlier roast with 20% less roasting tasted sour. "The cup tasted bitter (over-roasted), while an earlier roast with 20% less roasting tasted sour (under-roasted). The best roast is between them, so go halfway: about 10% less roasting. That is level 2.7 (ends at 222.2 °C), down from level 3 (223.4 °C). Shall I record it as the next version?"
+> Example, bracketed (other side): bitter; an earlier roast with 20% less roasting tasted sour. "The cup tasted bitter (over-roasted), while an earlier roast with 20% less roasting tasted sour (under-roasted). Halving the gap between them: about 10% less roasting. That is level 2.7 (ends at 222.2 °C), down from level 3 (223.4 °C). Shall I record it as the next version?"
 
-> Example, contradicted: grassy; an earlier roast with 20% less roasting tasted bitter. "This cup tasted grassy (under-roasted), but an earlier roast with 20% less roasting tasted bitter (over-roasted). That's backwards: the roast with less roasting shouldn't taste more roasted. So something other than the roast is varying: the brew, the days of rest, or the batch. Worth finding out before changing the roast."
+> Example, contradicted: grassy; an earlier roast with 20% less roasting tasted bitter. "This cup tasted grassy (under-roasted), but an earlier roast with 20% less roasting tasted bitter (over-roasted). That runs against the expected direction: the roast with less roasting should not taste more roasted. So something other than the roast differs between them: the brew, the days of rest or the batch. Find out which before changing the roast."
 
-> Example, contradicted (other side): bitter; an earlier roast with 20% more roasting tasted sour. "This cup tasted bitter (over-roasted), but an earlier roast with 20% more roasting tasted sour (under-roasted). That's backwards: the roast with more roasting shouldn't taste less roasted. So something other than the roast is varying: the brew, the days of rest, or the batch. Worth finding out before changing the roast."
+> Example, contradicted (other side): bitter; an earlier roast with 20% more roasting tasted sour. "This cup tasted bitter (over-roasted), but an earlier roast with 20% more roasting tasted sour (under-roasted). That runs against the expected direction: the roast with more roasting should not taste less roasted. So something other than the roast differs between them: the brew, the days of rest or the batch. Find out which before changing the roast."
 
 ⚠ **Check this:** the step sizes (10% and 15%) are first guesses, and one word is weighed the same as
 another. Section 6 shows what each step means in level and end temperature on every stock profile.
@@ -268,7 +270,7 @@ roast and a bitter one; it doesn't allow for a different brew having been used f
 of this bean **on the same profile** (same curve and settings, compared by content; an edited copy
 of a stock profile is a different profile, and where the content isn't known the names are compared)
 tasted the same side with at least `noResponsePct` less roasting
-(for under-roasted; more for over-roasted). The level has moved the roast and the cup hasn't changed.
+(for under-roasted; more for over-roasted). The level has moved the roast and the cup has stayed on the same side.
 **What it does:** suggests the bean's other profile (the alternative worked out from the bean's
 process and altitude as they are recorded now), at the level that profile suggests for the bean's
 goal. The comparison is with the first earlier roast on this profile that qualifies, not necessarily
@@ -280,7 +282,7 @@ curve, which this tool can't edit yet.
 trouble is likely the profile's shape (heat going in too fast or slow for this bean), not where it
 stops.
 
-> Example: sour on 1500-2000m Rest after a roast with 10% less roasting also tasted sour; KL Washed is the alternative. "The cup tasted sour (under-roasted) even after the roasting went 10% more than an earlier roast on this profile, which tasted sour too. The level isn't what's wrong, so another step along it probably won't help. Next, try KL Washed instead: pick it on the Nano and set level 1.2 (ends at 217.6 °C). Shall I record that as the next version?"
+> Example: sour on 1500-2000m Rest after a roast with 10% less roasting also tasted sour; KL Washed is the alternative. "The cup tasted sour (under-roasted) even after the roasting went 10% more than an earlier roast on this profile, which tasted sour too. The level moved the roast and the cup stayed on the same side. Next, try KL Washed instead: pick it on the Nano and set level 1.2 (ends at 217.6 °C). Shall I record that as the next version?"
 
 ⚠ **Check this:** this is judged from **one** unsuccessful step. For a timid first step that is thin
 evidence; it may switch profiles too early. Requiring two unsuccessful steps is a one-line change if
@@ -344,21 +346,20 @@ How each is judged:
   other profile to compare with). The verdict below stays open until the profile is exhausted or unavailable.
 - **Curve** is always *unavailable*: this tool can't edit it yet.
 
-**The verdict.** While any lever the tool can reach is still to try, the answer says so: "I wouldn't blame
-the coffee yet". Only when every one is exhausted or unavailable does it say what is left: the curve, or the
+**The verdict.** While any lever the tool can reach is still to try, the answer says so ("Still to try before the coffee can be named as the limit"). Only when every one is exhausted or unavailable does it say what is left: the curve, or the
 coffee itself, which a ladder of levels can't tell apart (and it says the level was tried in the direction it
 went). It never says the coffee can't do better. If the
 roaster has given a reference for the coffee (the supplier's or producer's description, or their own cup),
-the answer quotes it and says not to write the coffee off; with none, it says nothing about one.
+the answer quotes it and says to compare the cup against it; with none, it says nothing about one.
 
 ```
-"The cup is clean: no roast defect, so there is nothing for the level to fix. The roast quality is 3 (clean, with little character), below the 4 this tool aims for. What can raise it:
+"The cup is clean: no roast defect, so there is nothing for the level to fix. The roast quality is 3 (clean, with little character), below the bar of 4. What can raise it:
 - rest (untested): Changes how the roast has settled by the time you taste it; the roast itself stays as it is. Kaffelogic's Rest profiles are written for 3 to 5 days. Every tasting so far was on day 1 after roasting; no roast has been tasted again on another day. Taste the newest roast again after more days of rest (it costs no roast).
 - brew (untested): Changes how much of the roast reaches the cup; the roast itself stays as it is. The tasting form's own note: espresso exaggerates sourness and filter exaggerates flatness. Every tasting so far was brewed as pour over; no roast has been brewed another way. Taste the newest roast brewed another way (it costs no roast).
 - level (exhausted): Moves the end temperature, so the whole roast goes further or less far, by a measured amount of thermal dose; the shape of the curve stays as it is. 3 steps less roasting on this profile (thermal dose 12 to 8.7, about 27% less); the roast quality was 2, 3, 3 and 3. The last 2 steps did not raise it.
-- profile (unavailable): Changes the curve's shape (how fast heat goes in and how long the beans develop), not only where the roast stops. There's no other stock profile I'd suggest for this bean.
+- profile (unavailable): Changes the curve's shape (how fast heat goes in and how long the beans develop), not only where the roast stops. No other stock profile is suggested for this bean.
 - curve (unavailable): The same as a profile change, made by editing the curve yourself. This tool can't edit a curve yet. If you edit one in Kaffelogic Studio, tell me and I'll record the roast as a new version.
-I wouldn't blame the coffee yet: rest and brew are still to try. Your reference for this coffee is "Lively and fruit-forward". It says what the coffee can be, so don't write it off; compare the cup against it."
+Still to try before the coffee can be named as the limit: rest and brew. Your reference for this coffee is "Lively and fruit-forward". Compare the cup against it."
 ```
 
 Example: flat, clean, roast quality 3, the day after roasting, pour over, after three steps of about 10% less roasting (the first roast was ashy, quality 2; then 3, 3, 3); a reference of lively, fruit-forward; no other profile to suggest.
@@ -384,7 +385,7 @@ words include no good word (for example only `thin` or `flat` with a quality of 
 It never fills the gap with a guess. If no word can be named at all, it says "Nothing in this tasting points
 to a change a rule can make" instead.
 
-> Example: thin, roast quality 4. "No rule covers thin yet, and nothing else in this tasting points to a change. Ask the roaster what to test next rather than guessing."
+> Example: thin, roast quality 4. "No rule covers thin yet, and nothing else in this tasting points to a change. Ask the roaster what to test next."
 
 ## 6. What a step means on each stock profile
 

@@ -41,6 +41,15 @@ deterministic, with the only personal input being the roaster's own taste *sensi
 and name a cup), never their preference. When a rule, a message or a setting could be read as the tool
 having a taste of its own (a target it prefers, wording that judges the coffee), that is a bug to remove.
 
+First sweep done (2026-10-08): the engine's messages now state what the roasts and tastings show and what
+a rule does, with no first-person opinion ("I wouldn't blame the coffee yet", "the one profile I'd
+suggest"), no hedged belief ("probably", "usually means"), and no judgment of the coffee or the tool's own
+aim ("don't write it off", "the best roast", "the 4 this tool aims for"). `test/voice.test.ts` keeps it so:
+it checks every worked example and a set of extra cases against a short list of stances. Still open for
+a later sweep: the colour-change warning in `src/core/features.ts` ("probably pressed by mistake"), the
+Why/Check-this prose in `docs/RULES.md` (not tested), the taste-word notes ("a baked
+or stalled roast also tastes bready"), and the starting-profile `why` lines.
+
 Measurement (thermal dose, level to end temperature, rest days) and the basic reading of a cup (ashy and
 bitter point to too much roasting, sour and grassy to too little) are shared. What a roaster may
 personalise is how they **perceive and name** a cup (what their taste words mean: one roaster's "flat" is

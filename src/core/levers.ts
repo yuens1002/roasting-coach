@@ -208,7 +208,7 @@ function cupLever(lever: "rest" | "brew", all: TastedRoast[], calibration: Calib
 }
 
 function profileLever(all: TastedRoast[], alternative: AdviceContext["alternative"], { settings }: Calibration): Lever {
-  if (!alternative) return { lever: "profile", state: "unavailable", evidence: "There's no other stock profile I'd suggest for this bean." };
+  if (!alternative) return { lever: "profile", state: "unavailable", evidence: "No other stock profile is suggested for this bean." };
   const named = all.filter((r) => r.profile === alternative.profileName);
   if (!named.length) {
     return { lever: "profile", state: "untested", evidence: `${alternative.profileName} hasn't been roasted for this bean.`, next: `Roast it on ${alternative.profileName} at level ${alternative.level} (ends at ${alternative.endTempC} °C); it costs a roast.` };
@@ -242,13 +242,13 @@ export function leverLedger(latest: TastedRoast, earlier: TastedRoast[], calibra
  * What else can change the cup, what each lever changes and what the roasts say about it, and what that adds up to.
  */
 export function cleanBelowBarMessage(ledger: Lever[], latest: TastedRoast, { settings }: Calibration, reference?: string): string {
-  const head = `The cup is clean: no roast defect, so there is nothing for the level to fix. The roast quality is ${latest.quality} (${qualityMeaning(latest.quality)}), below the ${settings.holdMinQuality} this tool aims for.`;
+  const head = `The cup is clean: no roast defect, so there is nothing for the level to fix. The roast quality is ${latest.quality} (${qualityMeaning(latest.quality)}), below the bar of ${settings.holdMinQuality}.`;
   const lines = ledger.map((l) => `- ${l.lever} (${l.state}): ${LEVER_EFFECTS[l.lever]} ${l.evidence}${l.caveat ? ` ${l.caveat}` : ""}${l.next ? ` ${l.next}` : ""}`);
   const open = ledger.filter((l) => l.lever !== "curve" && l.state !== "unavailable" && l.state !== "exhausted").map((l) => l.lever);
   const verdict = open.length
-    ? `I wouldn't blame the coffee yet: ${list(open)} ${open.length === 1 ? "is" : "are"} still to try.`
+    ? `Still to try before the coffee can be named as the limit: ${list(open)}.`
     : "Everything this tool can move has had a fair test, the level in the direction it was tried. What is left is the curve, which the tool can't edit yet, or the coffee itself; a ladder of levels can't tell those two apart.";
   const quoted = reference?.trim().replace(/[.!?\s]+$/, "");
-  const ref = quoted ? ` Your reference for this coffee is "${quoted}". It says what the coffee can be, so don't write it off; compare the cup against it.` : "";
+  const ref = quoted ? ` Your reference for this coffee is "${quoted}". Compare the cup against it.` : "";
   return `${head} What can raise it:\n${lines.join("\n")}\n${verdict}${ref}`;
 }

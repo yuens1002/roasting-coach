@@ -201,10 +201,10 @@ interface Rule {
 function levelNotHelping(side: Side, mine: string[], latest: TastedRoast, earlier: TastedRoast[], unmoved: TastedRoast, alternative: AdviceContext["alternative"], { chips }: Calibration): Advice {
   const { move, verdict } = SIDES[side];
   const moved = pct((latest.thermalDose / unmoved.thermalDose - 1) * 100);
-  const seen = `The cup tasted ${words(mine)} (${verdict}) even after the roasting went ${moved}% ${move} than an earlier roast on this profile, which tasted ${words(pick(unmoved.taste, chips[side]))} too. The level isn't what's wrong, so another step along it probably won't help.`;
+  const seen = `The cup tasted ${words(mine)} (${verdict}) even after the roasting went ${moved}% ${move} than an earlier roast on this profile, which tasted ${words(pick(unmoved.taste, chips[side]))} too. The level moved the roast and the cup stayed on the same side.`;
   const tried = alternative && [latest, ...earlier].some((r) => r.profile === alternative.profileName);
   if (alternative && !tried) return { kind: "switch-profile", ruleId: "level-not-helping", profileName: alternative.profileName, level: alternative.level, endTempC: alternative.endTempC, reason: seen };
-  const why = alternative ? `You've already roasted this bean on ${alternative.profileName}, the one other profile I'd suggest.` : "There's no other stock profile I'd suggest for this bean.";
+  const why = alternative ? `You've already roasted this bean on ${alternative.profileName}, the other stock profile suggested for this bean.` : "No other stock profile is suggested for this bean.";
   return { kind: "ask", ruleId: "level-not-helping", reason: `${seen} ${why} The next lever would be the profile's curve, which this tool can't edit yet. Keep adjusting the level anyway, or try something else?` };
 }
 
@@ -225,7 +225,7 @@ function developmentRule(side: Side): Rule["run"] {
       return {
         kind: "ask",
         ruleId: `${ruleId}-contradicted` as const,
-        reason: `This cup tasted ${words(mine)} (${verdict}), but an earlier roast with ${backwards ? `${pct(disagree.along)}% ${sign === 1 ? "less" : "more"}` : "about the same"} roasting tasted ${words(read(disagree.e, calibration)[opposite])} (${SIDES[opposite].verdict}). ${backwards ? `That's backwards: the roast with ${sign === 1 ? "less" : "more"} roasting shouldn't taste ${sign === 1 ? "more" : "less"} roasted.` : "Roasts with this little difference shouldn't taste opposite."} So something other than the roast is varying: the brew, the days of rest, or the batch. Worth finding out before changing the roast.`,
+        reason: `This cup tasted ${words(mine)} (${verdict}), but an earlier roast with ${backwards ? `${pct(disagree.along)}% ${sign === 1 ? "less" : "more"}` : "about the same"} roasting tasted ${words(read(disagree.e, calibration)[opposite])} (${SIDES[opposite].verdict}). ${backwards ? `That runs against the expected direction: the roast with ${sign === 1 ? "less" : "more"} roasting should not taste ${sign === 1 ? "more" : "less"} roasted.` : "Roasts this close should not taste opposite."} So something other than the roast differs between them: the brew, the days of rest or the batch. Find out which before changing the roast.`,
       };
     }
     const bracket = gaps.reduce<(typeof gaps)[number] | undefined>((nearest, g) => (!nearest || g.along < nearest.along ? g : nearest), undefined);
@@ -236,11 +236,11 @@ function developmentRule(side: Side): Rule["run"] {
         ruleId: `${ruleId}-bracketed` as const,
         thermalDoseChangePct,
         basis: "midpoint",
-        reason: `The cup tasted ${words(mine)} (${verdict}), while an earlier roast with ${pct(bracket.along)}% ${move} roasting tasted ${words(read(bracket.e, calibration)[opposite])} (${SIDES[opposite].verdict}). The best roast is between them, so go halfway: about ${pct(thermalDoseChangePct)}% ${move} roasting.`,
+        reason: `The cup tasted ${words(mine)} (${verdict}), while an earlier roast with ${pct(bracket.along)}% ${move} roasting tasted ${words(read(bracket.e, calibration)[opposite])} (${SIDES[opposite].verdict}). Halving the gap between them: about ${pct(thermalDoseChangePct)}% ${move} roasting.`,
       };
     }
     // The level has already moved this side's result a real distance, on this profile, and the cup is
-    // the same: the level isn't what's wrong, so another step along it probably won't help either.
+    // the same: the cup did not follow the level, so another step along it has no evidence behind it either.
     const unmoved = earlier.find((e) => sideOf(e, calibration) === side && sameProfile(e, latest) && (sign * (latest.thermalDose - e.thermalDose) * 100) / e.thermalDose >= settings.noResponsePct - PCT_EPSILON);
     if (unmoved) return levelNotHelping(side, mine, latest, earlier, unmoved, context?.alternative, calibration);
     const thermalDoseChangePct = sign * (mine.length >= settings.strongChipCount ? settings.strongStepPct : settings.stepPct);
@@ -280,7 +280,7 @@ export const RULES: Rule[] = [
         ? {
             kind: "ask",
             ruleId: "mixed-signals",
-            reason: `The cup tasted both ${words(r.under)} (under-roasted) and ${words(r.over)} (over-roasted). That usually means an uneven roast, which a level change can't fix: some beans went too far while others didn't go far enough. Check how the beans looked after the roast (uneven colour, dark tips) before changing anything; the cure is probably in the profile's curve.`,
+            reason: `The cup tasted both ${words(r.under)} (under-roasted) and ${words(r.over)} (over-roasted). That is the pattern of an uneven roast, which a level change does not address: some beans went too far while others didn't go far enough. Check how the beans looked after the roast (uneven colour, dark tips) before changing anything; the curve is what changes how evenly the heat is applied.`,
           }
         : undefined,
   },
@@ -293,7 +293,7 @@ export const RULES: Rule[] = [
       return {
         kind: "hold",
         ruleId: "tasted-too-soon",
-        reason: `The cup tasted ${words(r.under)}, but this roast's profile (${latest.profile ?? "unknown"}) is written for ${needed[0]} to ${needed[1]} days of resting before brewing, and it was tasted ${when}. It may simply not be ready. Taste it again on day ${needed[0]} or later before changing anything.`,
+        reason: `The cup tasted ${words(r.under)}, but this roast's profile (${latest.profile ?? "unknown"}) is written for ${needed[0]} to ${needed[1]} days of resting before brewing, and it was tasted ${when}. The rest the profile asks for is not over. Taste it again on day ${needed[0]} or later before changing anything.`,
       };
     },
   },
@@ -345,8 +345,8 @@ export function advise(input: AdviceInput): Advice {
     kind: "none",
     ruleId: "no-rule",
     reason: uncovered.length
-      ? `No rule covers ${words(uncovered)} yet, and nothing else in this tasting points to a change. Ask the roaster what to test next rather than guessing.`
-      : "Nothing in this tasting points to a change a rule can make. Ask the roaster what to test next rather than guessing.",
+      ? `No rule covers ${words(uncovered)} yet, and nothing else in this tasting points to a change. Ask the roaster what to test next.`
+      : "Nothing in this tasting points to a change a rule can make. Ask the roaster what to test next.",
   };
 }
 

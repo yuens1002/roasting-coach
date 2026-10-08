@@ -190,7 +190,7 @@ describe("the brew lever", () => {
 describe("the profile lever", () => {
   const alt: AdviceContext = { alternative: { profileName: "KL Washed", level: 1.2, endTempC: 217.6 } };
   it("is unavailable with no other profile to suggest", () => {
-    expect(lever("profile", roast(10, 3), [])).toMatchObject({ state: "unavailable", evidence: "There's no other stock profile I'd suggest for this bean." });
+    expect(lever("profile", roast(10, 3), [])).toMatchObject({ state: "unavailable", evidence: "No other stock profile is suggested for this bean." });
   });
   it("is untested with an alternative nobody roasted, and says what to do", () => {
     expect(lever("profile", roast(10, 3), [], DEFAULT_CALIBRATION, alt)).toMatchObject({ state: "untested", next: "Roast it on KL Washed at level 1.2 (ends at 217.6 °C); it costs a roast." });
@@ -251,7 +251,7 @@ describe("the clean-below-bar rule", () => {
   it("asks, says there is no defect for the level to fix, and lists every lever with what it changes", () => {
     const a = run();
     expect(a).toMatchObject({ kind: "ask", ruleId: "clean-below-bar" });
-    expect(a.reason).toContain("The cup is clean: no roast defect, so there is nothing for the level to fix. The roast quality is 3 (clean, with little character), below the 4 this tool aims for. What can raise it:");
+    expect(a.reason).toContain("The cup is clean: no roast defect, so there is nothing for the level to fix. The roast quality is 3 (clean, with little character), below the bar of 4. What can raise it:");
     for (const lever of ["rest (untested)", "brew (untested)", "level (exhausted)", "profile (unavailable)", "curve (unavailable)"]) expect(a.reason, lever).toContain(`- ${lever}:`);
     expect(a.reason).toContain("The last 2 steps did not raise it.");
   });
@@ -259,10 +259,10 @@ describe("the clean-below-bar rule", () => {
     const a = advise({ latest: roast(10, 3), earlier: [] });
     expect(a).toMatchObject({ kind: "ask", ruleId: "clean-below-bar" });
     expect(a.reason).toContain("- level (untested):");
-    expect(a.reason).toContain("I wouldn't blame the coffee yet: rest, brew and level are still to try.");
+    expect(a.reason).toContain("Still to try before the coffee can be named as the limit: rest, brew and level.");
   });
-  it("names the levers still to try before blaming the coffee", () => {
-    expect(run().reason).toContain("I wouldn't blame the coffee yet: rest and brew are still to try.");
+  it("names the levers still to try before naming the coffee as the limit", () => {
+    expect(run().reason).toContain("Still to try before the coffee can be named as the limit: rest and brew.");
   });
   it("names the coffee or the curve only when every lever the tool can reach has been tried", () => {
     const tried = rs.map((r, i) => (i === 3 ? { ...r, tastings: [{ restedDays: 0, brew: "pourover", quality: 3 }, { restedDays: 4, brew: "pourover", quality: 3 }, { restedDays: 4, brew: "espresso", quality: 3 }, { restedDays: 4, brew: "immersion", quality: 3 }] } : r));
@@ -270,7 +270,7 @@ describe("the clean-below-bar rule", () => {
     expect(a.reason).toContain("- rest (exhausted):");
     expect(a.reason).toContain("- brew (exhausted):");
     expect(a.reason).toContain("Everything this tool can move has had a fair test, the level in the direction it was tried. What is left is the curve, which the tool can't edit yet, or the coffee itself");
-    expect(a.reason).not.toContain("I wouldn't blame the coffee");
+    expect(a.reason).not.toContain("Still to try before the coffee can be named");
   });
   it("can reach the 'curve or the coffee' verdict with another profile on offer, once that profile has had a fair test", () => {
     const alternative = { profileName: "KL Washed", level: 1.2, endTempC: 217.6 };
@@ -279,10 +279,10 @@ describe("the clean-below-bar rule", () => {
     const a = run({ latest: tried[3], earlier: [...tried.slice(0, 3), ...onAlt], context: { alternative } });
     expect(a.reason).toContain("- profile (exhausted):");
     expect(a.reason).toContain("Everything this tool can move has had a fair test");
-    expect(a.reason).not.toContain("I wouldn't blame the coffee");
+    expect(a.reason).not.toContain("Still to try before the coffee can be named");
   });
   it("quotes the roaster's reference when there is one, and says nothing about one when there isn't", () => {
-    expect(run({ context: { reference: "Lively and fruit-forward." } }).reason).toContain('Your reference for this coffee is "Lively and fruit-forward". It says what the coffee can be, so don\'t write it off; compare the cup against it.');
+    expect(run({ context: { reference: "Lively and fruit-forward." } }).reason).toContain('Your reference for this coffee is "Lively and fruit-forward". Compare the cup against it.');
     expect(run().reason).not.toContain("reference");
     expect(run({ context: { reference: "   " } }).reason).not.toContain("reference");
   });
