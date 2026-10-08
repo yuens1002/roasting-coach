@@ -39,10 +39,10 @@ hard.
   temperature over time. It doesn't say what happens to the roast, or to the flavour in the cup, if
   you move a point on it. Without that link, changing a profile is guesswork, and it's easy to fall
   back on only touching the level.
-- **The level is not the only lever, and it stops working.** Once a cup has no roast defect left,
-  more or less roasting has nothing to fix. What can still change it is the days of rest, the brew,
-  the profile and the curve, and it's easy to keep pushing the level because it's the one control
-  you can see.
+- **The level is not the only lever.** A defect word (sour, ashy) tells you which way to move the
+  level. Once a cup has no roast defect left, nothing tells you which way to go, so another step is
+  only a probe. What can still change the cup is the days of rest, the brew, the profile and the
+  curve, and it's easy to keep pushing the level because it's the one control you can see.
 
 And the help you can find doesn't close the gap, because much of it is wrong for these machines:
 
@@ -70,8 +70,10 @@ make that experiment reliable if it:
    changes, and what your own roasts say about it, cheapest first.
 2. **Gives deterministic, explained advice.** The same evidence always leads to the same
    suggestion, from tested rules. A model never reads raw curves and never judges the cup. Every
-   rule, setting, taste word and message is written out in [docs/RULES.md](docs/RULES.md), and tests
-   fail if that page and the program disagree.
+   rule, setting and taste word is written out in [docs/RULES.md](docs/RULES.md), with a worked
+   example of the engine's exact words for each outcome. Tests check that page against the program
+   (the rule list, the settings, the quality scale, the lever sentences and each example); the
+   "when" and "what it does" prose is read beside the examples, not tested.
 3. **Measures what matters, grounded in research and checked against real logs.** The roast's
    *thermal dose* (from Arrhenius reaction kinetics) says how far its chemistry went (heat exposure over the whole roast, nothing to do with the
    grams of coffee in an espresso basket, which is also called a dose), independent of button presses
