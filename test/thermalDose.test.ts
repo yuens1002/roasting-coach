@@ -61,6 +61,35 @@ describe("a profile's thermal dose at a level", () => {
     expect(Math.abs(more.thermalDose / from.thermalDose - 1.1)).toBeLessThan(0.02);
     expect(levelAfterChange(profile, from, 0)!.level).toBe(3.3);
   });
+
+  it("answers for the level asked, whatever was asked for before", () => {
+    // The made-up profile's end temperatures for levels 0..6 are 204, 209, 214, 219, 222, 224, 226.
+    const endTemps = new Map([[3, 219], [6, 226], [0.5, 206.5]]);
+    for (const level of [3, 6, 3, 0.5, 3]) {
+      const d = profileThermalDoseAtLevel(profile, level)!;
+      expect(d.level).toBe(level);
+      expect(d.endTemp).toBeCloseTo(endTemps.get(level)!, 9);
+    }
+  });
+
+  it("gives a new object each call and leaves earlier answers alone, so a search can't overwrite them", () => {
+    const first = profileThermalDoseAtLevel(profile, 3)!;
+    const copy = { ...first };
+    const again = profileThermalDoseAtLevel(profile, 3)!;
+    const found = levelForThermalDose(profile, first.thermalDose * 0.85)!;
+    expect(again).toEqual(first);
+    expect(again).not.toBe(first);
+    expect(found).not.toBe(first);
+    // Scanning every level (as the search does) changed nothing the first answer holds.
+    expect(first).toEqual(copy);
+  });
+
+  it("finds each level it is given the thermal dose of", () => {
+    for (const level of [1, 2.5, 3, 4.2]) {
+      const d = profileThermalDoseAtLevel(profile, level)!;
+      expect(levelForThermalDose(profile, d.thermalDose)!.level).toBe(level);
+    }
+  });
 });
 
 describe("stored roasts", () => {
@@ -106,8 +135,13 @@ describe.skipIf(!pairs.length)("the profile curve predicts a real roast's therma
   }
 });
 
-describe.skipIf(!PRIVATE_PROFILES.some((p) => headerValue(p.text, "profile_short_name")?.trim() === "Robusta"))("level steps on the real Robusta profile", () => {
-  const file = PRIVATE_PROFILES.find((p) => headerValue(p.text, "profile_short_name")?.trim() === "Robusta")!;
+// The stock Robusta profile, found by content. A roaster's own saved copy of it (same name, another
+// modified stamp) would make the numbers below ambiguous, so the block runs only when there is one stamp.
+const ROBUSTA_FILES = PRIVATE_PROFILES.filter((p) => headerValue(p.text, "profile_short_name")?.trim() === "Robusta");
+const ROBUSTA_UNAMBIGUOUS = new Set(ROBUSTA_FILES.map((p) => headerValue(p.text, "profile_modified")?.trim())).size === 1;
+
+describe.skipIf(!ROBUSTA_UNAMBIGUOUS)("level steps on the real Robusta profile", () => {
+  const file = ROBUSTA_FILES[0];
   const robusta = parseKpro(file.text);
 
   it("is the stock Robusta profile, so the numbers below mean what they say", () => {
@@ -121,12 +155,26 @@ describe.skipIf(!PRIVATE_PROFILES.some((p) => headerValue(p.text, "profile_short
   });
 
   it("take 15% off level 3.0 at level 2.5", () => {
-    const from = profileThermalDoseAtLevel(robusta, 3)!;
-    const target = from.thermalDose * 0.85;
-    const got = levelForThermalDose(robusta, target)!;
-    const context = JSON.stringify({ file: file.file, modified: headerValue(file.text, "profile_modified"), from, target, got });
+    const from = profileThermalDoseAtLevel(robusta, 3);
+    expect(from, "the profile reaches level 3").toBeDefined();
+    const target = from!.thermalDose * 0.85;
+    const got = levelForThermalDose(robusta, target);
+    // The numbers as text: JSON would print NaN as null and drop undefined fields.
+    const context = [
+      `file ${file.file}, modified ${headerValue(file.text, "profile_modified") ?? "<none>"}, ${file.text.length} characters`,
+      `from ${JSON.stringify(from)}`,
+      `target ${String(target)}`,
+      `got ${JSON.stringify(got)}`,
+      `same object: ${from === got}`,
+      `level 3 asked again: ${JSON.stringify(profileThermalDoseAtLevel(robusta, 3))}`,
+    ].join("; ");
+    // A failure seen once, with `from` and `got` both showing level 6, has not been explained, and this
+    // module has never returned a shared object, so the line above tells a recurrence apart from the guard
+    // tests earlier in this file: a different file than expected, the two results being one object, the
+    // same call answering differently the second time, or a search that found no level at all.
+    expect(got, context).toBeDefined();
     // The thermal dose first: a level that is far from the target means the search fell off its end, not that 2.5 is wrong.
-    expect(Math.abs(got.thermalDose / target - 1), context).toBeLessThan(0.05);
-    expect(got.level, context).toBe(2.5);
+    expect(Math.abs(got!.thermalDose / target - 1), context).toBeLessThan(0.05);
+    expect(got!.level, context).toBe(2.5);
   });
 });

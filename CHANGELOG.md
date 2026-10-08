@@ -5,6 +5,20 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-10-08
+
+- 2026-10-08 - fix(tests): raise the hook timeout so parallel suites stop timing out and guard the profile thermal dose search
+
+### Changed
+
+- `vitest.config.ts` sets `hookTimeout` to 60 s. Four suites build an in-memory Postgres in `beforeAll`;
+  with three full runs at once they failed with "Hook timed out in 10000ms". Twelve triple runs now pass.
+- `test/thermalDose.test.ts` has three guards on `profileThermalDoseAtLevel` and `levelForThermalDose`
+  (each answer names the level asked for, each call returns a new object, the search finds the level it
+  was given the thermal dose of) and a real-Robusta failure that prints the file, whether the two results
+  are the same object, and the answer recomputed at failure time. One earlier failure on the real Robusta
+  profile has not been explained or reproduced.
+
 ## [0.1.7] - 2026-10-08
 
 - 2026-10-08 - docs(readme): lead with roast quality as the goal and point to the docs for how and why
