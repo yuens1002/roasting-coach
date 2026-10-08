@@ -44,7 +44,8 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 - `holdMinScore` is now `holdMinQuality`. The `no-rule` answer asks what to test next.
 - A profile key now follows `sameProfileBody`: two copies of one profile that rounding put on either
   side of an edge share a key, and a later copy that matches two separate groups joins them, so the
-  level ladder doesn't drop a roast.
+  level ladder doesn't drop a roast. Two profiles that round alike but differ by more than the
+  tolerance keep different keys.
 - The roadmap states the goal as the best roast of a coffee, judged by roast quality; liking is not a goal.
 
 ### Removed

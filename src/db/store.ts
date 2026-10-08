@@ -4,7 +4,7 @@
 import { levelToTemp, parseKlog, parseKpro } from "../adapters/kaffelogic/parse.js";
 import { MACHINE_ID, selectStartingProfile, stockProfile, stockProfileId } from "../adapters/kaffelogic/startingProfiles.js";
 import { kaffelogicToRoastLog } from "../adapters/kaffelogic/toRoastLog.js";
-import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileBodyKey, profileFromKpro, profileFromLog, sameProfileBody } from "../adapters/kaffelogic/writeProfile.js";
+import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileBodyKey, profileExactKey, profileFromKpro, profileFromLog, sameProfileBody } from "../adapters/kaffelogic/writeProfile.js";
 import { type Meaning, type Overrides, NO_OVERRIDES, applyChange, describeCalibration, personalChanges } from "../core/calibration.js";
 import { calendarDay, daysBetween } from "../core/dates.js";
 import { extractFeatures } from "../core/features.js";
@@ -547,7 +547,10 @@ export async function beanHistory(db: Db, beanId: number) {
   for (const f of files) {
     const lines = profileFromKpro(f.profile_file);
     const matches = known.filter((k) => sameProfileBody(k.lines, lines));
-    const key = matches[0]?.key ?? profileBodyKey(lines);
+    // A profile no earlier copy matches starts its own group. Its rounded key can still equal another group's
+    // (two profiles further apart than the tolerance may round the same), so then it takes the exact key.
+    const rounded = profileBodyKey(lines);
+    const key = matches[0]?.key ?? (known.some((k) => k.key === rounded) ? profileExactKey(lines) : rounded);
     const joined = new Set(matches.map((m) => m.key));
     for (const k of known) if (joined.has(k.key)) k.key = key;
     known.push({ number: Number(f.number), lines, key });

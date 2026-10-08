@@ -337,7 +337,8 @@ How each is judged:
   later day, brew the best each brew reached), *exhausted* if not although the test was fair, *unclear* if
   the test was small, *untested* if no roast was tasted a second way.
 - **Profile** is *untested* while the bean's other profile hasn't been roasted, *unavailable* when there is
-  none to suggest. Once it has been roasted it is *moving* if its best roast beat the best on the other
+  none to suggest. A renamed copy of it (the same curve and settings, judged by content) counts as a
+  roast on it, not as the other profile. Once it has been roasted it is *moving* if its best roast beat the best on the other
   profile, *exhausted* if it has at least `profileTestRoasts` tasted roasts, there is a roast on the other
   profile to compare with, and none beat it, and *unclear* otherwise (too few roasts, or nothing on the
   other profile to compare with). The verdict below stays open until the profile is exhausted or unavailable.

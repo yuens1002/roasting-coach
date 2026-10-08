@@ -209,15 +209,16 @@ function cupLever(lever: "rest" | "brew", all: TastedRoast[], calibration: Calib
 
 function profileLever(all: TastedRoast[], alternative: AdviceContext["alternative"], { settings }: Calibration): Lever {
   if (!alternative) return { lever: "profile", state: "unavailable", evidence: "There's no other stock profile I'd suggest for this bean." };
-  const tried = all.filter((r) => r.profile === alternative.profileName);
-  if (!tried.length) {
+  const named = all.filter((r) => r.profile === alternative.profileName);
+  if (!named.length) {
     return { lever: "profile", state: "untested", evidence: `${alternative.profileName} hasn't been roasted for this bean.`, next: `Roast it on ${alternative.profileName} at level ${alternative.level} (ends at ${alternative.endTempC} °C); it costs a roast.` };
   }
+  // A renamed copy of the alternative (same curve and settings, so the same key) is the alternative, however its
+  // stock parent is recorded: it counts as a trial of it, and is not "the other profile".
+  const keys = new Set(named.flatMap((r) => (r.profileKey ? [r.profileKey] : [])));
+  const tried = all.filter((r) => r.profile === alternative.profileName || (r.profileKey !== undefined && keys.has(r.profileKey)));
+  const others = all.filter((r) => !tried.includes(r));
   const there = Math.max(...tried.map((r) => r.quality));
-  // "The other profile" is everything not on the alternative. A renamed copy of the alternative (same curve and
-  // settings, so the same key) is the alternative, however its stock parent is recorded.
-  const triedKeys = new Set(tried.flatMap((r) => (r.profileKey ? [r.profileKey] : [])));
-  const others = all.filter((r) => r.profile !== alternative.profileName && !(r.profileKey && triedKeys.has(r.profileKey)));
   const against = others.length ? `, against ${Math.max(...others.map((r) => r.quality))} on the other profile` : "";
   const evidence = `${alternative.profileName} has ${plural(tried.length, "tasted roast")}, best roast quality ${there}${against}.`;
   const better = others.length > 0 && there > Math.max(...others.map((r) => r.quality));

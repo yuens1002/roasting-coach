@@ -136,15 +136,27 @@ export function sameProfileBody(a: ProfileLines, b: ProfileLines): boolean {
 }
 
 /**
- * A short fingerprint of how a profile roasts: the same for profiles that `sameProfileBody` calls
- * the same, whatever they are called. Numbers are rounded to 5 significant figures (logs write 6), so
- * two copies that differ only in the last digit written agree; a value sitting exactly on a rounding
- * edge can still tell two copies apart, which only ever makes them look different, never the same.
+ * A short fingerprint of how a profile roasts, whatever it is called. Numbers are rounded to 5
+ * significant figures (logs write 6), so two copies that differ only in the last digit written usually
+ * agree. It is a starting key, not an identity: a value on a rounding edge can tell two copies of one
+ * profile apart, and two profiles that `sameProfileBody` calls different can still round to the same key.
+ * Whoever needs identity compares with `sameProfileBody` (see `beanHistory`) and uses `profileExactKey`
+ * to keep distinct profiles apart.
  */
 export function profileBodyKey(lines: ProfileLines): string {
   const normal = (value: string) => value.split(",").map((x) => (x.trim() !== "" && !Number.isNaN(Number(x)) ? String(Number(Number(x).toPrecision(5))) : x.trim())).join(",");
   const body = lines.filter(([k]) => !LABEL_KEYS.has(k)).map(([k, v]) => `${k}:${normal(v)}`).sort();
   return createHash("sha1").update(body.join("\n")).digest("hex").slice(0, 12);
+}
+
+/**
+ * Like `profileBodyKey`, but over every number exactly as written, so any two profiles whose values differ
+ * at all get different keys. Salted, so an exact key never equals a rounded key even when every value is
+ * already written in its rounded form.
+ */
+export function profileExactKey(lines: ProfileLines): string {
+  const body = lines.filter(([k]) => !LABEL_KEYS.has(k)).map(([k, v]) => `${k}:${v.trim()}`).sort();
+  return createHash("sha1").update(`exact\n${body.join("\n")}`).digest("hex").slice(0, 12);
 }
 
 /** .kpro text for profile lines exactly as given. */

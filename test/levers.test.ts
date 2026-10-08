@@ -224,14 +224,18 @@ describe("the profile lever", () => {
     const many = lever("profile", roast(10, 3, { profile: "KL Washed" }), [roast(9, 3, { profile: "KL Washed" }), roast(8, 3, { profile: "KL Washed" })], DEFAULT_CALIBRATION, alt);
     expect(many).toMatchObject({ state: "unclear", evidence: "KL Washed has 3 tasted roasts, best roast quality 3. There is no roast on the other profile to compare it with." });
   });
-  it("does not count a renamed copy of the alternative (same curve and settings) as the other profile", () => {
+  it("counts a renamed copy of the alternative (same curve and settings) as a trial of it, not as the other profile", () => {
     // The copy is KL Washed under another name: same key, though its stock parent is recorded as the first profile.
     const copy = roast(9, 3, { profile: "1500-2000m Rest", profileKey: "washed-body" });
-    const onAlt = [roast(8, 3, { profile: "KL Washed", profileKey: "washed-body" }), roast(7.5, 3, { profile: "KL Washed", profileKey: "washed-body" })];
-    const l = lever("profile", roast(10, 3), [copy, ...onAlt], DEFAULT_CALIBRATION, alt);
-    // Three roasts carry the alternative's key; only the latest roast is on the other profile.
+    const named = roast(8, 3, { profile: "KL Washed", profileKey: "washed-body" });
+    // One named roast plus one identical copy are two trials: a fair test at the default of 2.
+    const l = lever("profile", roast(10, 3), [copy, named], DEFAULT_CALIBRATION, alt);
     expect(l.evidence).toBe("KL Washed has 2 tasted roasts, best roast quality 3, against 3 on the other profile. KL Washed has not improved a cup yet.");
     expect(l.state).toBe("exhausted");
+    // The named roast alone is still one trial, and a copy with a different key is not the alternative.
+    expect(lever("profile", roast(10, 3), [named], DEFAULT_CALIBRATION, alt).state).toBe("unclear");
+    const edited = roast(9, 3, { profile: "1500-2000m Rest", profileKey: "edited-body" });
+    expect(lever("profile", roast(10, 3), [edited, named], DEFAULT_CALIBRATION, alt).evidence).toContain("KL Washed has 1 tasted roast");
   });
 });
 

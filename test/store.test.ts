@@ -464,3 +464,33 @@ describe("profile keys across a chain of near-identical copies", () => {
     expect(keys[3]).toBe(keys[1]);
   });
 });
+
+describe("profile keys keep distinct profiles apart", () => {
+  it("gives two profiles that round to the same key different keys when they are further apart than the tolerance", async () => {
+    const db = await migratedDb();
+    const { beanId } = await addBean(db, { name: "Kenya apart", species: "arabica", decaf: false, process: "washed", goal: "filter", drinkWhen: "soon", altitudeM: 1950 });
+    // 204.1001 and 204.1049 both round to 204.1 at five figures but are 0.0048 apart, well over the 6-figure tolerance.
+    const withFirstLevel = (value: string) => PROFILE.replace("profile_short_name:Test line", "profile_short_name:Kenya apart").replace("roast_levels:204,", `roast_levels:${value},`);
+    await addVersion(db, { beanId, profileName: "Kenya apart", level: 3.6, reason: "Profile one.", profileFile: withFirstLevel("204.1001") });
+    await addVersion(db, { beanId, profileName: "Kenya apart", level: 3.3, reason: "Profile two.", profileFile: withFirstLevel("204.1049") });
+    const keys = (await beanHistory(db, beanId)).versions.map((v) => v.profileKey);
+    expect(keys[1]).toMatch(/^[0-9a-f]{12}$/);
+    expect(keys[2]).toMatch(/^[0-9a-f]{12}$/);
+    expect(keys[2]).not.toBe(keys[1]);
+    // A true copy of the first still joins the first.
+    await addVersion(db, { beanId, profileName: "Kenya apart", level: 3.0, reason: "Copy of one.", profileFile: withFirstLevel("204.1001") });
+    const after = (await beanHistory(db, beanId)).versions.map((v) => v.profileKey);
+    expect(after[3]).toBe(after[1]);
+    expect(after[3]).not.toBe(after[2]);
+  });
+});
+
+describe("the exact profile key", () => {
+  it("never equals the rounded key, even for a profile already written in its rounded form", async () => {
+    const { profileBodyKey, profileExactKey, profileFromKpro } = await import("../src/adapters/kaffelogic/writeProfile.js");
+    // Every value is already in its 5-figure canonical form, so the rounded and the exact text are the same.
+    const lines = profileFromKpro("profile_short_name:x\nroast_profile:0,20,0,0\nroast_levels:204.1,209");
+    expect(profileExactKey(lines)).not.toBe(profileBodyKey(lines));
+    expect(profileExactKey(lines)).toMatch(/^[0-9a-f]{12}$/);
+  });
+});
