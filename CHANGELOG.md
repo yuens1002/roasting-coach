@@ -5,6 +5,20 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-10-08
+
+- 2026-10-08 - docs(readme): lead with roast quality as the goal and point to the docs for how and why
+
+### Changed
+
+- The README opens with the goal (the best roast a coffee can give, in at most three roasts, judged by
+  roast quality and not by how much the roaster likes the cup) and explains roast quality and why liking
+  is not asked.
+- "The thesis" is now "How it works": it covers the lever list for a clean cup below the bar, and no
+  longer claims weight loss as a yardstick (the rules don't use it yet).
+- New "Where to read how and why" table pointing to the rulebook, the research, the roadmap, the design
+  notes, the changelog and the session skill; an upgrade note for migration 005.
+
 ## [0.1.6] - 2026-10-08
 
 - 2026-10-08 - feat(rules): coach the roast, not the taste, with roast quality, a lever ledger and per-roaster settings
