@@ -5,6 +5,22 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-10-08
+
+- 2026-10-08 - refactor(rules): state evidence and rules in advice messages, not opinion or hedged belief
+
+### Changed
+
+- The engine's messages say what the recorded roasts and tastings show and what a rule does about it.
+  Gone: first-person opinion ("I wouldn't blame the coffee yet"), hedged belief ("probably", "usually
+  means", "may simply not be ready") and judgments of the coffee or the tool's aim ("don't write it off",
+  "the best roast is between them", "below the 4 this tool aims for"). Offers and instructions stay.
+- The worked examples in `docs/RULES.md` match the new wording.
+- New `test/voice.test.ts` checks every worked example and nine more advice cases (each checked to reach its named rule
+  and to word its reply differently from the examples) against a short list of stances, and checks that the list itself catches each kind.
+- Still open (in `docs/ROADMAP.md`): the Why and Check-this prose in `docs/RULES.md`, the taste-word
+  notes and the starting-profile `why` lines are not covered by the test.
+
 ## [0.1.8] - 2026-10-08
 
 - 2026-10-08 - fix(tests): raise the hook timeout so parallel suites stop timing out and guard the profile thermal dose search

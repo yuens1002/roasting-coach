@@ -148,13 +148,13 @@ describe("keeping a good roast", () => {
 });
 
 describe("when no rule applies", () => {
-  it("says so and names what isn't covered, instead of guessing", () => {
+  it("says so and names what isn't covered, and nothing else", () => {
     // A clean cup at the bar with no good word: nothing for a rule to act on.
     const a = advise(input({ taste: ["flat", "thin"], quality: 4 }));
     expect(a).toMatchObject({ kind: "none", ruleId: "no-rule" });
-    expect(a.reason).toBe("No rule covers flat and thin yet, and nothing else in this tasting points to a change. Ask the roaster what to test next rather than guessing.");
+    expect(a.reason).toBe("No rule covers flat and thin yet, and nothing else in this tasting points to a change. Ask the roaster what to test next.");
     // No word to name at all: nothing can be named.
-    expect(advise(input({ taste: [], quality: 4 }))).toMatchObject({ ruleId: "no-rule", reason: "Nothing in this tasting points to a change a rule can make. Ask the roaster what to test next rather than guessing." });
+    expect(advise(input({ taste: [], quality: 4 }))).toMatchObject({ ruleId: "no-rule", reason: "Nothing in this tasting points to a change a rule can make. Ask the roaster what to test next." });
   });
 });
 
@@ -292,7 +292,7 @@ describe("a roast tasted before its profile is ready", () => {
     const a = early(1);
     expect(a).toMatchObject({ kind: "hold", ruleId: "tasted-too-soon" });
     expect(a.reason).toBe(
-      "The cup tasted sour, but this roast's profile (1500-2000m Rest) is written for 3 to 5 days of resting before brewing, and it was tasted 1 day after roasting. It may simply not be ready. Taste it again on day 3 or later before changing anything.",
+      "The cup tasted sour, but this roast's profile (1500-2000m Rest) is written for 3 to 5 days of resting before brewing, and it was tasted 1 day after roasting. The rest the profile asks for is not over. Taste it again on day 3 or later before changing anything.",
     );
     expect(early(0).reason).toContain("tasted the day it was roasted");
     expect(early(2).reason).toContain("2 days after roasting");
@@ -330,7 +330,7 @@ describe("when the level isn't helping", () => {
   it("suggests the other profile when more roasting left the cup just as sour", () => {
     const a = run(sour(11), [sour(10)]);
     expect(a).toMatchObject({ kind: "switch-profile", ruleId: "level-not-helping", profileName: "KL Washed", level: 1.2, endTempC: 217.6 });
-    expect(a.reason).toBe("The cup tasted sour (under-roasted) even after the roasting went 10% more than an earlier roast on this profile, which tasted sour too. The level isn't what's wrong, so another step along it probably won't help.");
+    expect(a.reason).toBe("The cup tasted sour (under-roasted) even after the roasting went 10% more than an earlier roast on this profile, which tasted sour too. The level moved the roast and the cup stayed on the same side.");
   });
   it("compares curves, not names: an edited copy of a stock profile is a different profile", () => {
     expect(change(run(sour(11, { profileKey: "edited" }), [sour(10, { profileKey: "stock" })])).ruleId).toBe("under-roasted");
@@ -361,7 +361,7 @@ describe("when the level isn't helping", () => {
   it("asks instead when there is no other profile to suggest", () => {
     const a = run(sour(11), [sour(10)], {});
     expect(a).toMatchObject({ kind: "ask", ruleId: "level-not-helping" });
-    expect(a.reason).toContain("There's no other stock profile I'd suggest for this bean.");
+    expect(a.reason).toContain("No other stock profile is suggested for this bean.");
     expect(a.reason).toContain("can't edit yet");
   });
   it("asks instead when the other profile has already been tried, and doesn't send them back", () => {
