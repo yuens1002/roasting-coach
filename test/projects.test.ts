@@ -41,7 +41,7 @@ const version = (beanId: number, over: Row = {}): Row => ({
   ...over,
 });
 const roast = (versionId: number, over: Row = {}): Row => ({ version_id: versionId, roasted_at: "2026-10-01T09:00:00Z", green_g: 120, roasted_g: 102, ...over });
-const tasting = (roastId: number, over: Row = {}): Row => ({ roast_id: roastId, tasted_on: "2026-10-05", brew: "pourover", score: 4, taste: ["sweet"], ...over });
+const tasting = (roastId: number, over: Row = {}): Row => ({ roast_id: roastId, tasted_on: "2026-10-05", brew: "pourover", quality: 4, taste: ["sweet"], ...over });
 
 let beanId: number;
 let v1: number;
@@ -149,13 +149,13 @@ describe("roasts and tastings", () => {
 
   it("allows several roasts of a version and several tastings of a roast", async () => {
     expect(await accepts("roast", roast(v1))).toBe(true);
-    await insert("tasting", tasting(roastId, { tasted_on: "2026-10-03", score: 3, taste: ["sour", "thin"], want_next: ["less-sour"] }));
+    await insert("tasting", tasting(roastId, { tasted_on: "2026-10-03", quality: 3, taste: ["sour", "thin"] }));
     expect(await accepts("tasting", tasting(roastId))).toBe(true);
   });
 
-  it("requires at least one taste and a 1-5 score", async () => {
+  it("requires at least one taste and a 1-5 roast quality", async () => {
     expect(await accepts("tasting", tasting(roastId, { taste: [] }))).toBe(false);
-    expect(await accepts("tasting", tasting(roastId, { score: 6 }))).toBe(false);
+    expect(await accepts("tasting", tasting(roastId, { quality: 6 }))).toBe(false);
   });
 
   it("deleting a bean deletes its versions, roasts and tastings", async () => {

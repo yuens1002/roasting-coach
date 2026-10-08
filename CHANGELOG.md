@@ -5,6 +5,49 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-10-08
+
+- 2026-10-08 - feat(rules): coach the roast, not the taste, with roast quality, a lever ledger and per-roaster settings
+
+### Added
+
+- Roast quality replaces the tasting's overall score: a 1 to 5 scale anchored to roast defects (1: a
+  defect dominates the cup; 3: clean with little character; 4: clean and expressive; 5: clean,
+  expressive, balanced and sweet), not to how much the roaster likes the cup. The anchors
+  (`QUALITY_ANCHORS`) feed the form, the engine's messages and `docs/RULES.md`.
+- Rule `quality-vs-words`, tried first: a roast defect word with a quality of 3 or more, or a quality
+  of 1 or 2 with no defect word, makes the engine ask which is right instead of advising.
+- Rule `clean-below-bar`: a clean cup below `holdMinQuality` gets the lever ledger (`src/core/levers.ts`).
+  Rest, brew, level, profile and curve are each moving, exhausted, unclear, untested or unavailable,
+  read from recorded roasts and tastings, with what each lever changes. Rest is compared only between
+  tastings of the same brew and brew only between tastings on the same day, a repeat of the same level
+  counts once, and the level is judged by its last steps. What is left (the curve, or the coffee itself) is
+  only named once rest, brew and the level are exhausted and the profile is exhausted or unavailable;
+  until then the answer says which levers are still to try. A reference for the coffee (the bean's
+  `sellerNotes`, optional) is quoted so the coffee isn't written off.
+- Per-roaster settings and taste-word meanings: `calibration` shows every setting and word with its
+  default, `calibration:set` changes them (checked before storing, `null` restores the default), and
+  `advise` lists the roaster's departures from the defaults under `personal`. Stored in
+  `roaster_setting` and `roaster_taste_word` (`db/004_roaster_calibration.sql`). New settings:
+  `plateauSteps`, `restTestDays`, `brewTestCount`. A change that would stop the level counting its own
+  steps (`noResponsePct` above `stepPct`, or `noisePct` at or above `noResponsePct`) is refused.
+- `docs/RULES.md` has the quality scale, the allowed range of every setting, the lever table and the
+  new rules, each checked against the code by `test/rulesDoc.test.ts`.
+
+### Changed
+
+- The tasting's `score` column is now `quality` (`db/005_roast_quality.sql`). Scores recorded before
+  this were an overall liking and need re-rating by the new anchors (`taste:update`).
+- `holdMinScore` is now `holdMinQuality`. The `no-rule` answer asks what to test next.
+- A profile key now follows `sameProfileBody`: two copies of one profile that rounding put on either
+  side of an edge share a key, so the level ladder doesn't drop a roast.
+- The roadmap states the goal as the best roast of a coffee, judged by roast quality; liking is not a goal.
+
+### Removed
+
+- "Next time I want" is no longer asked or used, and the rules `wish-against-taste` and
+  `asked-for-change` are gone. The `want_next` column is kept, unused, so earlier answers aren't lost.
+
 ## [0.1.5] - 2026-10-07
 
 - 2026-10-07 - docs(roadmap): record the goal, a right roast in three roasts or fewer

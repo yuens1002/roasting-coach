@@ -5,6 +5,7 @@ import { levelToTemp, parseKlog, parseKpro } from "../adapters/kaffelogic/parse.
 import { MACHINE_ID, selectStartingProfile, stockProfile, stockProfileId } from "../adapters/kaffelogic/startingProfiles.js";
 import { kaffelogicToRoastLog } from "../adapters/kaffelogic/toRoastLog.js";
 import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileBodyKey, profileFromKpro, profileFromLog, sameProfileBody } from "../adapters/kaffelogic/writeProfile.js";
+import { type Meaning, type Overrides, NO_OVERRIDES, applyChange, describeCalibration, personalChanges } from "../core/calibration.js";
 import { calendarDay, daysBetween } from "../core/dates.js";
 import { extractFeatures } from "../core/features.js";
 import { type Field, type Intake, INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../core/intake.js";
@@ -475,12 +476,45 @@ export async function updateBean(db: Db, input: { beanId: number; answers: Recor
   return updateForm(db, "bean", input.beanId, INTAKE_FIELDS, input.answers, `Bean ${input.beanId} doesn't exist.`);
 }
 
-/** Corrects or adds to a tasting, for example its "next time I want" chips. A new date can't fall before its roast. */
+/** Corrects or adds to a tasting, for example its taste chips or roast quality. A new date can't fall before its roast. */
 export async function updateTasting(db: Db, input: { tastingId: number; answers: Record<string, unknown> }) {
   checkedShape(input, TASTING_UPDATE_SHAPE);
   return updateForm(db, "tasting", input.tastingId, TASTING_FIELDS, input.answers, `Tasting ${input.tastingId} doesn't exist.`, async (row, values) => {
     const roast = await db.query<{ roasted_at: string | Date }>("select roasted_at from roast where id = $1", [row.roast_id]);
     restDays(roast.rows[0].roasted_at, values.tastedOn);
+  });
+}
+
+/** The roaster's own settings and taste-word meanings: only what differs from the defaults. */
+export async function loadOverrides(db: Db): Promise<Overrides> {
+  const settings = await db.query<{ key: string; value: string | number }>("select key, value from roaster_setting");
+  const words = await db.query<{ word: string; meaning: Meaning }>("select word, meaning from roaster_taste_word");
+  if (!settings.rows.length && !words.rows.length) return NO_OVERRIDES;
+  return {
+    settings: Object.fromEntries(settings.rows.map((r) => [r.key, Number(r.value)])),
+    words: Object.fromEntries(words.rows.map((r) => [r.word, r.meaning])),
+  };
+}
+
+/**
+ * Changes the roaster's settings and taste-word meanings. The change is merged over what is stored
+ * and checked as a whole (see applyChange), and nothing is written unless all of it is accepted. A
+ * value of null puts a setting or word back to its default.
+ */
+export async function changeCalibration(db: Db, input: unknown) {
+  return inTransaction(db, async () => {
+    // Writers take turns: each reads what the previous one committed, so one can't delete the other's rows.
+    await db.query("lock table roaster_setting, roaster_taste_word in share row exclusive mode");
+    const result = applyChange(await loadOverrides(db), input);
+    if (!result.ok) throw new InputError(result.errors);
+    const { settings, words } = result.overrides;
+    await db.query("delete from roaster_setting where key <> all($1::text[])", [Object.keys(settings)]);
+    for (const [key, value] of Object.entries(settings))
+      await db.query("insert into roaster_setting (key, value) values ($1, $2) on conflict (key) do update set value = excluded.value, updated_at = now() where roaster_setting.value is distinct from excluded.value", [key, value]);
+    await db.query("delete from roaster_taste_word where word <> all($1::text[])", [Object.keys(words)]);
+    for (const [word, meaning] of Object.entries(words))
+      await db.query("insert into roaster_taste_word (word, meaning) values ($1, $2) on conflict (word) do update set meaning = excluded.meaning, updated_at = now() where roaster_taste_word.meaning is distinct from excluded.meaning", [word, meaning]);
+    return { ...describeCalibration(result.overrides), personal: personalChanges(result.overrides) };
   });
 }
 
@@ -502,8 +536,18 @@ export async function beanHistory(db: Db, beanId: number) {
   if (!b.rows.length) throw new InputError([`Bean ${beanId} doesn't exist.`]);
   const versions = (await db.query(`${VERSION_SELECT} where v.bean_id = $1 order by v.number`, [beanId])).rows.map(toVersion);
   // Which versions roast the same way, whatever they are called: versions with a stored profile share a key when their bodies match.
-  const files = (await db.query<{ number: number; profile_file: string }>("select number, profile_file from profile_version where bean_id = $1 and profile_file is not null", [beanId])).rows;
-  const profileKeys = new Map(files.map((f) => [Number(f.number), profileBodyKey(profileFromKpro(f.profile_file))]));
+  const files = (await db.query<{ number: number; profile_file: string }>("select number, profile_file from profile_version where bean_id = $1 and profile_file is not null order by number", [beanId])).rows;
+  // A copy that sameProfileBody calls the same as any earlier copy takes that copy's key: rounding to a
+  // fixed number of figures can put two near-identical copies (a .kpro and the copy inside a log) on
+  // either side of an edge. Every copy is kept to compare against, so a chain of near-copies stays one profile.
+  const profileKeys = new Map<number, string>();
+  const known: { lines: ProfileLines; key: string }[] = [];
+  for (const f of files) {
+    const lines = profileFromKpro(f.profile_file);
+    const key = known.find((k) => sameProfileBody(k.lines, lines))?.key ?? profileBodyKey(lines);
+    known.push({ lines, key });
+    profileKeys.set(Number(f.number), key);
+  }
   const roasts = (
     await db.query(
       `select r.id, r.version_id, r.roasted_at, r.log_profile_name, r.log_level, r.green_g, r.roasted_g, r.weight_loss_pct,
@@ -514,7 +558,7 @@ export async function beanHistory(db: Db, beanId: number) {
   ).rows;
   const tastings = (
     await db.query(
-      `select t.id, t.roast_id, t.tasted_on::text as tasted_on, t.brew, t.score, t.taste, t.want_next, t.notes
+      `select t.id, t.roast_id, t.tasted_on::text as tasted_on, t.brew, t.quality, t.taste, t.notes
          from tasting t join roast r on r.id = t.roast_id join profile_version v on v.id = r.version_id
         where v.bean_id = $1 order by t.tasted_on, t.id`,
       [beanId],
@@ -545,7 +589,7 @@ export async function beanHistory(db: Db, beanId: number) {
               : undefined,
             tastings: tastings
               .filter((t) => Number(t.roast_id) === Number(r.id))
-              .map((t) => ({ id: Number(t.id), tastedOn: t.tasted_on as string, brew: t.brew as string, score: Number(t.score), taste: t.taste as string[], wantNext: t.want_next as string[], notes: t.notes ?? undefined })),
+              .map((t) => ({ id: Number(t.id), tastedOn: t.tasted_on as string, brew: t.brew as string, quality: Number(t.quality), taste: t.taste as string[], notes: t.notes ?? undefined })),
           };
         }),
     })),

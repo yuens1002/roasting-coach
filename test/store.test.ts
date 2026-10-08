@@ -25,9 +25,9 @@ describe("checkAnswers", () => {
     ]);
   });
 
-  it("takes numbers for choices like the score, and drops repeated chips", () => {
-    const r = checkAnswers(TASTING_FIELDS, { tastedOn: "2026-10-08", brew: "espresso", score: 4, taste: ["sour", "sour", "thin"] });
-    expect(r).toEqual({ ok: true, values: { tastedOn: "2026-10-08", brew: "espresso", score: "4", taste: ["sour", "thin"] } });
+  it("takes numbers for choices like the roast quality, and drops repeated chips", () => {
+    const r = checkAnswers(TASTING_FIELDS, { tastedOn: "2026-10-08", brew: "espresso", quality: 4, taste: ["sour", "sour", "thin"] });
+    expect(r).toEqual({ ok: true, values: { tastedOn: "2026-10-08", brew: "espresso", quality: "4", taste: ["sour", "thin"] } });
   });
 
   it("treats whitespace-only answers as unanswered", () => {
@@ -38,13 +38,13 @@ describe("checkAnswers", () => {
   });
 
   it("rejects calendar dates that don't exist, which Date.parse would roll over", () => {
-    const r = checkAnswers(TASTING_FIELDS, { tastedOn: "2026-02-30", brew: "espresso", score: 4, taste: ["sweet"] });
+    const r = checkAnswers(TASTING_FIELDS, { tastedOn: "2026-02-30", brew: "espresso", quality: 4, taste: ["sweet"] });
     expect(r.ok ? [] : r.errors).toEqual(["Tasted on must be a date like 2026-10-04."]);
-    expect(checkAnswers(TASTING_FIELDS, { tastedOn: "2028-02-29", brew: "espresso", score: 4, taste: ["sweet"] }).ok).toBe(true);
+    expect(checkAnswers(TASTING_FIELDS, { tastedOn: "2028-02-29", brew: "espresso", quality: 4, taste: ["sweet"] }).ok).toBe(true);
   });
 
   it("rejects malformed dates and a list for a one-answer choice", () => {
-    const r = checkAnswers(TASTING_FIELDS, { tastedOn: "8 Oct", brew: ["espresso"], score: 4, taste: ["sweet"] });
+    const r = checkAnswers(TASTING_FIELDS, { tastedOn: "8 Oct", brew: ["espresso"], quality: 4, taste: ["sweet"] });
     expect(r.ok ? [] : r.errors).toEqual(["Tasted on must be a date like 2026-10-04.", "Brewed as takes one answer."]);
   });
 });
@@ -112,7 +112,7 @@ describe("store", () => {
   });
 
   it("records a tasting against a chosen roast and counts days rested", async () => {
-    const r = await addTasting(db, { beanId: gujiId, roastId: firstRoastId, answers: { tastedOn: "2025-06-29", brew: "espresso", score: 2, taste: ["sour", "thin"], wantNext: ["less-sour"] } });
+    const r = await addTasting(db, { beanId: gujiId, roastId: firstRoastId, answers: { tastedOn: "2025-06-29", brew: "espresso", quality: 2, taste: ["sour", "thin"] } });
     expect(r).toEqual({ tastingId: expect.any(Number), roastId: firstRoastId, version: 1, daysRested: 4 });
   });
 
@@ -137,7 +137,7 @@ describe("store", () => {
     const h = await beanHistory(db, gujiId);
     expect(h.versions.map((v) => [v.number, v.roasts.length])).toEqual([[1, 2], [2, 0], [3, 0]]);
     const first = h.versions[0].roasts[0];
-    expect(first).toMatchObject({ id: firstRoastId, weightLossPct: 15.4, logLevel: 3.3, looks: ["even"], tastings: [{ score: 2, taste: ["sour", "thin"], wantNext: ["less-sour"] }] });
+    expect(first).toMatchObject({ id: firstRoastId, weightLossPct: 15.4, logLevel: 3.3, looks: ["even"], tastings: [{ quality: 2, taste: ["sour", "thin"] }] });
     expect(first.features?.firstCrack?.t).toBe(540);
     // Dates come back as the date written, whatever the driver or time zone.
     expect(first.tastings[0].tastedOn).toBe("2025-06-29");
@@ -302,7 +302,7 @@ describe("store", () => {
   it("refuses a tasting dated before its roast and stores nothing", async () => {
     const { beanId } = await addBean(db, { ...GUJI, name: "Early taste" });
     const { roastId } = await addRoast(db, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
-    await expect(addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-09", brew: "espresso", score: 3, taste: ["sweet"] } })).rejects.toThrow(
+    await expect(addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-09", brew: "espresso", quality: 3, taste: ["sweet"] } })).rejects.toThrow(
       "Tasted on 2026-03-09 is before the roast on 2026-03-10. Check the date.",
     );
     expect((await beanHistory(db, beanId)).versions[0].roasts[0].tastings).toEqual([]);
@@ -366,31 +366,41 @@ describe("store", () => {
   it("won't move a tasting before its roast, and allows a correct date", async () => {
     const { beanId } = await addBean(db, { ...GUJI, name: "Moved taste" });
     const { roastId } = await addRoast(db, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
-    const { tastingId } = await addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-12", brew: "pourover", score: 3, taste: ["sweet"] } });
+    const { tastingId } = await addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-12", brew: "pourover", quality: 3, taste: ["sweet"] } });
     await expect(updateTasting(db, { tastingId, answers: { tastedOn: "2026-03-09" } })).rejects.toThrow("Tasted on 2026-03-09 is before the roast on 2026-03-10. Check the date.");
     expect((await beanHistory(db, beanId)).versions[0].roasts[0].tastings[0].tastedOn).toBe("2026-03-12");
     expect(await updateTasting(db, { tastingId, answers: { tastedOn: "2026-03-10" } })).toMatchObject({ tasted_on: "2026-03-10" });
   });
 
-  it("updates a tasting that had no 'next time' chips, and can clear them again", async () => {
+  it("updates a tasting that had no notes, and can clear them again", async () => {
     const { beanId } = await addBean(db, { ...GUJI, name: "Chips" });
     const { roastId } = await addRoast(db, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
-    const { tastingId } = await addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-11", brew: "pourover", score: 3, taste: ["sweet"] } });
-    expect(await updateTasting(db, { tastingId, answers: { notes: "Added later." } })).toMatchObject({ notes: "Added later.", want_next: [], taste: ["sweet"] });
-    expect(await updateTasting(db, { tastingId, answers: { wantNext: ["brighter"] } })).toMatchObject({ want_next: ["brighter"] });
-    expect(await updateTasting(db, { tastingId, answers: { wantNext: [] } })).toMatchObject({ want_next: [], notes: "Added later." });
+    const { tastingId } = await addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-11", brew: "pourover", quality: 3, taste: ["sweet"] } });
+    expect(await updateTasting(db, { tastingId, answers: { notes: "Added later." } })).toMatchObject({ notes: "Added later.", taste: ["sweet"] });
+    expect(await updateTasting(db, { tastingId, answers: { notes: null } })).toMatchObject({ notes: null, taste: ["sweet"] });
     // The required taste chips can't be cleared.
     await expect(updateTasting(db, { tastingId, answers: { taste: [] } })).rejects.toMatchObject({ errors: ["What did you taste is required."] });
   });
 
-  it("updates a tasting's chips, keeping its date and score", async () => {
+  it("updates a tasting's chips, keeping its date and roast quality", async () => {
     const { beanId } = await addBean(db, { ...GUJI, name: "Retaste" });
     const { roastId } = await addRoast(db, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
-    const { tastingId } = await addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-11", brew: "pourover", score: 2, taste: ["ashy"], wantNext: ["less-bitter"] } });
-    const after = await updateTasting(db, { tastingId, answers: { wantNext: ["less-bitter", "brighter"] } });
-    expect(after).toMatchObject({ tasted_on: "2026-03-11", score: 2, taste: ["ashy"], want_next: ["less-bitter", "brighter"] });
-    await expect(updateTasting(db, { tastingId, answers: { wantNext: ["fruitier"] } })).rejects.toMatchObject({
-      errors: [expect.stringMatching(/^Next time I want: "fruitier" isn't an option\./)],
+    const { tastingId } = await addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-11", brew: "pourover", quality: 2, taste: ["ashy"] } });
+    const after = await updateTasting(db, { tastingId, answers: { taste: ["ashy", "flat"] } });
+    expect(after).toMatchObject({ tasted_on: "2026-03-11", quality: 2, taste: ["ashy", "flat"] });
+    await expect(updateTasting(db, { tastingId, answers: { taste: ["fruitier"] } })).rejects.toMatchObject({
+      errors: [expect.stringMatching(/^What did you taste: "fruitier" isn't an option./)],
+    });
+  });
+
+  it("no longer takes the old score or 'next time I want' answers, and says so", async () => {
+    const { beanId } = await addBean(db, { ...GUJI, name: "Old answers" });
+    const { roastId } = await addRoast(db, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
+    await expect(addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-11", brew: "pourover", score: 3, taste: ["sweet"] } })).rejects.toMatchObject({
+      errors: expect.arrayContaining(['"score" is not a field on this form.', "Roast quality is required."]),
+    });
+    await expect(addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-11", brew: "pourover", quality: 3, taste: ["sweet"], wantNext: ["brighter"] } })).rejects.toMatchObject({
+      errors: ['"wantNext" is not a field on this form.'],
     });
   });
 
@@ -424,5 +434,15 @@ describe("store", () => {
     expect(keys[2]).toBe(keys[1]);
     expect(keys[3]).toMatch(/^[0-9a-f]{12}$/);
     expect(keys[3]).not.toBe(keys[1]);
+  });
+
+  it("gives two copies of one profile the same key even when a value sits on a rounding edge", async () => {
+    const { beanId } = await addBean(db, { ...GUJI, name: "Kenya edge" });
+    // 204.125 and 204.1249 are the same profile to the 6 figures logs write, but round to different 5-figure keys.
+    const withFirstLevel = (value: string) => PROFILE.replace("profile_short_name:Test line", "profile_short_name:Kenya edge").replace("roast_levels:204,", `roast_levels:${value},`);
+    await addVersion(db, { beanId, profileName: "Kenya edge", level: 3.6, reason: "Own copy.", profileFile: withFirstLevel("204.125") });
+    await addVersion(db, { beanId, profileName: "Kenya edge", level: 3.3, reason: "Copy from a log.", profileFile: withFirstLevel("204.1249") });
+    const keys = (await beanHistory(db, beanId)).versions.map((v) => v.profileKey);
+    expect(keys[2]).toBe(keys[1]);
   });
 });

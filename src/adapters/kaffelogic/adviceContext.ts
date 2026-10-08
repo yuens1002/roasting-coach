@@ -12,5 +12,6 @@ export function kaffelogicAdviceContext(intake: Intake): AdviceContext {
   return {
     restNeeded: (profile) => stockProfile(profile)?.restDays,
     alternative: alternative && level ? { profileName: alternative.name, level: level.level, endTempC: level.endTemp } : undefined,
+    reference: intake.sellerNotes,
   };
 }

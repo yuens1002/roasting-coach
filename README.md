@@ -43,7 +43,10 @@ if it:
    plain words, before you roast: not "move this point", but what it will do to the roast and
    which way it should push the cup.
 2. **Gives deterministic, explained advice.** The same evidence always leads to the same
-   suggestion, from tested rules. A model never reads raw curves.
+   suggestion, from tested rules. A model never reads raw curves. What is personal (how big a step
+   you take, what your taste words mean) is yours: it is kept in your own database and the same
+   rules use it. The tool coaches the roast, not your taste: you rate the roast's quality (judged by
+   defects), never how much you like the cup.
 3. **Measures what matters, grounded in research and checked against real logs.** The roast's
    *thermal dose* (from Arrhenius reaction kinetics) says how far its chemistry went (heat exposure over the whole roast, nothing to do with the
    grams of coffee in an espresso basket, which is also called a dose), independent
@@ -81,7 +84,7 @@ session flow is in [.claude/skills/roast/SKILL.md](.claude/skills/roast/SKILL.md
 - `scripts/` the session commands (`roast.ts`), the research computations, and helpers for real
   files and the seed.
 - `docs/RULES.md` the rulebook behind every suggestion, in roasting terms, for a roaster to audit.
-  Tests check its rule names, settings, taste words, rest days, examples and step table against the code.
+  Tests check its rule names, settings (and their allowed ranges), taste words, rest days, examples and step table against the code.
 - `docs/research.md` the research we rely on and how it was validated.
 - `docs/ROADMAP.md` the project's state: what works, what is next, what is blocked.
 
