@@ -15,7 +15,7 @@ Time to temp   100°C 1:13  150°C 3:06  170°C 4:17  190°C 5:32  200°C 6:11
 RoR (°C/min)   at crack 14.1, at end 1.8, change across crack -7.6, shape declining
 Tracking       mean 2.1 °C, max 5.8 °C off the profile
 WARNING        Colour change is marked at 201.4 °C, outside the usual 140–190 °C,
-               so it was probably pressed by mistake.
+               so the press is not used.
 ```
 
 Our development figure matches the machine's own `!development_percent` (38.9%).

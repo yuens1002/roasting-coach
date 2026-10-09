@@ -85,6 +85,6 @@ export interface RoastFeatures {
    * machine, not across machines.
    */
   thermalDose: number;
-  /** Plain-language warnings about the data itself, for example a likely mis-pressed button. */
+  /** Plain-language warnings about the data itself, for example a button press outside its usual range. */
   dataWarnings: string[];
 }

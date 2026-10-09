@@ -5,6 +5,25 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-10-09
+
+- 2026-10-09 - refactor(rules): extend the wording standard to the starting-profile reasons, the colour-change warning and the rulebook prose
+
+### Changed
+
+- The reasons shown at intake state facts about the stock profile instead of opinions of the coffee: "Robusta
+  roasts differently from arabica" and "Decaf beans start darker and take heat differently" became "Robusta
+  has its own stock profile, so this uses it" (and the same for decaf); "where most specialty arabica grows"
+  and "go lighter next time if filter tastes flat" are gone.
+- The colour-change warning says "so the press is not used" instead of "so it was probably pressed by mistake".
+- `docs/RULES.md` prose: the Why and Check-this paragraphs, the `bready` note and the intro state what the
+  rule does and what it assumes, without "likely", "may switch too early", "best starting point" or "our
+  extension".
+- `test/voice.test.ts` also checks every starting-profile reason (across eight intakes, and failing if the source gains a reason no intake reaches), both colour-change
+  warnings, and every line of `docs/RULES.md` outside its worked examples.
+- The test's patterns cannot catch a neutrally worded claim about the world (the quoted lever effects, e.g.
+  "espresso exaggerates sourness"), and it does not read the README, the session skill or the research notes.
+
 ## [0.1.9] - 2026-10-08
 
 - 2026-10-08 - refactor(rules): state evidence and rules in advice messages, not opinion or hedged belief
