@@ -190,6 +190,11 @@ What each change does, and where it stands. The reason is there when it was set 
   and the meaning of each taste word (under, over, good, none) can be overridden in the roaster's
   own database, checked before storing (ranges in `docs/RULES.md` section 4, tested). `advise`
   lists the roaster's departures from the defaults under `personal`.
+- **Dev station** (`npm run station`, `station:session`, `station:reset`; `scripts/station.ts`): a
+  throwaway database and scratch folders, a scripted session replayed through the real CLI with each answer
+  checked, and a launcher for a fresh Claude Code session on the same station (read by a person against a
+  printed list). It never touches the roaster's database or folders. Not built: running the fresh session
+  headless and checking its transcript.
 - **Session interface**: `scripts/roast.ts` (JSON in, JSON out, inputs checked against the form
   definitions) driven by the `/roast` skill. No UI by design.
 
