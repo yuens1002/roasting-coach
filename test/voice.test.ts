@@ -84,7 +84,7 @@ const EXPECTED_WHY_LINES = 10;
 const WHY_LINES = [...new Set(STARTING_INTAKES.flatMap((intake) => selectStartingProfile(intake).why))];
 
 /** The data warnings the roast features give for a colour change that cannot be used: out of range, and too close to first crack. */
-/** The note added to an answer when earlier roasts were not tasted as filter coffee: one roast, and several. */
+/** The note added to an answer when earlier roasts were without a rated tasting of filter coffee: one roast, and several. */
 const SET_ASIDE_NOTES = [1, 2].map((roasts) => {
   const advice = advise({ latest: roast({ taste: ["sweet", "balanced"], quality: 4 }), earlier: [] });
   return adviceReport(1, { basedOn: { version: 1, roastId: 1, tastingId: 1, measuredThermalDose: 10 }, advice, setAside: roasts }, undefined).say;

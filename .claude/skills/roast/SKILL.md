@@ -61,7 +61,8 @@ baseline chosen because it is accessible (any roaster can make it with inexpensi
 roast target, and the roast is never aimed at a brew method. The form
 offers only those brews. If the roaster tasted it another way (an espresso shot), tell them the tasting
 has to be of filter coffee to be compared; don't record it as another brew. `advise` asks for a
-retaste as filter coffee when an older tasting of a roast was in another brew.
+retaste as filter coffee when every tasting of the roast it is advising on was another brew (an older
+recording, such as an espresso shot).
 
 The quality is how well the roast came out, judged by defects, **not whether the roaster likes the
 cup** (the tool doesn't ask that and doesn't use it). Offer the scale in these words (`roast.ts fields

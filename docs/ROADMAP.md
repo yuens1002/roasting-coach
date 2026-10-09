@@ -53,8 +53,8 @@ claims about it became statements about the stock profile), and the prose of `do
 worked examples (the Why and Check-this paragraphs and the `bready` note). The voice test reads all three.
 One gap the sweep left (closed 2026-10-09, see below): a roaster who brewed for both filter and espresso was told the
 roast starts at the espresso level, with no direction if the filter cup tasted flat.
-The test's patterns cannot catch a neutrally worded claim about the world (the quoted lever effects, e.g.
-"espresso exaggerates sourness"), and it does not read the README, the session skill or the research notes.
+The test's patterns cannot catch a neutrally worded claim about the world (the quoted lever effects had one,
+"espresso exaggerates sourness", since removed), and it does not read the README, the session skill or the research notes.
 
 **Decided (2026-10-09): rest and brew are not levers.** They change the cup, not the roast, and one bean
 cannot show what they do (conventional wisdom on them would be an outside claim the tool cannot check).
@@ -140,7 +140,7 @@ What each change does, and where it stands. The reason is there when it was set 
 | Level (thermal dose step) | Where the roast stops: more or less of the chemistry, by a measured amount | Built (rules 5, 6; a lever in 7) |
 | Rest (days before tasting) | How the roast has settled, not the roast | **Dropped as a lever (2026-10-09):** the rest guard (rule 4) stays; the ledger no longer tests it |
 | Brew method | How much of the roast reaches the cup, not the roast | **Dropped as a lever (2026-10-09):** every tasting is of filter coffee (rule 1) |
-| Another stock profile | The curve's shape | Built (`level-not-helping`, ledger); Robusta has no alternative |
+| Another stock profile | The curve's shape | Built (`level-not-helping`, ledger); only washed and natural beans (which start on KL Washed or KL Natural) have an alternative, so the profile lever is unavailable for the rest |
 | Editing the curve, fan or zones | The curve's shape, tuned to the bean | Not built (see Next, 3); the ledger lists it as unavailable |
 | Reference cup | What the coffee can be; stops it being written off | Built as the bean's `sellerNotes`, optional |
 | Roaster's own words and numbers | Taste-word meanings, step sizes, the quality bar, plateau and test sizes | Built (`calibration`) |
@@ -182,7 +182,7 @@ What each change does, and where it stands. The reason is there when it was set 
   one), holds a clean cup of good roast quality, lists what else can raise a clean cup below the
   bar, holds a sour cup tasted before its profile's rest is over (the Rest profiles assume
   3 to 5 days; RTD, ready to drink, ones none), switches to the bean's alternative profile when more
-  roasting left the cup on the same side (the level isn't what's wrong; not one that already has a tasted roast), holds on espresso that is only sour (espresso fakes sourness), and says
+  roasting left the cup on the same side (the level isn't what's wrong; not one that already has a tasted roast), asks for a retaste as filter coffee when a roast was tasted another way, and says
   "no rule" for anything else rather than improvising. The engine returns the finished answer: `say`,
   the whole reply in plain words, and `onYes`, the exact `version:add` command for a yes. The
   `/roast` skill only relays `say` and runs `onYes`; it interprets nothing.

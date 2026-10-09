@@ -2,3 +2,4 @@
 -- no longer asks "Brewing for". Earlier answers are kept in the column and not used.
 
 alter table bean alter column goal drop not null;
+comment on column bean.goal is 'Unused: no longer asked. Kept so earlier answers are not lost.';

@@ -74,6 +74,17 @@ describe("store", () => {
     expect(r.version.changeReason).toMatch(/^Starting profile\. Grown at 1950 m/);
     // A bean with an unknown process has no other profile to suggest.
     expect(r.alternative).toBeUndefined();
+    expect(r.why).toContain("It starts at the level the profile's own file recommends.");
+  });
+
+  it("starts a washed bean on KL Washed at the profile's own recommended level, with the altitude profile as the alternative", async () => {
+    // A database of its own: the tests around this one count the beans in the shared one.
+    const own = await migratedDb();
+    const r = await addBean(own, { ...GUJI, name: "Washed start", process: "washed", drinkWhen: "rest" });
+    expect(r.version).toMatchObject({ number: 1, profileName: "KL Washed", level: 0.8, endTempC: 214.4 });
+    expect(r.version.changeReason).toContain("KL Washed is written for washed coffees.");
+    expect(r.version.changeReason).toContain("It starts at the level the profile's own file recommends.");
+    expect(r.alternative).toBe("1500-2000m Rest");
   });
 
   it("does not ask how the bean will be brewed: a brewing goal is refused as not a field", async () => {

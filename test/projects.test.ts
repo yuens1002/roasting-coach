@@ -208,7 +208,7 @@ describe("migration 006 drops the rest and brew test settings", () => {
     await old.exec(readSql("006_drop_cup_settings.sql"));
     const kept = await old.query<{ key: string; value: string }>("select key, value::text as value from roaster_setting order by key");
     expect(kept.rows).toEqual([{ key: "stepPct", value: "8" }]);
-    await expect(old.exec("insert into roaster_setting (key, value) values ('restTestDays', 3)")).rejects.toThrow();
+    await expect(old.exec("insert into roaster_setting (key, value) values ('restTestDays', 3)")).rejects.toThrow(/roaster_setting_key_check/);
     await old.exec("insert into roaster_setting (key, value) values ('holdMinQuality', 3)");
   });
 });
@@ -221,7 +221,7 @@ describe("migration 007 makes the brewing goal optional", () => {
     const old = new PGlite();
     for (const file of readdirSync(DB_DIR).filter((f) => f.endsWith(".sql") && f < "007").sort()) await old.exec(readSql(file));
     await old.exec("insert into bean (name, species, decaf, process, goal, drink_when) values ('Old bean', 'arabica', false, 'washed', 'espresso', 'rest')");
-    await expect(old.exec("insert into bean (name, species, decaf, process, drink_when) values ('No goal yet', 'arabica', false, 'washed', 'rest')")).rejects.toThrow();
+    await expect(old.exec("insert into bean (name, species, decaf, process, drink_when) values ('No goal yet', 'arabica', false, 'washed', 'rest')")).rejects.toThrow(/null value in column "goal"/);
     await old.exec(readSql("007_bean_goal_optional.sql"));
     await old.exec("insert into bean (name, species, decaf, process, drink_when) values ('No goal', 'arabica', false, 'washed', 'rest')");
     const rows = await old.query<{ name: string; goal: string | null }>("select name, goal from bean order by id");

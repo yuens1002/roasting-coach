@@ -41,8 +41,9 @@ hard.
   back on only touching the level.
 - **The level is not the only lever.** A defect word (sour, ashy) tells you which way to move the
   level. Once a cup has no roast defect left, nothing tells you which way to go, so another step is
-  only a probe. What can still change the cup is the days of rest, the brew, the profile and the
-  curve, and it's easy to keep pushing the level because it's the one control you can see.
+  only a probe. What can still change the roast is the profile and the curve (rest and brew change the
+  cup, not the roast, so every tasting is of filter coffee), and it's easy to keep pushing the level because
+  it's the one control you can see.
 
 And the help you can find doesn't close the gap, because much of it is wrong for these machines:
 

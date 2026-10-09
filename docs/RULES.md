@@ -209,8 +209,8 @@ days of rest.
 **When:** the roast quality and the words disagree about whether the cup has a roast defect: an under
 or over word (as read in section 3, your own meanings included) with a quality of 3 or more, or no
 such word with a quality of 1 or 2.
-**What it does:** asks which is right; changes nothing. It is tried first, because advice built on a
-contradiction would be wrong whichever half was the mistake.
+**What it does:** asks which is right; changes nothing. It comes right after the brew check, ahead of every
+rule that reads the taste words, because advice built on a contradiction would be wrong whichever half was the mistake.
 **Why:** quality is judged by defects (section 3), so the two answers describe the same thing. When
 they disagree, one was entered wrongly, or the quality was given for how the cup tasted to the
 roaster, which this tool doesn't use.
@@ -298,7 +298,7 @@ so the next lever the rule names is the profile's shape (how fast heat goes in a
 develop), which the level does not change. The rule does not rule out a difference in rest or batch
 between the two roasts.
 
-> Example: sour on 1500-2000m Rest after a roast with 10% less roasting also tasted sour; KL Washed is the alternative. "The cup tasted sour (under-roasted) even after the roasting went 10% more than an earlier roast on this profile, which tasted sour too. The level moved the roast and the cup stayed on the same side. Next, try KL Washed instead: pick it on the Nano and set level 1.2 (ends at 217.6 °C). Shall I record that as the next version?"
+> Example: sour on KL Washed after a roast with 10% less roasting also tasted sour; 1500-2000m Rest is the alternative. "The cup tasted sour (under-roasted) even after the roasting went 10% more than an earlier roast on this profile, which tasted sour too. The level moved the roast and the cup stayed on the same side. Next, try 1500-2000m Rest instead: pick it on the Nano and set level 3.2 (ends at 222.4 °C). Shall I record that as the next version?"
 
 ⚠ **Check this:** this is judged from **one** unsuccessful step. A small first step is thin
 evidence, so the switch can come earlier than two steps would give. Requiring two unsuccessful steps
@@ -419,6 +419,9 @@ show the same level, the machine's 0.1 level grid can't tell those steps apart.
 | Decaf | 3.0 · 221.3 °C · 8:59 | 2.4 · 219.6 °C · 8:33 | 2.6 · 220.2 °C · 8:42 | 3.8 · 222.3 °C · 9:15 | 4.2 · 222.8 °C · 9:24 |
 | Robusta | 3.0 · 223.4 °C · 10:36 | 2.5 · 221.4 °C · 10:05 | 2.7 · 222.2 °C · 10:17 | 4.1 · 224.7 °C · 10:56 | 4.2 · 225.1 °C · 11:01 |
 <!-- steps:end -->
+
+The Cupping row is there because it is a stock profile; the tool no longer starts a bean on it (it was reached
+only through the removed "just tasting" goal), so a roaster would pick it themselves.
 
 Regenerate with `npm run rules:steps` (it needs the stock profile files in your own library, which
 this repository never contains).

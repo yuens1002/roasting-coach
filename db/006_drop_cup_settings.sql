@@ -1,4 +1,4 @@
--- Rest and brew are no longer levers (docs/RULES.md, rule 8): they change the cup, not the roast, so the
+-- Rest and brew are no longer levers (docs/RULES.md, rule 7): they change the cup, not the roast, so the
 -- two settings that sized a fair test of them are gone. Roasts are compared in one brew instead.
 -- The list of allowed keys is kept in step with the code by a test (test/calibration.test.ts).
 

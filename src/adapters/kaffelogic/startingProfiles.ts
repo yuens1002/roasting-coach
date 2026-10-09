@@ -85,6 +85,8 @@ export const STOCK_PROFILES: Record<string, StockProfile> = {
     developmentTarget: { cupping: [13, 16.5], filter: [10, 20], espresso: [20, 30] },
     riseAfterCrack: { cupping: [5, 6], filter: [5, 7.5], espresso: [7, 10] },
   },
+  // No longer picked by selectStartingProfile (only the removed "just tasting" goal led here). It stays selectable
+  // in the stored seed (db/002) so the table of stock profiles is unchanged.
   Cupping: { name: "Cupping", recommended: L(2.0, 212.0, "8:20"), version: "1.0", roastLevels: [204.5, 209, 212, 214, 215.3, 216.8, 241], family: "special", levels: { cupping: L(2.0, 212.0, "8:20") }, developmentTarget: { cupping: [18, 19] } },
   Decaf: {
     name: "Decaf",

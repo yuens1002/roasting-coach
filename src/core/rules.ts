@@ -372,7 +372,7 @@ export interface AdviceResult {
   /** The roast and tasting the advice answers, newest first among tasted roasts. */
   basedOn: { version: number; roastId: number; tastingId: number; level?: number; measuredThermalDose: number };
   advice: Advice;
-  /** How many earlier roasts were left out of the comparison because none of their tastings was of filter coffee; absent when none were. */
+  /** How many earlier roasts were left out of the comparison because none of their rated tastings was of filter coffee; absent when none were. */
   setAside?: number;
 }
 
@@ -459,7 +459,7 @@ export function adviceReport(beanId: number, result: AdviceResult, move: LevelMo
   const report = reportFor(beanId, result, move, problem);
   const { setAside } = result;
   if (!setAside) return report;
-  const note = `${setAside === 1 ? "One earlier roast was" : `${setAside} earlier roasts were`} not tasted as filter coffee, so ${setAside === 1 ? "it is" : "they are"} left out of the comparison (roasts are tasted as ${filterBrews()}).`;
+  const note = `${setAside === 1 ? "One earlier roast was" : `${setAside} earlier roasts were`} without a rated tasting of filter coffee, so ${setAside === 1 ? "it is" : "they are"} left out of the comparison (roasts are tasted as ${filterBrews()}).`;
   return { ...report, say: `${report.say} ${note}` };
 }
 

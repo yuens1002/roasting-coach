@@ -120,7 +120,7 @@ evaporation term and in the drying rate; the drying rate is written
 rho V, the bean's thermal mass. For a bean of fixed volume that is a plain consequence of the equation: more
 mass takes more heat per degree. No paper below measured it.
 
-- Starting moisture in the fit: 0.1296 kg/kg dry matter. Thermal conductivity used: 0.11 W/m/K.
+- Starting moisture in the fit: 0.1296 kg/kg dry matter. Thermal conductivity used: 0.11 W/m/K (taken from Fabbri et al. 2011).
 - The authors report that leaving out the evaporation term overestimates the bean temperature once
   reactions start (from about 150 °C), and leaving out the reaction heat underestimates it.
 - Property and kinetic constants (heat capacity, drying rate, reaction heat 232 kJ/kg dry matter,
@@ -153,11 +153,12 @@ mass takes more heat per degree. No paper below measured it.
 
 ### Experiments and models on density
 
-- Single-bean CFD (Chimia 67:291, 2013,
-  [doi:10.2533/chimia.2013.291](https://doi.org/10.2533/chimia.2013.291), open access) models heat and
-  mass transfer inside one bean in hot air and shows temperature and moisture varying through it. Its
-  fit to a single bean's measured temperature is good, and it states that it ignores bean swelling and
-  the moisture of the roasting air. A probe reads the bed, not the core, so the core can lag it; the
+- Single-bean CFD (*Modeling and Validation of Heat and Mass Transfer in Individual Coffee Beans during
+  the Coffee Roasting Process Using Computational Fluid Dynamics (CFD)*, Chimia 67:291, 2013,
+  [doi:10.2533/chimia.2013.291](https://doi.org/10.2533/chimia.2013.291), open access; body read via
+  extraction) models heat and mass transfer inside one bean in hot air and shows temperature and moisture
+  varying through it. Its fit to a single bean's measured temperature is good, and its limitations section
+  says it ignores bean swelling and the moisture of the roasting air. A probe reads the bed, not the core, so the core can lag it; the
   paper's design implies that, but the abstract does not quantify it.
 - A particle-tracking study in a pilot drum roaster
   ([Food Res. Int. 2022](https://doi.org/10.1016/j.foodres.2022.112253)) found bean density changes how
@@ -171,7 +172,7 @@ mass takes more heat per degree. No paper below measured it.
 - **Specific heat rises with moisture.** Schwartzberg's equation as quoted in Vosloo,
   Cp = (1.099 + 0.0070 (T − 273.15) + 5.0 X) / (1 + X) kJ/kg/K, gives 1.47 at X = 0.05, 1.72 at 0.13
   and 1.91 at 0.20 (at 28 °C).
-- **Published conductivities disagree.** 0.11 W/m/K (2025 paper) against Hernandez (2002) as quoted in
+- **Published conductivities disagree.** 0.11 W/m/K (used by the 2025 paper, from Fabbri et al. 2011) against Hernandez (2002) as quoted in
   Vosloo, 0.356 + 0.139 X, which is 0.37 at X = 0.13. About a factor of three. The units of X in that
   correlation are not stated in what we read.
 - **Different processes, different activation energies.** The drying rate above implies about
@@ -179,8 +180,9 @@ mass takes more heat per degree. No paper below measured it.
   for the roasting chemistry (Bruno et al. above). They describe different quantities.
 - **Thermal dose is built at the hot end.** With Ea = 105 kJ/mol, one minute at 100 °C counts as 0.0008
   minutes at 200 °C, at 150 °C as 0.043, at 180 °C as 0.31, at 220 °C as 2.95. By the time the bean is hot
-  enough to add much thermal dose, most of its water has gone (in the cited experiment moisture fell
-  from 11.2% to about 1.0%, wet basis, over 300 s in air at 200 to 250 °C). Edits to the early curve
+  enough to add much thermal dose, most of its water has gone (the single-bean CFD paper's table
+  compares its simulation with Schenker's measurements for air at 200 to 250 °C: moisture fell from 11.2 to
+  1.0 g per 100 g, wet basis, over 300 s measured, and to 2.0 simulated; read from an extraction of the PDF). Edits to the early curve
   therefore change timing and the length of the drying phase far more than they change the total.
 - Bruno et al. take the measured bean temperature curve as given; they say nothing about how moisture
   or density shape that curve.

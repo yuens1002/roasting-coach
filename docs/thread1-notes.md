@@ -141,5 +141,5 @@ and check counts, constraints, that every stored end temperature agrees with its
 plain-SQL lookup (1850 m, drink soon, espresso → 1500-2000m RTD at level 3.1, 219.3 °C, 10:19).
 
 Only names and numbers are stored: no profile files, curves or description text. The selection
-order (robusta, decaf, cupping, process, altitude) stays in `selectStartingProfile`, where it is
+order (robusta, decaf, process, altitude) stays in `selectStartingProfile`, where it is
 tested; the database holds the data it reads.

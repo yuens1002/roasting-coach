@@ -6,7 +6,8 @@ const DEFECTS: readonly string[] = [...TASTE_CHIPS.under, ...TASTE_CHIPS.over];
 /** The roast quality agrees with the words unless an example says otherwise: 2 with a roast defect, 3 without. */
 const roast = (over: Partial<TastedRoast>): TastedRoast => ({ thermalDose: 10, taste: ["balanced"], quality: (over.taste ?? ["balanced"]).some((c) => DEFECTS.includes(c)) ? 2 : 3, brew: "pourover", ...over });
 const REST: AdviceContext["restNeeded"] = () => [3, 5];
-const KL_WASHED: AdviceContext = { alternative: { profileName: "KL Washed", level: 1.2, endTempC: 217.6 } };
+/** What the adapter gives a bean that started on KL Washed: the altitude profile as the alternative, at the level it starts that profile at. */
+const ALTITUDE_REST: AdviceContext = { alternative: { profileName: "1500-2000m Rest", level: 3.2, endTempC: 222.4 } };
 
 /** Four pour-over cups tasted the day after roasting, each roast about 10% less than the one before: ashy at first (quality 2), then flat and clean (3, 3, 3). */
 const LADDER: TastedRoast[] = [2, 3, 3, 3].map((quality, i) =>
@@ -58,11 +59,11 @@ export const EXAMPLES: Example[] = [
   },
   {
     id: "level-not-helping",
-    scenario: "sour on 1500-2000m Rest after a roast with 10% less roasting also tasted sour; KL Washed is the alternative",
+    scenario: "sour on KL Washed after a roast with 10% less roasting also tasted sour; 1500-2000m Rest is the alternative",
     input: {
-      latest: roast({ thermalDose: 11, taste: ["sour"], profile: "1500-2000m Rest" }),
-      earlier: [roast({ thermalDose: 10, taste: ["sour"], profile: "1500-2000m Rest" })],
-      context: KL_WASHED,
+      latest: roast({ thermalDose: 11, taste: ["sour"], profile: "KL Washed" }),
+      earlier: [roast({ thermalDose: 10, taste: ["sour"], profile: "KL Washed" })],
+      context: ALTITUDE_REST,
     },
   },
   {

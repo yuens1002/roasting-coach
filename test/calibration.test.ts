@@ -264,9 +264,11 @@ describe("the tables list exactly what the code allows", () => {
     const list = block.match(new RegExp(`check \\(${column} in \\(([^)]*)\\)`))?.[1] ?? "";
     return [...list.matchAll(/'([^']+)'/g)].map((m) => m[1]);
   };
-  it("for setting keys (migration 006 replaced the list in 004 when it dropped the rest and brew settings)", () => {
-    const latest = readFileSync(join(__dirname, "..", "db", "006_drop_cup_settings.sql"), "utf8");
-    const keys = [...(latest.match(/check \(key in \(([^)]*)\)/)?.[1] ?? "").matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  it("for setting keys, read from the constraint the migrated database really has (006 replaced the list in 004)", async () => {
+    const db = await migratedDb();
+    const def = await db.query<{ def: string }>("select pg_get_constraintdef(oid) as def from pg_constraint where conrelid = 'roaster_setting'::regclass and contype = 'c'");
+    expect(def.rows).toHaveLength(1);
+    const keys = [...def.rows[0].def.matchAll(/'([^']+)'/g)].map((m) => m[1]);
     expect(keys.sort()).toEqual(Object.keys(RULE_SETTINGS).sort());
   });
   it("for taste words, in the tasting form's order", () => {

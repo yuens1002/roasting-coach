@@ -328,11 +328,11 @@ describe("roasts are tasted as filter coffee", () => {
       // Roast 2 (11) is the earlier result that counts. Roast 1 (10.5) is closer, and would halve the gap to 2.5%, if it counted.
       expect(change(r.advice)).toMatchObject({ ruleId: "under-roasted-bracketed", thermalDoseChangePct: 5 });
       const say = adviceReport(1, r, undefined, "No profile.").say;
-      expect(say.endsWith("One earlier roast was not tasted as filter coffee, so it is left out of the comparison (roasts are tasted as pour over, french press / immersion or aeropress).")).toBe(true);
+      expect(say.endsWith("One earlier roast was without a rated tasting of filter coffee, so it is left out of the comparison (roasts are tasted as pour over, french press / immersion or aeropress).")).toBe(true);
     });
     it("counts several set-aside roasts in the plural, and says nothing when there are none", () => {
       const h = history(roastRow(1, "2026-10-01", 12, [tasting(1, ["bitter"], "espresso")]), roastRow(2, "2026-10-02", 11, [tasting(2, ["bitter"], "moka")]), roastRow(3, "2026-10-05", 10, [tasting(3, ["grassy"], "pourover")]));
-      expect(adviceReport(1, adviseFromHistory(h)!, undefined, "No profile.").say).toContain("2 earlier roasts were not tasted as filter coffee, so they are left out of the comparison");
+      expect(adviceReport(1, adviseFromHistory(h)!, undefined, "No profile.").say).toContain("2 earlier roasts were without a rated tasting of filter coffee, so they are left out of the comparison");
       const clean = adviseFromHistory(history(roastRow(1, "2026-10-01", 10, [tasting(1, ["sour"], "pourover")])))!;
       expect(clean.setAside).toBeUndefined();
       expect(adviceReport(1, clean, undefined, "No profile.").say).not.toContain("left out");
