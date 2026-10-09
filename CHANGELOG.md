@@ -5,6 +5,27 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-10-09
+
+- 2026-10-09 - feat(station): add a dev station that replays a scripted session and opens a fresh session on a throwaway database
+
+### Added
+
+- `npm run station` replays a scripted 18-step roasting session through the real `scripts/roast.ts` against a
+  throwaway database (`roast_station`, on the same Docker server) and scratch folders in the system temp folder,
+  and stops at the first answer that is not what the rulebook says. It covers an intake with no brew field,
+  a refused brewing goal, a refused espresso tasting, the under-roasted step and its `onYes`, the bracketed
+  over-roasted step, keep-as-is, and the clean-below-bar ledger.
+- `npm run station:session` resets the station and prints how to open a fresh Claude Code session against it,
+  with a prompt and a list of what the `/roast` skill must do; `npm run station:reset` empties it.
+- The station only runs against a server on this machine unless `STATION_ALLOW_HOST` names another host on purpose.
+- The station refuses any database but its own and never uses `profiles/`; it drops `roast_station` only when it carries the
+  station's comment, and empties its scratch folder only when that is empty or holds the station's marker file; its logs are made up
+  (`scripts/stationKit.ts`), never Kaffelogic files. `test/station.test.ts` checks the guards and the logs.
+- `scripts/migrate.ts`: the migration runner, shared by `npm run db:migrate` and the station.
+- `CONTRIBUTING.md` and `docs/ROADMAP.md` describe the station. Not built: running the fresh session headless and
+  checking its transcript.
+
 ## [0.1.11] - 2026-10-09
 
 - 2026-10-09 - refactor(rules): take brew method out of the roast, with rest and brew no longer levers and every tasting of filter coffee

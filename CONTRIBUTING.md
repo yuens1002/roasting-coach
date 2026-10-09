@@ -37,6 +37,30 @@ npx tsc              # typecheck
 Windows is a primary environment: don't spawn shell tools from tests, write files from Node
 rather than shell redirection, and don't assume LF line endings.
 
+### The dev station
+
+`npm test` checks the parts. The station tries the whole build the way a roaster does, against a
+throwaway database (`roast_station` on the same Docker server) and scratch folders in the system temp
+folder, so your own database and `profiles/` are never touched. It needs `npm run db:up`.
+
+```
+npm run station           # replay a scripted session through scripts/roast.ts, checking each answer
+npm run station:session   # reset, then print how to open a fresh Claude Code session on the station
+npm run station:reset     # empty the station and nothing else
+```
+
+Run `npm run station` after changing a rule, a message, a form or the starting-profile choice: it stops at
+the first answer that is not what the rulebook says. Edit the scenario in `scripts/station.ts` with the
+change. Run `npm run station:session` when the `/roast` skill or what the session relays changes, and read the
+session against the list it prints. Logs are made up (`scripts/stationKit.ts`); never a Kaffelogic file.
+
+The station only runs against a server on this machine (`localhost`, `127.0.0.1`, `[::1]` or a local socket,
+as `pg` reads `DATABASE_URL`; another host must be named on purpose with `STATION_ALLOW_HOST=<host>` on the command
+line, not in `.env`). It only drops a `roast_station` database that carries its own comment, and only empties a scratch
+folder that is empty or holds its marker file, so a database or folder of the same name made by anyone else is
+refused, not deleted. One made by an earlier version of the station has neither: drop it, or add the comment
+and marker by hand, and run it again.
+
 ## Changes
 
 - Open an issue first for anything larger than a small fix, so we can agree on the approach.
