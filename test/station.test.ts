@@ -4,7 +4,21 @@ import { describe, expect, it } from "vitest";
 import { parseKlog } from "../src/adapters/kaffelogic/parse.js";
 import { kaffelogicToRoastLog } from "../src/adapters/kaffelogic/toRoastLog.js";
 import { extractFeatures } from "../src/core/features.js";
-import { STATION_DB, STATION_DIR, assertStationDir, assertStationUrl, maintenanceUrl, stationEndTemp, stationEnv, stationLog, stationUrl } from "../scripts/stationKit.js";
+import {
+  STATION_DB,
+  STATION_DB_COMMENT,
+  STATION_DIR,
+  STATION_DIR_MARKER,
+  assertStationDir,
+  assertStationOwnsDatabase,
+  assertStationOwnsDir,
+  assertStationUrl,
+  maintenanceUrl,
+  stationEndTemp,
+  stationEnv,
+  stationLog,
+  stationUrl,
+} from "../scripts/stationKit.js";
 
 const APP = "postgres://roast:secret@localhost:54320/roast_copilot";
 
@@ -23,6 +37,26 @@ describe("the dev station keeps away from the app's own database and folders", (
     expect(() => assertStationUrl(`${stationUrl(APP)}?database=roast_copilot`)).toThrow(/names a database in its query/);
     expect(() => assertStationUrl(`${stationUrl(APP)}?db=roast_copilot`)).toThrow(/names a database in its query/);
     expect(() => assertStationUrl("socket:/var/run/postgresql/roast_station?db=roast_copilot")).toThrow(/Refusing/);
+  });
+
+  it("drops a database of its name only when it made it: a missing one or one with its comment, never one without", () => {
+    expect(() => assertStationOwnsDatabase(undefined)).not.toThrow();
+    expect(() => assertStationOwnsDatabase({ comment: STATION_DB_COMMENT })).not.toThrow();
+    for (const comment of [null, "", "someone else's database", `${STATION_DB_COMMENT} (copy)`]) {
+      expect(() => assertStationOwnsDatabase({ comment }), String(comment)).toThrow(/was not made by the station/);
+    }
+  });
+
+  it("keeps its database comment safe to write into an SQL statement that takes no parameters", () => {
+    expect(STATION_DB_COMMENT).not.toMatch(/['\\]/);
+  });
+
+  it("empties its folder only when it is missing, empty or marked as the station's, never one holding other files", () => {
+    expect(() => assertStationOwnsDir(STATION_DIR, undefined)).not.toThrow();
+    expect(() => assertStationOwnsDir(STATION_DIR, [])).not.toThrow();
+    expect(() => assertStationOwnsDir(STATION_DIR, [STATION_DIR_MARKER, "logs", "out"])).not.toThrow();
+    expect(() => assertStationOwnsDir(STATION_DIR, ["notes.txt"])).toThrow(/did not make/);
+    expect(() => assertStationOwnsDir(STATION_DIR, ["logs", "out", "library"])).toThrow(/did not make/);
   });
 
   it("empties only its own scratch folder", () => {

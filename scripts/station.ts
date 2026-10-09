@@ -8,14 +8,28 @@
 // Needs the docker-compose database running (`npm run db:up`). The station's database is `roast_station` on the
 // same server; its scratch folders are under the system temp folder. Made-up logs only.
 import { spawnSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import pg from "pg";
 import { DATABASE_URL } from "./db.js";
 import { ROOT } from "./env.js";
 import type { OutcomeId } from "../src/core/rules.js";
 import { migrate } from "./migrate.js";
-import { STATION_DB, STATION_DIR, STATION_SUBDIRS, assertStationDir, assertStationUrl, maintenanceUrl, stationEnv, stationLog, stationUrl } from "./stationKit.js";
+import {
+  STATION_DB,
+  STATION_DB_COMMENT,
+  STATION_DIR,
+  STATION_DIR_MARKER,
+  STATION_SUBDIRS,
+  assertStationDir,
+  assertStationOwnsDatabase,
+  assertStationOwnsDir,
+  assertStationUrl,
+  maintenanceUrl,
+  stationEnv,
+  stationLog,
+  stationUrl,
+} from "./stationKit.js";
 
 type Out = Record<string, unknown>;
 
@@ -24,13 +38,18 @@ async function reset(): Promise<void> {
   const target = stationUrl(DATABASE_URL);
   assertStationUrl(target);
   assertStationDir(STATION_DIR);
+  // Ownership is checked before anything is dropped or emptied, so a refusal changes nothing.
+  assertStationOwnsDir(STATION_DIR, existsSync(STATION_DIR) ? readdirSync(STATION_DIR) : undefined);
   const admin = new pg.Client({ connectionString: maintenanceUrl(DATABASE_URL) });
   admin.on("error", () => {});
   await admin.connect();
   try {
+    const existing = await admin.query<{ comment: string | null }>("select shobj_description(oid, 'pg_database') as comment from pg_database where datname = $1", [STATION_DB]);
+    assertStationOwnsDatabase(existing.rows[0]);
     // STATION_DB is a plain lower-case name (checked where it is defined), so it is safe as a quoted identifier.
     await admin.query(`drop database if exists "${STATION_DB}" with (force)`);
     await admin.query(`create database "${STATION_DB}"`);
+    await admin.query(`comment on database "${STATION_DB}" is '${STATION_DB_COMMENT}'`);
   } finally {
     await admin.end();
   }
@@ -44,6 +63,7 @@ async function reset(): Promise<void> {
   }
   rmSync(STATION_DIR, { recursive: true, force: true });
   for (const sub of Object.values(STATION_SUBDIRS)) mkdirSync(join(STATION_DIR, sub), { recursive: true });
+  writeFileSync(join(STATION_DIR, STATION_DIR_MARKER), "Made by npm run station in roasting-coach. Safe to delete.\n");
 }
 
 /** One command of the real CLI (`scripts/roast.ts`), run in a child process against the station. */

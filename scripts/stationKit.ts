@@ -37,6 +37,33 @@ export function assertStationUrl(url: string): void {
   if (parsed.pathname !== `/${STATION_DB}`) throw new Error(`Refusing to touch ${parsed.pathname.slice(1) || "the default database"}: the station only uses ${STATION_DB}.`);
 }
 
+/** The comment the station puts on the database it creates; a database without it was not made by the station. */
+export const STATION_DB_COMMENT = "roasting-coach dev station: made by npm run station, safe to drop and recreate";
+// It is written into an SQL statement that takes no parameters, so a quote or backslash would break that statement and
+// leave a database the station then refuses to drop.
+if (/['\\]/.test(STATION_DB_COMMENT)) throw new Error("STATION_DB_COMMENT must contain no quote or backslash.");
+/** The file the station puts in its scratch folder; a non-empty folder without it was not made by the station. */
+export const STATION_DIR_MARKER = ".roasting-coach-station";
+
+/**
+ * The database is the station's to drop only if it does not exist yet or carries the station's comment. A database
+ * of the same name made by anyone else (on any server DATABASE_URL points at) is refused, not dropped.
+ */
+export function assertStationOwnsDatabase(existing: { comment: string | null } | undefined): void {
+  if (existing && existing.comment !== STATION_DB_COMMENT) {
+    throw new Error(
+      `The database ${STATION_DB} already exists and was not made by the station (its comment is ${JSON.stringify(existing.comment)}), so it is not dropped. If it is yours to delete, drop it yourself and run the station again.`,
+    );
+  }
+}
+
+/** The folder is the station's to empty only if it is empty, missing, or holds the station's marker file. */
+export function assertStationOwnsDir(dir: string, entries: string[] | undefined): void {
+  if (entries && entries.length > 0 && !entries.includes(STATION_DIR_MARKER)) {
+    throw new Error(`${dir} already holds files the station did not make (no ${STATION_DIR_MARKER} file), so it is not emptied. Move them away and run the station again.`);
+  }
+}
+
 /** Refuses to empty any folder but the station's own scratch folder. */
 export function assertStationDir(dir: string): void {
   if (resolve(dir) !== resolve(tmpdir(), STATION_FOLDER)) throw new Error(`Refusing to empty ${dir}: the station only empties its own folder in the system temp folder.`);
