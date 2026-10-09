@@ -41,18 +41,26 @@ rather than shell redirection, and don't assume LF line endings.
 
 `npm test` checks the parts. The station tries the whole build the way a roaster does, against a
 throwaway database (`roast_station` on the same Docker server) and scratch folders in the system temp
-folder, so your own database and `profiles/` are never touched. It needs `npm run db:up`.
+folder, so your own database is never touched and nothing is written to `profiles/`. It needs `npm run db:up`.
 
 ```
-npm run station           # replay a scripted session through scripts/roast.ts, checking each answer
-npm run station:session   # reset, then print how to open a fresh Claude Code session on the station
-npm run station:reset     # empty the station and nothing else
+npm run station          # empty the station and start Claude Code on it, with a new user's data
+npm run station:check    # replay a scripted session through scripts/roast.ts, checking each answer
+npm run station:beans    # list what the station has recorded
+npm run station:reset    # empty the station and nothing else
 ```
 
-Run `npm run station` after changing a rule, a message, a form or the starting-profile choice: it stops at
+`npm run station` is the one to run to try the build: it resets the station and starts `claude` with the station's
+database and folders already set, so nothing is typed or pasted. Run it in a terminal of its own, not from inside a
+Claude Code session (it refuses). Say "Use /roast, I have a new bean" and bring your own log paths. When you exit, it
+lists what was recorded and the `/roast` skill's rules to read the session against. It copies the profile files in
+`profiles/` into the scratch folder (a copy in the system temp folder, never committed; `profiles/` is only read);
+there are no made-up logs and no prompt. Only the station's data is a new user's: the session still loads your own
+Claude Code settings and this repository's local notes, so it can behave better than a first-day user's would.
+
+Run `npm run station:check` after changing a rule, a message, a form or the starting-profile choice: it stops at
 the first answer that is not what the rulebook says. Edit the scenario in `scripts/station.ts` with the
-change. Run `npm run station:session` when the `/roast` skill or what the session relays changes, and read the
-session against the list it prints. Logs are made up (`scripts/stationKit.ts`); never a Kaffelogic file.
+change. Its logs are made up (`scripts/stationKit.ts`); never a Kaffelogic file.
 
 The station only runs against a server on this machine (`localhost`, `127.0.0.1`, `[::1]` or a local socket,
 as `pg` reads `DATABASE_URL`; another host must be named on purpose with `STATION_ALLOW_HOST=<host>` on the command

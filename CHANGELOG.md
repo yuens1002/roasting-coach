@@ -5,6 +5,21 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-10-09
+
+- 2026-10-09 - feat(station): start claude on the station with one command, as a new user would find it
+
+### Changed
+
+- `npm run station` now empties the station and starts Claude Code on it with the station's database and folders already set,
+  so nothing is typed or pasted. The station holds a new user's data: an empty database, the profile files in `profiles/`
+  copied into the scratch library (`profiles/` is only read), no made-up logs and no prompt. The session itself still
+  loads the person's own Claude Code settings and this repository's local notes. It refuses to run from inside a Claude
+  Code session. When Claude Code exits, it lists what was recorded and the `/roast` skill's rules to read the session against.
+- The scripted replay is now `npm run station:check`. `npm run station:beans` lists what the station has recorded.
+  `npm run station:session` is gone: `npm run station` replaces it.
+- `CONTRIBUTING.md` and `docs/ROADMAP.md` describe the new commands.
+
 ## [0.1.12] - 2026-10-09
 
 - 2026-10-09 - feat(station): add a dev station that replays a scripted session and opens a fresh session on a throwaway database

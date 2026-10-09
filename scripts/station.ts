@@ -1,14 +1,17 @@
 // The dev station: try the current build against a throwaway database and a fresh session, whenever a rule,
-// message or form changes. It never touches the app's own database (roast_copilot) or the roaster's folders.
+// message or form changes. It never touches the app's own database (roast_copilot) and writes nothing to the
+// roaster's folders; `start` only reads the profile files in profiles/.
 //
-//   npm run station            replay a scripted roasting session through the real CLI and check each answer
+//   npm run station            empty the station and start Claude Code on it, with a new user's data (run it in its own terminal)
+//   npm run station:check      replay a scripted roasting session through the real CLI and check each answer
+//   npm run station:beans      list what the station has recorded
 //   npm run station:reset      empty the station (a fresh database and fresh scratch folders), nothing else
-//   npm run station:session    reset, then print how to open a fresh Claude Code session against the station
 //
 // Needs the docker-compose database running (`npm run db:up`). The station's database is `roast_station` on the
-// same server; its scratch folders are under the system temp folder. Made-up logs only.
+// same server; its scratch folders are under the system temp folder. The replay uses made-up logs only; `start` copies
+// the roaster's own stock profiles in and nothing else.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import pg from "pg";
 import { DATABASE_URL } from "./db.js";
@@ -291,34 +294,49 @@ async function replay(): Promise<void> {
   console.log(`\n${SCENARIO.length} steps, all as the rulebook says.`);
 }
 
-/** A value as a PowerShell single-quoted string (a quote inside is doubled) and as a bash single-quoted string. */
-const quotePowerShell = (v: string) => `'${v.replace(/'/g, "''")}'`;
-const quoteBash = (v: string) => `'${v.replace(/'/g, "'\\''")}'`;
+/**
+ * Copies the roaster's stock profiles (the .kpro files directly in profiles/, not out/ or logs/) into the station's
+ * library, so a new bean finds its starting profile as it would on a fresh install. Reads profiles/, never writes it.
+ */
+function copyStockProfiles(): number {
+  const source = join(ROOT, "profiles");
+  if (!existsSync(source)) return 0;
+  // A symlinked profile counts too (copyFileSync follows it), and the extension is matched as scripts/library.ts does.
+  const stock = readdirSync(source, { withFileTypes: true }).filter((entry) => (entry.isFile() || entry.isSymbolicLink()) && /\.kpro$/i.test(entry.name));
+  for (const entry of stock) copyFileSync(join(source, entry.name), join(STATION_DIR, STATION_SUBDIRS.library, entry.name));
+  return stock.length;
+}
 
-async function session(): Promise<void> {
+/** A command of the real CLI (`scripts/roast.ts`) run against the station with its output shown as it comes. */
+function showCli(args: string[]): void {
+  spawnSync(process.execPath, ["--import", "tsx", join(ROOT, "scripts", "roast.ts"), ...args], { cwd: ROOT, env: { ...process.env, ...stationEnv(DATABASE_URL) }, stdio: "inherit" });
+}
+
+/**
+ * `npm run station`: starts Claude Code on a station holding what a new user would start with. The station is emptied
+ * (an empty database, the profile files from profiles/ in the library, no made-up logs and no prompt) and `claude` is
+ * started with the station's database and folders set for it, so nothing has to be typed or pasted. When Claude Code
+ * exits, what it recorded is listed. Only the station's data is a new user's: the session itself still loads the
+ * person's own Claude Code settings and this repository's local notes.
+ */
+async function start(): Promise<void> {
+  // A Claude Code session started from inside another one, or with no terminal, cannot run; refuse before anything is dropped.
+  if (process.env.CLAUDECODE || !process.stdin.isTTY) {
+    throw new Error("`npm run station` starts Claude Code, so run it in a terminal of its own, not from inside a Claude Code session.");
+  }
   await reset();
-  writeLog("session-1", 3.3, "2026-10-01");
-  writeLog("session-2", 3.6, "2026-10-08");
-  const env = stationEnv(DATABASE_URL);
-  const prompt = [
-    "Use the /roast skill. I am a home roaster with a Kaffelogic Nano 7.",
-    "I have a new washed coffee grown at about 1900 m, and I will drink it within a few days.",
-    `I roasted it twice; the logs are ${logPath("session-1")} and ${logPath("session-2")}. Both used 120 g green and gave 102 g roasted.`,
-    "Start by setting the bean up.",
-  ].join(" ");
-  const promptFile = join(STATION_DIR, "prompt.txt");
-  writeFileSync(promptFile, prompt + "\n");
-  console.log(`Station ready (database ${new URL(env.DATABASE_URL).pathname.slice(1)}, files in ${STATION_DIR}).`);
-  console.log("\nOpen a fresh Claude Code session in this repository with these set, then paste the prompt in prompt.txt:\n");
-  console.log("  PowerShell:");
-  for (const [k, v] of Object.entries(env)) console.log(`    $env:${k} = ${quotePowerShell(v)}`);
-  console.log(`    claude (Get-Content -Raw ${quotePowerShell(promptFile)})`);
-  console.log("\n  bash:");
-  console.log(`    ${Object.entries(env).map(([k, v]) => `${k}=${quoteBash(v)}`).join(" ")} claude "$(cat ${quoteBash(promptFile)})"`);
-  console.log("\nThe session's commands (`npx tsx scripts/roast.ts ...`) then read and write the station only.");
-  console.log("To see what it recorded, run `npx tsx scripts/roast.ts beans` with the same variables set. `npm run station:reset` starts again.");
-  console.log("\nWhat to watch for in the session (the `/roast` skill's own rules):");
+  const copied = copyStockProfiles();
+  console.log(`Station ready: an empty database (${STATION_DB}) and ${copied} profile files copied from profiles/ (profiles/ itself is not changed).`);
+  if (copied === 0) console.log("No profile files found in profiles/, so a new bean gets a warning instead of a profile file.");
+  console.log("Starting Claude Code on it. Say something like: Use /roast, I have a new bean. Bring your own log paths.\n");
+  const run = spawnSync("claude", [], { cwd: ROOT, env: { ...process.env, ...stationEnv(DATABASE_URL) }, stdio: "inherit", shell: process.platform === "win32" });
+  // 127 and 9009 are the codes a shell gives for a command it cannot find.
+  if (run.error || run.status === 127 || run.status === 9009) throw new Error("Could not start `claude`: is Claude Code installed and on your PATH?");
+  console.log(run.signal ? `\nClaude Code was stopped (${run.signal}). What is recorded in the station:` : "\nClaude Code ended. What it recorded in the station:");
+  showCli(["beans"]);
+  console.log("\nRead the session against the /roast skill's own rules:");
   for (const line of WATCH_FOR) console.log(`  - ${line}`);
+  console.log("\nnpm run station starts again from empty. npm run station:beans lists what is recorded now.");
 }
 
 /** What a fresh session has to do for the build to count as working; no script can check these, so the session is read by a person. */
@@ -330,14 +348,18 @@ const WATCH_FOR = [
   "It never writes SQL by hand and never invents a reason for a new version.",
 ];
 
-const [command = "replay"] = process.argv.slice(2);
+const [command = "start"] = process.argv.slice(2);
 try {
-  if (command === "replay") await replay();
+  if (command === "start") await start();
+  else if (command === "check") await replay();
+  else if (command === "beans") {
+    assertLocalServer(DATABASE_URL);
+    showCli(["beans"]);
+  }
   else if (command === "reset") {
     await reset();
     console.log(`Station emptied: database ${STATION_DB} and ${STATION_DIR}.`);
-  } else if (command === "session") await session();
-  else throw new Error(`Unknown station command "${command}". Use replay, reset or session.`);
+  } else throw new Error(`Unknown station command "${command}". Use start, check, beans or reset.`);
 } catch (e) {
   console.error((e as Error).message);
   process.exitCode = 1;
