@@ -6,8 +6,8 @@ import type pg from "pg";
 
 const dir = join(import.meta.dirname, "..", "db");
 
-/** Applies every migration not yet recorded; returns the file names it applied. */
-export async function migrate(client: pg.Client): Promise<string[]> {
+/** Applies every migration not yet recorded and returns the file names it applied; `onApplied` hears of each one as it commits, so a later failure still leaves a record of the earlier ones. */
+export async function migrate(client: pg.Client, onApplied?: (file: string) => void): Promise<string[]> {
   await client.query("create table if not exists schema_migrations (name text primary key, applied_at timestamptz not null default now())");
   const done = new Set((await client.query<{ name: string }>("select name from schema_migrations")).rows.map((r) => r.name));
   const applied: string[] = [];
@@ -19,6 +19,7 @@ export async function migrate(client: pg.Client): Promise<string[]> {
       await client.query("insert into schema_migrations (name) values ($1)", [file]);
       await client.query("commit");
       applied.push(file);
+      onApplied?.(file);
     } catch (e) {
       await client.query("rollback");
       throw new Error(`${file}: ${(e as Error).message}`);

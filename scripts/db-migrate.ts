@@ -5,7 +5,7 @@ import { migrate } from "./migrate.js";
 
 const client = await connect();
 try {
-  for (const file of await migrate(client)) console.log(`applied ${file}`);
+  await migrate(client, (file) => console.log(`applied ${file}`));
   console.log("database is up to date");
 } finally {
   await client.end();

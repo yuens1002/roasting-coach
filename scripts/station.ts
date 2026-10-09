@@ -13,8 +13,9 @@ import { join } from "node:path";
 import pg from "pg";
 import { DATABASE_URL } from "./db.js";
 import { ROOT } from "./env.js";
+import type { OutcomeId } from "../src/core/rules.js";
 import { migrate } from "./migrate.js";
-import { STATION_DIR, assertStationUrl, maintenanceUrl, stationEnv, stationLog, stationUrl } from "./stationKit.js";
+import { STATION_DB, STATION_DIR, STATION_SUBDIRS, assertStationDir, assertStationUrl, maintenanceUrl, stationEnv, stationLog, stationUrl } from "./stationKit.js";
 
 type Out = Record<string, unknown>;
 
@@ -22,16 +23,19 @@ type Out = Record<string, unknown>;
 async function reset(): Promise<void> {
   const target = stationUrl(DATABASE_URL);
   assertStationUrl(target);
+  assertStationDir(STATION_DIR);
   const admin = new pg.Client({ connectionString: maintenanceUrl(DATABASE_URL) });
   admin.on("error", () => {});
   await admin.connect();
   try {
-    await admin.query("drop database if exists roast_station with (force)");
-    await admin.query("create database roast_station");
+    // STATION_DB is a plain lower-case name (checked where it is defined), so it is safe as a quoted identifier.
+    await admin.query(`drop database if exists "${STATION_DB}" with (force)`);
+    await admin.query(`create database "${STATION_DB}"`);
   } finally {
     await admin.end();
   }
   const client = new pg.Client({ connectionString: target });
+  client.on("error", () => {});
   await client.connect();
   try {
     await migrate(client);
@@ -39,7 +43,7 @@ async function reset(): Promise<void> {
     await client.end();
   }
   rmSync(STATION_DIR, { recursive: true, force: true });
-  for (const sub of ["library", "out", "logs"]) mkdirSync(join(STATION_DIR, sub), { recursive: true });
+  for (const sub of Object.values(STATION_SUBDIRS)) mkdirSync(join(STATION_DIR, sub), { recursive: true });
 }
 
 /** One command of the real CLI (`scripts/roast.ts`), run in a child process against the station. */
@@ -47,9 +51,11 @@ function cli(command: string, input?: unknown): { ok: boolean; out: Out } {
   const args = ["--import", "tsx", join(ROOT, "scripts", "roast.ts"), command];
   if (input !== undefined) args.push(typeof input === "string" ? input : JSON.stringify(input));
   const r = spawnSync(process.execPath, args, { cwd: ROOT, env: { ...process.env, ...stationEnv(DATABASE_URL) }, encoding: "utf8" });
+  if (r.error) throw r.error;
   let out: Out;
   try {
-    out = JSON.parse(r.stdout);
+    const parsed: unknown = JSON.parse(r.stdout);
+    out = parsed && typeof parsed === "object" ? (parsed as Out) : { unreadable: r.stdout.slice(0, 600) };
   } catch {
     out = { unreadable: (r.stdout + r.stderr).slice(0, 600) };
   }
@@ -78,6 +84,8 @@ interface State {
   level: number;
 }
 
+/** The answer's rule id must be one the engine can give, so a renamed outcome fails the typecheck, not just a run. */
+const expectRule = (out: Out, want: OutcomeId) => expectEqual("rule", at(out, "advice.ruleId"), want);
 const expectEqual = (what: string, got: unknown, want: unknown) => {
   if (got !== want) throw new Error(`${what}: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`);
 };
@@ -138,7 +146,7 @@ const SCENARIO: Step[] = [
     run: (s) => ({ command: "advise", input: String(s.beanId) }),
     check: (out, ok, state) => {
       expectEqual("advise succeeded", ok, true);
-      expectEqual("rule", at(out, "advice.ruleId"), "under-roasted");
+      expectRule(out, "under-roasted");
       expectIncludes("say", out.say, "Roast about 15% more.");
       if (!out.onYes) throw new Error("a change has to carry an onYes");
       state.onYes = out.onYes as State["onYes"];
@@ -151,11 +159,11 @@ const SCENARIO: Step[] = [
       expectEqual("version:add succeeded", ok, true);
       expectEqual("version number", at(out, "version.number") ?? out.number, 2);
       state.level = Number(at(out, "version.level") ?? out.level);
-      if (!(state.level > 3.3)) throw new Error(`more roasting should mean a higher level than 3.3, got ${state.level}`);
+      if (!(state.level > 3.3)) throw new Error(`a step of more roasting is a level above 3.3; got ${state.level}`);
     },
   },
   {
-    does: "roasts v2 at that level and tastes it: bitter and ashy, roast quality 2",
+    does: "roasts v2 at that level",
     run: (s) => ({ command: "roast:add", input: { beanId: s.beanId, klogPath: writeLog("roast-2", s.level, "2026-10-08"), answers: weights } }),
     check: (out, ok) => {
       expectEqual("roast:add succeeded", ok, true);
@@ -163,7 +171,7 @@ const SCENARIO: Step[] = [
     },
   },
   {
-    does: "tastes v2",
+    does: "tastes v2 as an immersion brew: bitter and ashy, roast quality 2",
     run: (s) => ({ command: "taste:add", input: { beanId: s.beanId, answers: { tastedOn: "2026-10-12", brew: "immersion", quality: 2, taste: ["bitter", "ashy"] } } }),
     check: (_out, ok) => expectEqual("taste:add succeeded", ok, true),
   },
@@ -172,13 +180,13 @@ const SCENARIO: Step[] = [
     run: (s) => ({ command: "advise", input: String(s.beanId) }),
     check: (out, ok, state) => {
       expectEqual("advise succeeded", ok, true);
-      expectEqual("rule", at(out, "advice.ruleId"), "over-roasted-bracketed");
+      expectRule(out, "over-roasted-bracketed");
       if (!out.onYes) throw new Error("a change has to carry an onYes");
       state.onYes = out.onYes as State["onYes"];
     },
   },
   {
-    does: "says yes, roasts v3 and tastes it: sweet and balanced, roast quality 4",
+    does: "says yes to the halfway step, and the session records v3",
     run: (s) => ({ command: s.onYes!.command, input: s.onYes!.input }),
     check: (out, ok, state) => {
       expectEqual("version:add succeeded", ok, true);
@@ -195,7 +203,7 @@ const SCENARIO: Step[] = [
     },
   },
   {
-    does: "tastes v3 as an AeroPress",
+    does: "tastes v3 as an AeroPress: sweet and balanced, roast quality 4",
     run: (s) => ({ command: "taste:add", input: { beanId: s.beanId, answers: { tastedOn: "2026-10-19", brew: "aeropress", quality: 4, taste: ["sweet", "balanced"] } } }),
     check: (_out, ok) => expectEqual("taste:add succeeded", ok, true),
   },
@@ -204,7 +212,7 @@ const SCENARIO: Step[] = [
     run: (s) => ({ command: "advise", input: String(s.beanId) }),
     check: (out, ok) => {
       expectEqual("advise succeeded", ok, true);
-      expectEqual("rule", at(out, "advice.ruleId"), "keep-as-is");
+      expectRule(out, "keep-as-is");
       if (out.onYes) throw new Error("a hold must not carry an onYes");
     },
   },
@@ -232,7 +240,7 @@ const SCENARIO: Step[] = [
     run: (s) => ({ command: "advise", input: String(s.flatBeanId) }),
     check: (out, ok) => {
       expectEqual("advise succeeded", ok, true);
-      expectEqual("rule", at(out, "advice.ruleId"), "clean-below-bar");
+      expectRule(out, "clean-below-bar");
       for (const lever of ["- level (", "- profile (", "- curve ("]) expectIncludes("lever ledger", out.say, lever);
       if (/- (rest|brew) \(/.test(String(out.say))) throw new Error("rest and brew are not levers");
     },
@@ -243,7 +251,6 @@ async function replay(): Promise<void> {
   await reset();
   console.log(`Station ready: database ${new URL(stationUrl(DATABASE_URL)).pathname.slice(1)}, files in ${STATION_DIR}\n`);
   const state: State = { beanId: 0, flatBeanId: 0, level: 0 };
-  let failed = 0;
   SCENARIO.forEach((step, i) => {
     const { command, input } = step.run(state);
     console.log(`${String(i + 1).padStart(2)}. The roaster ${step.does}.`);
@@ -254,14 +261,17 @@ async function replay(): Promise<void> {
       step.check(out, ok, state);
       console.log("    ok");
     } catch (e) {
-      failed++;
       console.log(`    FAIL: ${(e as Error).message}`);
       console.log(`    output: ${JSON.stringify(out).slice(0, 400)}`);
       throw new Error(`Step ${i + 1} failed. Stopping: later steps depend on it.`);
     }
   });
-  console.log(`\n${SCENARIO.length} steps, ${failed} failed.`);
+  console.log(`\n${SCENARIO.length} steps, all as the rulebook says.`);
 }
+
+/** A value as a PowerShell single-quoted string (a quote inside is doubled) and as a bash single-quoted string. */
+const quotePowerShell = (v: string) => `'${v.replace(/'/g, "''")}'`;
+const quoteBash = (v: string) => `'${v.replace(/'/g, "'\\''")}'`;
 
 async function session(): Promise<void> {
   await reset();
@@ -279,10 +289,10 @@ async function session(): Promise<void> {
   console.log(`Station ready (database ${new URL(env.DATABASE_URL).pathname.slice(1)}, files in ${STATION_DIR}).`);
   console.log("\nOpen a fresh Claude Code session in this repository with these set, then paste the prompt in prompt.txt:\n");
   console.log("  PowerShell:");
-  for (const [k, v] of Object.entries(env)) console.log(`    $env:${k} = '${v}'`);
-  console.log(`    claude (Get-Content -Raw '${promptFile}')`);
+  for (const [k, v] of Object.entries(env)) console.log(`    $env:${k} = ${quotePowerShell(v)}`);
+  console.log(`    claude (Get-Content -Raw ${quotePowerShell(promptFile)})`);
   console.log("\n  bash:");
-  console.log(`    ${Object.entries(env).map(([k, v]) => `${k}='${v}'`).join(" ")} claude "$(cat '${promptFile}')"`);
+  console.log(`    ${Object.entries(env).map(([k, v]) => `${k}=${quoteBash(v)}`).join(" ")} claude "$(cat ${quoteBash(promptFile)})"`);
   console.log("\nThe session's commands (`npx tsx scripts/roast.ts ...`) then read and write the station only.");
   console.log("To see what it recorded, run `npx tsx scripts/roast.ts beans` with the same variables set. `npm run station:reset` starts again.");
   console.log("\nWhat to watch for in the session (the `/roast` skill's own rules):");
@@ -303,7 +313,7 @@ try {
   if (command === "replay") await replay();
   else if (command === "reset") {
     await reset();
-    console.log(`Station emptied: database roast_station and ${STATION_DIR}.`);
+    console.log(`Station emptied: database ${STATION_DB} and ${STATION_DIR}.`);
   } else if (command === "session") await session();
   else throw new Error(`Unknown station command "${command}". Use replay, reset or session.`);
 } catch (e) {

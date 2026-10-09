@@ -2,14 +2,18 @@
 // it. Nothing here touches a database or the disk, so tests can import it. The station never uses the
 // app's own database (roast_copilot) or the roaster's folders (profiles/): see station.ts.
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { levelToTemp, parseKpro } from "../src/adapters/kaffelogic/parse.js";
 import { PROFILE } from "../test/syntheticLog.js";
 
-/** The only database the station may create, drop or write to. */
+/** The only database the station may create, drop or write to. A plain lower-case name, so it is safe as an SQL identifier. */
 export const STATION_DB = "roast_station";
+if (!/^[a-z][a-z_]*$/.test(STATION_DB)) throw new Error("STATION_DB must be a plain lower-case name.");
+const STATION_FOLDER = "roasting-coach-station";
 /** The only folder the station may empty. Scratch space: made-up logs, the library it reads and the profiles it writes. */
-export const STATION_DIR = join(tmpdir(), "roasting-coach-station");
+export const STATION_DIR = join(tmpdir(), STATION_FOLDER);
+/** The folders inside it: the library the CLI reads, where it writes profiles, and the made-up logs. */
+export const STATION_SUBDIRS = { library: "library", out: "out", logs: "logs" } as const;
 
 const withDatabase = (appUrl: string, database: string) => {
   const url = new URL(appUrl);
@@ -22,16 +26,27 @@ export const stationUrl = (appUrl: string) => withDatabase(appUrl, STATION_DB);
 /** The server's maintenance database, from which the station database is dropped and created. */
 export const maintenanceUrl = (appUrl: string) => withDatabase(appUrl, "postgres");
 
-/** Refuses any connection string that is not the station's database, before anything is dropped or written. */
+/**
+ * Refuses any connection string that is not the station's database, before anything is dropped or written: a
+ * postgres:// URL whose path is exactly the station's database and whose query names no other database.
+ */
 export function assertStationUrl(url: string): void {
-  if (new URL(url).pathname !== `/${STATION_DB}`) throw new Error(`Refusing to touch ${new URL(url).pathname.slice(1)}: the station only uses ${STATION_DB}.`);
+  const parsed = new URL(url);
+  if (parsed.protocol !== "postgres:" && parsed.protocol !== "postgresql:") throw new Error(`Refusing to touch ${parsed.protocol}// connections: the station uses a postgres:// URL.`);
+  if (parsed.searchParams.has("db") || parsed.searchParams.has("database")) throw new Error("Refusing a connection string that names a database in its query: the station's database is set by its path.");
+  if (parsed.pathname !== `/${STATION_DB}`) throw new Error(`Refusing to touch ${parsed.pathname.slice(1) || "the default database"}: the station only uses ${STATION_DB}.`);
+}
+
+/** Refuses to empty any folder but the station's own scratch folder. */
+export function assertStationDir(dir: string): void {
+  if (resolve(dir) !== resolve(tmpdir(), STATION_FOLDER)) throw new Error(`Refusing to empty ${dir}: the station only empties its own folder in the system temp folder.`);
 }
 
 /** What the CLI reads to find its database and folders; set these and `scripts/roast.ts` runs against the station. */
 export const stationEnv = (appUrl: string): Record<string, string> => ({
   DATABASE_URL: stationUrl(appUrl),
-  KAFFELOGIC_DIR: join(STATION_DIR, "library"),
-  KAFFELOGIC_OUT_DIR: join(STATION_DIR, "out"),
+  KAFFELOGIC_DIR: join(STATION_DIR, STATION_SUBDIRS.library),
+  KAFFELOGIC_OUT_DIR: join(STATION_DIR, STATION_SUBDIRS.out),
 });
 
 const TEST_PROFILE = parseKpro(PROFILE);

@@ -13,7 +13,7 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 - `npm run station` replays a scripted 18-step roasting session through the real `scripts/roast.ts` against a
   throwaway database (`roast_station`, on the same Docker server) and scratch folders in the system temp folder,
-  and stops at the first answer that is not what the rulebook says. It covers the intake with no brewing question,
+  and stops at the first answer that is not what the rulebook says. It covers an intake with no brew field,
   a refused brewing goal, a refused espresso tasting, the under-roasted step and its `onYes`, the bracketed
   over-roasted step, keep-as-is, and the clean-below-bar ledger.
 - `npm run station:session` resets the station and prints how to open a fresh Claude Code session against it,

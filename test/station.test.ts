@@ -1,10 +1,10 @@
 import { tmpdir } from "node:os";
-import { isAbsolute, relative } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseKlog } from "../src/adapters/kaffelogic/parse.js";
 import { kaffelogicToRoastLog } from "../src/adapters/kaffelogic/toRoastLog.js";
 import { extractFeatures } from "../src/core/features.js";
-import { STATION_DB, STATION_DIR, assertStationUrl, maintenanceUrl, stationEndTemp, stationEnv, stationLog, stationUrl } from "../scripts/stationKit.js";
+import { STATION_DB, STATION_DIR, assertStationDir, assertStationUrl, maintenanceUrl, stationEndTemp, stationEnv, stationLog, stationUrl } from "../scripts/stationKit.js";
 
 const APP = "postgres://roast:secret@localhost:54320/roast_copilot";
 
@@ -16,8 +16,19 @@ describe("the dev station keeps away from the app's own database and folders", (
 
   it("refuses to drop or write any database but its own", () => {
     expect(() => assertStationUrl(stationUrl(APP))).not.toThrow();
-    for (const other of [APP, maintenanceUrl(APP), "postgres://roast:roast@localhost:54320/roast_copilot_backup", `${stationUrl(APP)}x`]) {
-      expect(() => assertStationUrl(other), other).toThrow(/Refusing to touch/);
+    for (const other of [APP, maintenanceUrl(APP), "postgres://roast:roast@localhost:54320/roast_copilot_backup", `${stationUrl(APP)}x`, `${stationUrl(APP)}/`, "postgres://roast:secret@localhost:54320/roast%5Fstation"]) {
+      expect(() => assertStationUrl(other), other).toThrow(/Refusing/);
+    }
+    // A query that names another database, and a socket URL (where the database is not in the path), are refused too.
+    expect(() => assertStationUrl(`${stationUrl(APP)}?database=roast_copilot`)).toThrow(/names a database in its query/);
+    expect(() => assertStationUrl(`${stationUrl(APP)}?db=roast_copilot`)).toThrow(/names a database in its query/);
+    expect(() => assertStationUrl("socket:/var/run/postgresql/roast_station?db=roast_copilot")).toThrow(/Refusing/);
+  });
+
+  it("empties only its own scratch folder", () => {
+    expect(() => assertStationDir(STATION_DIR)).not.toThrow();
+    for (const other of [tmpdir(), process.cwd(), join(process.cwd(), "profiles"), join(tmpdir(), "roasting-coach-station-other"), join(STATION_DIR, "library")]) {
+      expect(() => assertStationDir(other), other).toThrow(/Refusing to empty/);
     }
   });
 
@@ -54,6 +65,14 @@ describe("the station's made-up logs", () => {
     const low = roast(3.0);
     const high = roast(4.2);
     expect(high.samples[high.samples.length - 1].t).toBeGreaterThan(low.samples[low.samples.length - 1].t);
+    // The bean temperature at the roast_end marker is the level's end temperature, and the marker is where the line reaches it.
+    for (const level of [3.0, 4.2]) {
+      const log = parseKlog(stationLog({ level, roastedOn: "2026-10-08", name: "station-test" }));
+      const endAt = Math.round(3 * (stationEndTemp(level) - 20));
+      expect(log.markers.roast_end, `roast_end at level ${level}`).toBe(endAt);
+      const atEnd = roast(level).samples.find((s) => s.t === endAt);
+      expect(atEnd?.beanTemp, `end temperature at level ${level}`).toBeCloseTo(stationEndTemp(level), 0);
+    }
   });
 
   it("give a higher thermal dose at a higher level, which is what lets a scripted session step the level", () => {
