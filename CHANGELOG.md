@@ -18,6 +18,7 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
   over-roasted step, keep-as-is, and the clean-below-bar ledger.
 - `npm run station:session` resets the station and prints how to open a fresh Claude Code session against it,
   with a prompt and a list of what the `/roast` skill must do; `npm run station:reset` empties it.
+- The station only runs against a server on this machine unless `STATION_ALLOW_HOST` names another host on purpose.
 - The station refuses any database but its own and never uses `profiles/`; it drops `roast_station` only when it carries the
   station's comment, and empties its scratch folder only when that is empty or holds the station's marker file; its logs are made up
   (`scripts/stationKit.ts`), never Kaffelogic files. `test/station.test.ts` checks the guards and the logs.

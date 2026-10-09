@@ -2,6 +2,7 @@
 // it. Nothing here touches a database or the disk, so tests can import it. The station never uses the
 // app's own database (roast_copilot) or the roaster's folders (profiles/): see station.ts.
 import { tmpdir } from "node:os";
+import pg from "pg";
 import { join, resolve } from "node:path";
 import { levelToTemp, parseKpro } from "../src/adapters/kaffelogic/parse.js";
 import { PROFILE } from "../test/syntheticLog.js";
@@ -35,6 +36,9 @@ export function assertStationUrl(url: string): void {
   if (parsed.protocol !== "postgres:" && parsed.protocol !== "postgresql:") throw new Error(`Refusing to touch ${parsed.protocol}// connections: the station uses a postgres:// URL.`);
   if (parsed.searchParams.has("db") || parsed.searchParams.has("database")) throw new Error("Refusing a connection string that names a database in its query: the station's database is set by its path.");
   if (parsed.pathname !== `/${STATION_DB}`) throw new Error(`Refusing to touch ${parsed.pathname.slice(1) || "the default database"}: the station only uses ${STATION_DB}.`);
+  // And the database pg itself would open, which is what counts.
+  const { database } = dialTarget(url);
+  if (database !== STATION_DB) throw new Error(`Refusing to touch ${database || "the default database"}: the station only uses ${STATION_DB}.`);
 }
 
 /** The comment the station puts on the database it creates; a database without it was not made by the station. */
@@ -62,6 +66,36 @@ export function assertStationOwnsDir(dir: string, entries: string[] | undefined)
   if (entries && entries.length > 0 && !entries.includes(STATION_DIR_MARKER)) {
     throw new Error(`${dir} already holds files the station did not make (no ${STATION_DIR_MARKER} file), so it is not emptied. Move them away and run the station again.`);
   }
+}
+
+const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "::1"];
+
+/**
+ * The host and database the pg client would really use for a connection string. Not the URL's own hostname and path:
+ * pg lets query parameters such as `?host=` override the host, so only its own reading says where a connection goes.
+ * Creating the client does not connect.
+ */
+function dialTarget(connectionString: string): { host: string; database: string } {
+  const client = new pg.Client({ connectionString });
+  return { host: String(client.host ?? "").toLowerCase(), database: String(client.database ?? "") };
+}
+
+/**
+ * The station creates and drops a database, so it only runs against a server on this machine: localhost, 127.0.0.1,
+ * [::1] or a local socket path, as pg reads the connection string (a `?host=` query counts). Another server is refused
+ * unless the person names that exact host in STATION_ALLOW_HOST, on the command line. Checked on the app's connection
+ * string, before any connection is made.
+ */
+export function assertLocalServer(appUrl: string, allowHost: string | undefined = process.env.STATION_ALLOW_HOST): void {
+  const { host } = dialTarget(appUrl);
+  if (host.startsWith("/") || LOOPBACK_HOSTS.includes(host)) return;
+  if (host && allowHost && allowHost.toLowerCase() === host) {
+    console.error(`Running the station against ${host} because STATION_ALLOW_HOST names it.`);
+    return;
+  }
+  throw new Error(
+    `Refusing to run the station against ${host || "an unnamed host"}: it creates and drops a database, so it only runs on this machine (localhost, 127.0.0.1, [::1] or a local socket).${host ? ` To use another server on purpose, set STATION_ALLOW_HOST=${host} on the command line.` : ""}`,
+  );
 }
 
 /** Refuses to empty any folder but the station's own scratch folder. */

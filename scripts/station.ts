@@ -22,6 +22,7 @@ import {
   STATION_DIR_MARKER,
   STATION_SUBDIRS,
   assertStationDir,
+  assertLocalServer,
   assertStationOwnsDatabase,
   assertStationOwnsDir,
   assertStationUrl,
@@ -35,6 +36,7 @@ type Out = Record<string, unknown>;
 
 /** Empties the station: its database is dropped and made again, with every migration applied, and its folders are made new. */
 async function reset(): Promise<void> {
+  assertLocalServer(DATABASE_URL);
   const target = stationUrl(DATABASE_URL);
   assertStationUrl(target);
   assertStationDir(STATION_DIR);

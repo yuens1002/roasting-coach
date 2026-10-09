@@ -54,7 +54,9 @@ the first answer that is not what the rulebook says. Edit the scenario in `scrip
 change. Run `npm run station:session` when the `/roast` skill or what the session relays changes, and read the
 session against the list it prints. Logs are made up (`scripts/stationKit.ts`); never a Kaffelogic file.
 
-The station only drops a `roast_station` database that carries its own comment, and only empties a scratch
+The station only runs against a server on this machine (`localhost`, `127.0.0.1`, `[::1]` or a local socket,
+as `pg` reads `DATABASE_URL`; another host must be named on purpose with `STATION_ALLOW_HOST=<host>` on the command
+line, not in `.env`). It only drops a `roast_station` database that carries its own comment, and only empties a scratch
 folder that is empty or holds its marker file, so a database or folder of the same name made by anyone else is
 refused, not deleted. One made by an earlier version of the station has neither: drop it, or add the comment
 and marker by hand, and run it again.

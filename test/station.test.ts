@@ -9,6 +9,7 @@ import {
   STATION_DB_COMMENT,
   STATION_DIR,
   STATION_DIR_MARKER,
+  assertLocalServer,
   assertStationDir,
   assertStationOwnsDatabase,
   assertStationOwnsDir,
@@ -49,6 +50,37 @@ describe("the dev station keeps away from the app's own database and folders", (
 
   it("keeps its database comment safe to write into an SQL statement that takes no parameters", () => {
     expect(STATION_DB_COMMENT).not.toMatch(/['\\]/);
+  });
+
+  it("runs only against a server on this machine, as pg reads the connection string, unless the person names that exact host", () => {
+    for (const local of ["localhost", "LOCALHOST", "127.0.0.1", "[::1]"]) expect(() => assertLocalServer(`postgres://roast:secret@${local}:54320/roast_copilot`, undefined), local).not.toThrow();
+    // A local socket, written as a host or as a query, is on this machine too.
+    expect(() => assertLocalServer("postgres://%2Fvar%2Frun%2Fpostgresql/roast_copilot", undefined)).not.toThrow();
+    expect(() => assertLocalServer("postgres://roast:secret@localhost/roast_copilot?host=/var/run/postgresql", undefined)).not.toThrow();
+    for (const remote of ["db.example.com", "10.0.0.5", "production", "127.0.0.1.example.com", "localhost.example.com"]) {
+      expect(() => assertLocalServer(`postgres://roast:secret@${remote}:5432/roast_copilot`, undefined), remote).toThrow(/only runs on this machine/);
+    }
+    // pg lets a ?host= query override the URL's host, so a loopback host in the URL proves nothing by itself.
+    expect(() => assertLocalServer("postgres://roast:secret@localhost:54320/roast_copilot?host=db.prod.example.com", undefined)).toThrow(/against db.prod.example.com/);
+    expect(() => assertLocalServer("postgres://roast:secret@localhost:54320/roast_copilot?host=db.prod.example.com", "localhost")).toThrow(/against db.prod.example.com/);
+    // An opt-in must name the very host in the URL.
+    expect(() => assertLocalServer("postgres://roast:secret@db.example.com:5432/roast_copilot", "db.example.com")).not.toThrow();
+    expect(() => assertLocalServer("postgres://roast:secret@db.example.com:5432/roast_copilot", "other.example.com")).toThrow(/STATION_ALLOW_HOST=db.example.com/);
+    expect(() => assertLocalServer("postgres://roast:secret@db.example.com:5432/roast_copilot", "")).toThrow(/only runs on this machine/);
+  });
+
+  it("reads the opt-in from STATION_ALLOW_HOST when none is passed", () => {
+    const url = "postgres://roast:secret@db.example.com:5432/roast_copilot";
+    const before = process.env.STATION_ALLOW_HOST;
+    try {
+      delete process.env.STATION_ALLOW_HOST;
+      expect(() => assertLocalServer(url)).toThrow(/only runs on this machine/);
+      process.env.STATION_ALLOW_HOST = "db.example.com";
+      expect(() => assertLocalServer(url)).not.toThrow();
+    } finally {
+      if (before === undefined) delete process.env.STATION_ALLOW_HOST;
+      else process.env.STATION_ALLOW_HOST = before;
+    }
   });
 
   it("empties its folder only when it is missing, empty or marked as the station's, never one holding other files", () => {
