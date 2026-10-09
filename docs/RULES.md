@@ -11,12 +11,13 @@ rule covers this", never a guess. The answers state what your roasts and tasting
 rule does about it; they do not give the tool's opinion of the coffee, and a test checks the worked
 examples below and further cases for first-person opinion and hedged belief.
 
-**⚠ marks a first guess or an assumption we'd like checked.** There is no research number for
-those; they are our best starting point, kept in one place so they are easy to change.
+**⚠ marks a first guess or an assumption that still needs checking.** There is no research number for
+those; they are starting values, kept in one place so they are easy to change.
 
 This page is checked against the code by tests. Rule names, settings, tasting words, rest days, the
 worked examples and the step table fail the test suite if they stop matching the program. The
-"When" and "What it does" prose is not tested, so read it with the worked examples beside it
+"When" and "What it does" prose is not compared with the code, so read it with the worked examples
+beside it; a separate test scans every line of this page outside the worked examples for stance wording
 (section 8 lists exactly what is checked).
 
 ## 1. What the engine looks at
@@ -26,18 +27,18 @@ using its newest tasting; a newer roast without a measured thermal dose is skipp
 
 - **The cup:** the taste words, the roast quality (1-5, section 3), how it was brewed, and the
   date it was tasted. How much the roaster likes the cup is not asked and not used: the tool coaches
-  toward the best the coffee can do as a roast, not toward a taste.
+  the roast, judged by its defects, not a taste.
 - **The roast:** its thermal dose measured from the temperature log (see section 2), the profile
   it ran on, and the calendar days between roasting and tasting.
 - **The bean's own history:** every other roast of the same bean that has a tasting, each judged
   by its newest tasting. Only roasts with a measured thermal dose count.
 - **Facts about the machine's profiles:** which stock profiles must rest before they are judged,
-  and which other profile is worth trying for this bean.
+  and which other profile is suggested for this bean.
 
 **Not used yet:** weight loss, development time ratio, first-crack time or temperature, rate of
 rise, colour readings, how the beans looked, ambient temperature, batch size, grind or brew recipe.
 Several of these are button presses or have no validated ranges for the Nano, so the rules leave
-them out rather than pretend (section 7).
+them out (section 7).
 
 ## 2. Thermal dose, in roasting terms
 
@@ -54,8 +55,8 @@ much as holding 200 °C for ten minutes. Ten degrees hotter does about 74% more 
 minute, so a short, hot roast can do more than a longer one that ends at the same temperature.
 
 **Why not development time ratio (DTR).** DTR needs the first-crack press, which on the Nano is a
-button you press, often early or late. The altitude profiles measured 30 to 40% DTR on the logs we
-have, and other stock profiles state their own targets, so a single textbook "15 to 25%" target
+button you press, so it carries the timing error of a button press. The altitude profiles measured 30 to 40% DTR on the logs
+recorded so far, and other stock profiles state their own targets, so a single textbook "15 to 25%" target
 doesn't fit them. Thermal dose comes from the whole temperature trace and needs no button.
 
 **How a percentage becomes a level.** The engine takes the profile's own curve, ends it at the
@@ -66,8 +67,8 @@ nearest level gives a different change than the step (rounded to a whole percent
 so, for example "The nearest level on this profile gives about 6% less roasting, not 10%".
 
 ⚠ **Check this:** real roasts measured 6 to 12.5% *above* what their profile's curve predicts (three
-logs). The engine assumes a step on the curve is the same proportion on the real roast. That is
-reasonable for ranking and sizing a step, but it is an assumption.
+logs). The engine assumes a step on the curve is the same proportion on the real roast. This is
+an assumption, checked only against those three logs.
 
 ## 3. How tasting words are read
 
@@ -106,10 +107,10 @@ cup to a 4 is what the other levers (rest, brew, profile, curve) are for.
 
 ⚠ **Check this:** `bitter` can also be over-extraction, and `sour` can be under-extraction, so a cup
 can be misread by the brew rather than the roast. The rules only partly allow for that (espresso,
-section 5, rule 4). `bready` and `grassy` are treated as equal in weight to `sour`. `bready` is the
-one to look at first: a baked or stalled roast also tastes bready, and that is a problem with the
-curve, where more roasting could make it worse. If you'd rather not act on it, set it to none for
-your copy (`calibration:set`, section 4).
+section 5, rule 4). `bready` and `grassy` are treated as equal in weight to `sour`. `bready` can
+also come from a baked or stalled roast, which is a curve problem that more roasting does not fix.
+A roaster who does not want the rules to act on it can set it to none for their copy
+(`calibration:set`, section 4).
 
 ## 4. The settings
 
@@ -202,7 +203,7 @@ The curve is what changes how evenly the heat is applied.
 
 ✔ **Settled by the roaster:** sour and bitter can't come from one good roast, so a cup that tastes
 both is a roasting fault, not a brewing one. Uneven extraction (channelling) is deliberately not
-considered here; the message blames the roast.
+considered here; the message addresses the roast.
 
 ### 3. `tasted-too-soon`
 
@@ -210,13 +211,14 @@ considered here; the message blames the roast.
 it was tasted fewer calendar days after roasting than the profile's minimum rest. Day 3 counts as
 ready for a 3-day profile.
 **What it does:** holds. No new version; retaste on the first day of the rest window.
-**Why:** a Rest profile is written for several days of rest. A cup on day 1 may just not be ready,
-and changing the roast for it would chase the wrong thing.
+**Why:** a Rest profile is written for several days of rest. A cup tasted before then is not a
+reading of the roast the profile describes, so a change made from it would rest on a cup the profile
+has not finished.
 
 > Example: sour, on 1500-2000m Rest, tasted 1 day after roasting. "The cup tasted sour, but this roast's profile (1500-2000m Rest) is written for 3 to 5 days of resting before brewing, and it was tasted 1 day after roasting. The rest the profile asks for is not over. Taste it again on day 3 or later before changing anything. No new version is needed."
 
 ⚠ **Check this:** only sour-side cups are held (rest doesn't explain bitter or ashy). The rule
-assumes sourness is what an early taste shows; it doesn't know your espresso might need longer than
+treats sourness as what an early taste shows. It has no way to know that a coffee needs longer than
 the profile's window. RTD profiles are never held, even for a day-0 tasting.
 
 ### 4. `espresso-sour-only`
@@ -259,9 +261,9 @@ Within a side, the first of these that applies wins:
 
 > Example, contradicted (other side): bitter; an earlier roast with 20% more roasting tasted sour. "This cup tasted bitter (over-roasted), but an earlier roast with 20% more roasting tasted sour (under-roasted). That runs against the expected direction: the roast with more roasting should not taste less roasted. So something other than the roast differs between them: the brew, the days of rest or the batch. Find out which before changing the roast."
 
-⚠ **Check this:** the step sizes (10% and 15%) are first guesses, and one word is weighed the same as
+⚠ **Check this:** the step sizes (10% and 15%) are starting values, and one word is weighed the same as
 another. Section 6 shows what each step means in level and end temperature on every stock profile.
-The roast quality isn't used to size a step. The halfway rule assumes the best roast lies between a sour
+The roast quality isn't used to size a step. The halfway rule assumes the roast that clears both defects lies between a sour
 roast and a bitter one; it doesn't allow for a different brew having been used for each.
 
 ### `level-not-helping` (inside rules 5 and 6)
@@ -278,16 +280,17 @@ the one just before. It won't send you back to a profile that already has a tast
 measured thermal dose for this bean (an untasted roast isn't counted, so check the history yourself);
 if there isn't an alternative, or you've used it, it asks instead and says the next lever is the
 curve, which this tool can't edit yet.
-**Why:** one lever at a time. When the level has had a fair chance to fix the cup and hasn't, the
-trouble is likely the profile's shape (heat going in too fast or slow for this bean), not where it
-stops.
+**Why:** one lever at a time. The level has been moved a real distance and the cup stayed on the same side,
+so the next lever the rule names is the profile's shape (how fast heat goes in and how long the beans
+develop), which the level does not change. The rule does not rule out a difference in brew, rest or batch
+between the two roasts.
 
 > Example: sour on 1500-2000m Rest after a roast with 10% less roasting also tasted sour; KL Washed is the alternative. "The cup tasted sour (under-roasted) even after the roasting went 10% more than an earlier roast on this profile, which tasted sour too. The level moved the roast and the cup stayed on the same side. Next, try KL Washed instead: pick it on the Nano and set level 1.2 (ends at 217.6 °C). Shall I record that as the next version?"
 
-⚠ **Check this:** this is judged from **one** unsuccessful step. For a timid first step that is thin
-evidence; it may switch profiles too early. Requiring two unsuccessful steps is a one-line change if
-real tastings suggest it. The same logic is applied to bitter cups (less roasting, still bitter),
-which is our extension. The alternative profile is started at its own suggested level, not matched
+⚠ **Check this:** this is judged from **one** unsuccessful step. A small first step is thin
+evidence, so the switch can come earlier than two steps would give. Requiring two unsuccessful steps
+would mean counting a run of them on the same profile. The same logic is applied to bitter cups (less roasting, still bitter),
+which is an extension of the rule as first written. The alternative profile is started at its own suggested level, not matched
 to the thermal dose of the roast it replaces.
 
 ### 7. `clean-below-bar`
@@ -298,8 +301,8 @@ to the thermal dose of the roast it replaces.
 which way to move it; a clean cup gives it no direction. So the answer lists every lever that can raise the
 quality, cheapest first, each with what it changes and what the recorded roasts say about it. The level is
 in the list, with the steps it has taken on this profile and whether the last ones raised the quality.
-**Why:** this is the cup the other rules had no answer for: nothing wrong with the roast, nothing great
-about it either. Saying "no rule covers this" would leave the roaster guessing, so the answer says what can
+**Why:** this is the cup the other rules had no answer for: nothing wrong with the roast, and a roast quality
+below the bar. Saying "no rule covers this" would give the roaster nothing to act on, so the answer says what can
 be tried and what each try costs.
 
 Each lever is in one of five states, read from the roasts and tastings, never guessed:
@@ -431,8 +434,8 @@ Regenerate with `npm run rules:steps` (it needs the stock profile files in your 
 this repository never contains).
 
 ⚠ **Check this:** do the end temperatures and times look like a 10% or 15% change in roasting to you?
-If a step looks too small or too large on a profile you know well, that is the most useful thing
-you can tell us.
+If a step looks too small or too large on a profile you know well, step sizes can be changed for your
+copy (`calibration:set`, section 4).
 
 ## 7. What the engine does not know
 
@@ -456,4 +459,8 @@ The rules live in `src/core/rules.ts` and the Nano's facts (rest days, alternati
 `src/adapters/kaffelogic/`. Whoever changes a rule, a setting, a taste word, a rest day or a
 message updates this page in the same change. `npm test` fails when this page and the program
 disagree about: the list of answers, every setting and the range it may be set to, the taste words, the roast quality scale, what each lever changes, the rest days, each
-worked example's exact wording, and (where the stock profile files are present) the step table.
+worked example's exact wording, and (where the stock profile files are present) the step table. A separate
+test (`test/voice.test.ts`) reads the worked examples, further engine replies, the starting-profile reasons,
+the colour-change warnings and every line of this page outside its worked examples, for first-person
+opinion, hedged belief and judgments of the coffee. It cannot catch a claim about the world worded neutrally
+("espresso exaggerates sourness").

@@ -114,7 +114,7 @@ export interface StartingProfile {
   profile: StockProfile;
   goal: Goal;
   level: StockLevel;
-  /** A second profile worth trying if the first result disappoints. */
+  /** The other stock profile the rules suggest if changing the level stops helping. */
   alternative?: string;
   /** Plain-language reasons, shown to the user. */
   why: string[];
@@ -140,7 +140,7 @@ export function startingLevel(profile: StockProfile, goal: Goal): StockLevel {
 export function selectStartingProfile(intake: Intake): StartingProfile {
   const why: string[] = [];
   const goal: Goal = intake.goal === "both" ? "espresso" : intake.goal;
-  if (intake.goal === "both") why.push("For filter and espresso, start at the espresso level; go lighter next time if filter tastes flat.");
+  if (intake.goal === "both") why.push("For filter and espresso, this starts at the espresso level.");
   const timing = intake.drinkWhen === "rest" ? "Rest" : "RTD";
   const altName = `${altitudeBand(intake.altitudeM)} ${timing}`;
   const pick = (name: string, g: Goal, alternative?: string): StartingProfile => {
@@ -151,12 +151,12 @@ export function selectStartingProfile(intake: Intake): StartingProfile {
   };
 
   if (intake.species === "robusta") {
-    why.push("Robusta roasts differently from arabica and has its own profile.");
+    why.push("Robusta has its own stock profile, so this uses it.");
     if (intake.chaffy) why.push("If chaff builds up, the stock 'Robusta_inc_fan' variant runs the fan harder.");
     return pick("Robusta", goal === "cupping" ? "espresso" : goal);
   }
   if (intake.decaf) {
-    why.push("Decaf beans start darker and take heat differently, so they get their own profile.");
+    why.push("Decaf has its own stock profile, so this uses it.");
     return pick("Decaf", goal === "cupping" ? "filter" : goal);
   }
   if (goal === "cupping") {
@@ -174,7 +174,7 @@ export function selectStartingProfile(intake: Intake): StartingProfile {
   }
   why.push(
     intake.altitudeM === undefined
-      ? "Altitude unknown, so this uses the 1500-2000m band, where most specialty arabica grows."
+      ? "Altitude unknown, so this uses the 1500-2000m band."
       : `Grown at ${intake.altitudeM} m, so the ${altitudeBand(intake.altitudeM)} band.`,
   );
   why.push(timing === "Rest" ? `Rest profiles assume ${REST[0]} to ${REST[1]} days of resting before brewing.` : "RTD (ready to drink) profiles are built to drink within a day or two.");

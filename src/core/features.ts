@@ -136,11 +136,11 @@ export function extractFeatures(log: RoastLog): RoastFeatures {
     const [lo, hi] = THRESHOLDS.colourChangeTempRange;
     if (cc.temp < lo || cc.temp > hi) {
       warnings.push(
-        `Colour change is marked at ${cc.temp.toFixed(1)} °C, outside the usual ${lo}–${hi} °C, so it was probably pressed by mistake. Drying and Maillard times are left out.`,
+        `Colour change is marked at ${cc.temp.toFixed(1)} °C, outside the usual ${lo}–${hi} °C, so the press is not used. Drying and Maillard times are left out.`,
       );
       cc = undefined;
     } else if (fc && fc.t - cc.t < THRESHOLDS.minMaillardSeconds) {
-      warnings.push(`Colour change is only ${Math.round(fc.t - cc.t)} s before first crack, which is too close to be real. It was ignored.`);
+      warnings.push(`Colour change is only ${Math.round(fc.t - cc.t)} s before first crack, under the minimum of ${THRESHOLDS.minMaillardSeconds} s, so the press is not used. Drying and Maillard times are left out.`);
       cc = undefined;
     }
   }
@@ -156,7 +156,7 @@ export function extractFeatures(log: RoastLog): RoastFeatures {
   const developmentRatio = fc ? ((end - fc.t) / end) * 100 : undefined;
   const reported = log.machineReported?.developmentPercent;
   if (developmentRatio !== undefined && reported !== undefined && Math.abs(reported - developmentRatio) > 1) {
-    warnings.push(`Our development ratio (${developmentRatio.toFixed(1)}%) differs from the machine's (${reported.toFixed(1)}%).`);
+    warnings.push(`The development ratio from the log (${developmentRatio.toFixed(1)}%) differs from the machine's (${reported.toFixed(1)}%).`);
   }
 
   const timeToTemp: Record<number, number | undefined> = {};

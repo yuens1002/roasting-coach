@@ -45,10 +45,16 @@ First sweep done (2026-10-08): the engine's messages now state what the roasts a
 a rule does, with no first-person opinion ("I wouldn't blame the coffee yet", "the one profile I'd
 suggest"), no hedged belief ("probably", "usually means"), and no judgment of the coffee or the tool's own
 aim ("don't write it off", "the best roast", "the 4 this tool aims for"). `test/voice.test.ts` keeps it so:
-it checks every worked example and a set of extra cases against a short list of stances. Still open for
-a later sweep: the colour-change warning in `src/core/features.ts` ("probably pressed by mistake"), the
-Why/Check-this prose in `docs/RULES.md` (not tested), the taste-word notes ("a baked
-or stalled roast also tastes bready"), and the starting-profile `why` lines.
+it checks every worked example and a set of extra cases against a short list of stances.
+
+Second sweep done (2026-10-09): the same standard now covers the colour-change warning in
+`src/core/features.ts`, the starting-profile reasons shown at intake (opinions of the coffee and unsourced
+claims about it became statements about the stock profile), and the prose of `docs/RULES.md` outside its
+worked examples (the Why and Check-this paragraphs and the `bready` note). The voice test reads all three.
+One gap the sweep left: a roaster who brews for both filter and espresso is told the roast starts at the espresso
+level, and nothing says what to do if the filter cup tastes flat (`flat` is not a word the rules act on).
+The test's patterns cannot catch a neutrally worded claim about the world (the quoted lever effects, e.g.
+"espresso exaggerates sourness"), and it does not read the README, the session skill or the research notes.
 
 Measurement (thermal dose, level to end temperature, rest days) and the basic reading of a cup (ashy and
 bitter point to too much roasting, sour and grassy to too little) are shared. What a roaster may
@@ -113,7 +119,7 @@ What each change does, and where it stands. The reason is there when it was set 
 - **Reading Kaffelogic files**: `.kpro` profiles and `.klog` logs, mapped onto a machine-independent
   `RoastLog`. A log carries its own profile, so any log rebuilds the profile it was roasted on.
 - **Roast features**: phases, development ratio (matches the machine's own figure), rate of rise,
-  drop temperature, data-sanity warnings for mis-pressed buttons, and thermal dose.
+  drop temperature, data-sanity warnings for button presses outside their usual range, and thermal dose.
 - **Starting profile for a new bean** from the intake form, from a stock-profile table kept in
   Postgres (names and derived numbers only, never Kaffelogic's files).
 - **Roast projects in Postgres**: bean -> profile version (a tree, with a one-line change reason)
