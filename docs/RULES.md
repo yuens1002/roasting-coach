@@ -23,15 +23,18 @@ beside it; a separate test scans every line of this page outside the worked exam
 ## 1. What the engine looks at
 
 For the roast just tasted (the most recent roast that has a tasting and a measured thermal dose,
-using its newest tasting; a newer roast without a measured thermal dose is skipped):
+using its newest tasting of filter coffee; a newer roast without a measured thermal dose
+is skipped):
 
 - **The cup:** the taste words, the roast quality (1-5, section 3), how it was brewed, and the
   date it was tasted. How much the roaster likes the cup is not asked and not used: the tool coaches
-  the roast, judged by its defects, not a taste.
+  the roast, judged by its defects, not a taste. Every tasting is of filter coffee (rule 1), because
+  brew and rest change the cup, not the roast.
 - **The roast:** its thermal dose measured from the temperature log (see section 2), the profile
   it ran on, and the calendar days between roasting and tasting.
-- **The bean's own history:** every other roast of the same bean that has a tasting, each judged
-  by its newest tasting. Only roasts with a measured thermal dose count.
+- **The bean's own history:** every other roast of the same bean that has a tasting of filter coffee,
+  each judged by its newest tasting of it. Only roasts with a measured thermal dose count. The answer
+  says how many earlier roasts were left out for having no tasting of filter coffee.
 - **Facts about the machine's profiles:** which stock profiles must rest before they are judged,
   and which other profile is suggested for this bean.
 
@@ -103,11 +106,12 @@ by this scale (`taste:update` with a `quality`).
 | 5 | clean, expressive, balanced and sweet |
 
 A flat, thin or monotone cup with no roast defect is a 3, however little you like it. Getting a clean
-cup to a 4 is what the other levers (rest, brew, profile, curve) are for.
+cup to a 4 is what the levers in rule 7 (level, profile, curve) are for.
 
 ⚠ **Check this:** `bitter` can also be over-extraction, and `sour` can be under-extraction, so a cup
-can be misread by the brew rather than the roast. The rules only partly allow for that (espresso,
-section 5, rule 4). `bready` and `grassy` are treated as equal in weight to `sour`. `bready` can
+can be misread by the brew rather than the roast. Every tasting is of filter coffee (rule 1), so the
+brew is the same from roast to roast, but the rules do not know your recipe or grind (section 7).
+`bready` and `grassy` are treated as equal in weight to `sour`. `bready` can
 also come from a baked or stalled roast, which is a curve problem that more roasting does not fix.
 A roaster who does not want the rules to act on it can set it to none for their copy
 (`calibration:set`, section 4).
@@ -122,8 +126,6 @@ A roaster who does not want the rules to act on it can set it to none for their 
 | `noisePct` | 3 | 0 to 10 | ⚠ Roasts within this % of each other's thermal dose count as the same roasting (batch-to-batch variation). |
 | `noResponsePct` | 7 | 1 to 50 | ⚠ A move of at least this % in thermal dose, with the cup unchanged, means the level isn't helping. (The 10% step less the 3% noise.) |
 | `plateauSteps` | 2 | 1 to 6 | ⚠ Steps of `noResponsePct` or more, the same way on one profile, at the end of the run without the roast quality improving, before the level counts as tried out. |
-| `restTestDays` | 3 | 1 to 14 | ⚠ Days between the first and last tasting of one roast that make resting a fair test. (Kaffelogic's Rest profiles start at 3.) |
-| `brewTestCount` | 3 | 2 to 6 | ⚠ Different brews of one roast that make changing the brew a fair test. |
 | `profileTestRoasts` | 2 | 1 to 6 | ⚠ Tasted roasts on the bean's other profile that make switching to it a fair test. |
 | `holdMinQuality` | 4 | 1 to 5 | ⚠ A cup of at least this roast quality, with nothing wrong and at least one good word, is left alone. A clean cup below it gets the list of what else can raise it. |
 
@@ -161,10 +163,10 @@ listed here:
 
 | Order | Answer | In short |
 |---|---|---|
-| 1 | `quality-vs-words` | The roast quality and the taste words disagree about a defect: ask which is right. |
-| 2 | `mixed-signals` | Sour and bitter together: ask, change nothing. |
-| 3 | `tasted-too-soon` | Sour cup tasted before a Rest profile's rest is over: hold, retaste. |
-| 4 | `espresso-sour-only` | Only sour, brewed as espresso: hold, check the shot first. |
+| 1 | `tasted-in-other-brew` | The roast was not tasted as filter coffee: ask for a retaste as filter coffee. |
+| 2 | `quality-vs-words` | The roast quality and the taste words disagree about a defect: ask which is right. |
+| 3 | `mixed-signals` | Sour and bitter together: ask, change nothing. |
+| 4 | `tasted-too-soon` | Sour cup tasted before a Rest profile's rest is over: hold, retaste. |
 | 5 | `under-roasted` | Under-roasted cup, nothing earlier to learn from: step more roasting. |
 | 5 | `under-roasted-bracketed` | An earlier roast tasted over-roasted with more roasting: go halfway. |
 | 5 | `under-roasted-contradicted` | An earlier roast contradicts this one: ask. |
@@ -178,7 +180,31 @@ listed here:
 
 Each worked example below is the engine's own wording for the evidence described.
 
-### 1. `quality-vs-words`
+### 1. `tasted-in-other-brew`
+
+**When:** the roast's newest tasting of filter coffee does not exist: every tasting of it was of another
+brew. The cupping protocol is filter coffee: pour over, French press / immersion or AeroPress. The
+tasting form offers only these, so this answers a tasting recorded before the form was limited to them
+(for example an espresso shot).
+**What it does:** asks; changes nothing. A roast counts by its newest tasting of filter coffee whenever it
+has one, so a retaste as filter coffee answers the question. Earlier roasts with no tasting of filter
+coffee are left out of the comparison, and the answer says how many.
+**Why:** rest and brew change the cup, not the roast. A difference between two roasts' cups is a
+difference in the roast only when the brew is the same, so every roast is tasted the same way. This is why
+rest and brew are not levers in rule 7: the tool coaches the roast, and it controls these two instead of
+advising on them. Filter coffee is a baseline chosen for access: it is the easiest cup to make well with
+inexpensive equipment, so any roaster can follow the protocol. It is not a target. The roast is coached toward
+the best result for the bean's own properties, and how a bean is brewed at home is outside what this tool
+judges.
+
+> Example: sour, brewed as espresso. "This roast was tasted brewed as espresso. Roasts are tasted as filter coffee (pour over, french press / immersion or aeropress), because a difference in the cup is only a difference in the roast when the brew is the same. Taste this roast brewed that way and record that tasting, then ask again."
+
+⚠ **Check this:** the standard is filter coffee, and the three brews on the form are all counted as the same
+standard; the rules do not weigh a pour over against an immersion brew. Days of rest still differ between
+tastings: rule 4 holds an early sour cup, and rule 7 says when the tastings of a run were on different
+days of rest.
+
+### 2. `quality-vs-words`
 
 **When:** the roast quality and the words disagree about whether the cup has a roast defect: an under
 or over word (as read in section 3, your own meanings included) with a quality of 3 or more, or no
@@ -191,7 +217,7 @@ roaster, which this tool doesn't use.
 
 > Example: ashy, rated roast quality 4. "You rated the roast quality 4 (clean and expressive), but the cup tasted ashy, which is a roast defect. A cup with a roast defect is a 1 or 2; a clean cup is a 3 or better. Which is right? Correct whichever is wrong and I'll go on from there."
 
-### 2. `mixed-signals`
+### 3. `mixed-signals`
 
 **When:** the cup has at least one under word and at least one over word.
 **What it does:** asks; changes nothing.
@@ -205,7 +231,7 @@ The curve is what changes how evenly the heat is applied.
 both is a roasting fault, not a brewing one. Uneven extraction (channelling) is deliberately not
 considered here; the message addresses the roast.
 
-### 3. `tasted-too-soon`
+### 4. `tasted-too-soon`
 
 **When:** the cup has under words and no over words; the roast used a Rest profile (section 4); and
 it was tasted fewer calendar days after roasting than the profile's minimum rest. Day 3 counts as
@@ -220,18 +246,6 @@ has not finished.
 ⚠ **Check this:** only sour-side cups are held (rest doesn't explain bitter or ashy). The rule
 treats sourness as what an early taste shows. It has no way to know that a coffee needs longer than
 the profile's window. RTD profiles are never held, even for a day-0 tasting.
-
-### 4. `espresso-sour-only`
-
-**When:** brewed as espresso, and the only under word is `sour` (no over words).
-**What it does:** holds; the message says to adjust the grind or the shot first, and to roast further
-if it is still sour or the next cup also tastes grassy or bready.
-**Why:** a shot that runs too fast tastes sour from any roast. The tasting form says as much:
-espresso exaggerates sourness.
-
-> Example: only sour, brewed as espresso. "Sour is the one taste espresso can fake: a shot that runs too fast tastes sour from any roast. Adjust the grind or the shot first. If it's still sour, or the next cup tastes grassy or bready too, then roast further. No new version is needed."
-
-⚠ **Check this:** this costs one extra shot if the roast really is under-roasted.
 
 ### 5 and 6. `under-roasted` and `over-roasted`
 
@@ -257,14 +271,14 @@ Within a side, the first of these that applies wins:
 
 > Example, bracketed (other side): bitter; an earlier roast with 20% less roasting tasted sour. "The cup tasted bitter (over-roasted), while an earlier roast with 20% less roasting tasted sour (under-roasted). Halving the gap between them: about 10% less roasting. That is level 2.7 (ends at 222.2 °C), down from level 3 (223.4 °C). Shall I record it as the next version?"
 
-> Example, contradicted: grassy; an earlier roast with 20% less roasting tasted bitter. "This cup tasted grassy (under-roasted), but an earlier roast with 20% less roasting tasted bitter (over-roasted). That runs against the expected direction: the roast with less roasting should not taste more roasted. So something other than the roast differs between them: the brew, the days of rest or the batch. Find out which before changing the roast."
+> Example, contradicted: grassy; an earlier roast with 20% less roasting tasted bitter. "This cup tasted grassy (under-roasted), but an earlier roast with 20% less roasting tasted bitter (over-roasted). That runs against the expected direction: the roast with less roasting should not taste more roasted. So something other than the roast differs between them: the days of rest or the batch. Find out which before changing the roast."
 
-> Example, contradicted (other side): bitter; an earlier roast with 20% more roasting tasted sour. "This cup tasted bitter (over-roasted), but an earlier roast with 20% more roasting tasted sour (under-roasted). That runs against the expected direction: the roast with more roasting should not taste less roasted. So something other than the roast differs between them: the brew, the days of rest or the batch. Find out which before changing the roast."
+> Example, contradicted (other side): bitter; an earlier roast with 20% more roasting tasted sour. "This cup tasted bitter (over-roasted), but an earlier roast with 20% more roasting tasted sour (under-roasted). That runs against the expected direction: the roast with more roasting should not taste less roasted. So something other than the roast differs between them: the days of rest or the batch. Find out which before changing the roast."
 
 ⚠ **Check this:** the step sizes (10% and 15%) are starting values, and one word is weighed the same as
 another. Section 6 shows what each step means in level and end temperature on every stock profile.
 The roast quality isn't used to size a step. The halfway rule assumes the roast that clears both defects lies between a sour
-roast and a bitter one; it doesn't allow for a different brew having been used for each.
+roast and a bitter one; both were tasted as filter coffee (rule 1), but their days of rest can differ.
 
 ### `level-not-helping` (inside rules 5 and 6)
 
@@ -274,15 +288,14 @@ of a stock profile is a different profile, and where the content isn't known the
 tasted the same side with at least `noResponsePct` less roasting
 (for under-roasted; more for over-roasted). The level has moved the roast and the cup has stayed on the same side.
 **What it does:** suggests the bean's other profile (the alternative worked out from the bean's
-process and altitude as they are recorded now), at the level that profile suggests for the bean's
-goal. The comparison is with the first earlier roast on this profile that qualifies, not necessarily
+process and altitude as they are recorded now), at the level the tool starts that profile at. The comparison is with the first earlier roast on this profile that qualifies, not necessarily
 the one just before. It won't send you back to a profile that already has a tasted roast with a
 measured thermal dose for this bean (an untasted roast isn't counted, so check the history yourself);
 if there isn't an alternative, or you've used it, it asks instead and says the next lever is the
 curve, which this tool can't edit yet.
 **Why:** one lever at a time. The level has been moved a real distance and the cup stayed on the same side,
 so the next lever the rule names is the profile's shape (how fast heat goes in and how long the beans
-develop), which the level does not change. The rule does not rule out a difference in brew, rest or batch
+develop), which the level does not change. The rule does not rule out a difference in rest or batch
 between the two roasts.
 
 > Example: sour on 1500-2000m Rest after a roast with 10% less roasting also tasted sour; KL Washed is the alternative. "The cup tasted sour (under-roasted) even after the roasting went 10% more than an earlier roast on this profile, which tasted sour too. The level moved the roast and the cup stayed on the same side. Next, try KL Washed instead: pick it on the Nano and set level 1.2 (ends at 217.6 °C). Shall I record that as the next version?"
@@ -296,11 +309,12 @@ to the thermal dose of the roast it replaces.
 ### 7. `clean-below-bar`
 
 **When:** the cup has no under or over word (rules 1 to 6 didn't apply) and the roast quality is below
-`holdMinQuality`. Because of rule 1 the quality is then 3 or more: the cup is clean but short of the bar.
+`holdMinQuality`. Because of rule 2 the quality is then 3 or more: the cup is clean but short of the bar.
 **What it does:** asks; changes nothing. The level can only fix a defect, and a defect word is what shows
-which way to move it; a clean cup gives it no direction. So the answer lists every lever that can raise the
-quality, cheapest first, each with what it changes and what the recorded roasts say about it. The level is
-in the list, with the steps it has taken on this profile and whether the last ones raised the quality.
+which way to move it; a clean cup gives it no direction. So the answer lists every lever that changes the
+roast, each with what it changes and what the recorded roasts say about it. The level is in the list,
+with the steps it has taken on this profile and whether the last ones raised the quality. Rest and brew
+are not in it: they change the cup, not the roast, and rule 1 keeps the brew the same between roasts.
 **Why:** this is the cup the other rules had no answer for: nothing wrong with the roast, and a roast quality
 below the bar. Saying "no rule covers this" would give the roaster nothing to act on, so the answer says what can
 be tried and what each try costs.
@@ -319,8 +333,6 @@ What each lever changes (these sentences are what the answer says):
 
 | Lever | What it changes |
 |---|---|
-| `rest` | Changes how the roast has settled by the time you taste it; the roast itself stays as it is. Kaffelogic's Rest profiles are written for 3 to 5 days. |
-| `brew` | Changes how much of the roast reaches the cup; the roast itself stays as it is. The tasting form's own note: espresso exaggerates sourness and filter exaggerates flatness. |
 | `level` | Moves the end temperature, so the whole roast goes further or less far, by a measured amount of thermal dose; the shape of the curve stays as it is. |
 | `profile` | Changes the curve's shape (how fast heat goes in and how long the beans develop), not only where the roast stops. |
 | `curve` | The same as a profile change, made by editing the curve yourself. |
@@ -334,13 +346,6 @@ How each is judged:
   the end count, so a defect removed early in the run doesn't hide a stall since. The same level roasted
   again (a move inside the band) counts once, by its later roast, and is walked past: re-roasting a version
   doesn't erase the steps before it. The run goes one way only, so the answer says which way it was tried.
-- **Rest and brew** cost no roast, so they come first. Rest is judged from a roast tasted on more than one
-  day, and only between tastings of the same brew; brew from a roast brewed more than one way, and only
-  between tastings on the same day. So one pair of tastings can't credit both, and when a roast differs in
-  both at once the answer says the difference could be either (*unclear*). A test is fair at `restTestDays`
-  days apart or `brewTestCount` different brews: *moving* if the quality was higher (rest counts the best
-  later day, brew the best each brew reached), *exhausted* if not although the test was fair, *unclear* if
-  the test was small, *untested* if no roast was tasted a second way.
 - **Profile** is *untested* while the bean's other profile hasn't been roasted, *unavailable* when there is
   none to suggest. A renamed copy of it (the same curve and settings, judged by content) counts as a
   roast on it, not as the other profile. Once it has been roasted it is *moving* if its best roast beat the best on the other
@@ -357,20 +362,16 @@ the answer quotes it and says to compare the cup against it; with none, it says 
 
 ```
 "The cup is clean: no roast defect, so there is nothing for the level to fix. The roast quality is 3 (clean, with little character), below the bar of 4. What can raise it:
-- rest (untested): Changes how the roast has settled by the time you taste it; the roast itself stays as it is. Kaffelogic's Rest profiles are written for 3 to 5 days. Every tasting so far was on day 1 after roasting; no roast has been tasted again on another day. Taste the newest roast again after more days of rest (it costs no roast).
-- brew (untested): Changes how much of the roast reaches the cup; the roast itself stays as it is. The tasting form's own note: espresso exaggerates sourness and filter exaggerates flatness. Every tasting so far was brewed as pour over; no roast has been brewed another way. Taste the newest roast brewed another way (it costs no roast).
 - level (exhausted): Moves the end temperature, so the whole roast goes further or less far, by a measured amount of thermal dose; the shape of the curve stays as it is. 3 steps less roasting on this profile (thermal dose 12 to 8.7, about 27% less); the roast quality was 2, 3, 3 and 3. The last 2 steps did not raise it.
 - profile (unavailable): Changes the curve's shape (how fast heat goes in and how long the beans develop), not only where the roast stops. No other stock profile is suggested for this bean.
 - curve (unavailable): The same as a profile change, made by editing the curve yourself. This tool can't edit a curve yet. If you edit one in Kaffelogic Studio, tell me and I'll record the roast as a new version.
-Still to try before the coffee can be named as the limit: rest and brew. Your reference for this coffee is "Lively and fruit-forward". Compare the cup against it."
+Everything this tool can move has had a fair test, the level in the direction it was tried. What is left is the curve, which the tool can't edit yet, or the coffee itself; a ladder of levels can't tell those two apart. Your reference for this coffee is "Lively and fruit-forward". Compare the cup against it."
 ```
 
 Example: flat, clean, roast quality 3, the day after roasting, pour over, after three steps of about 10% less roasting (the first roast was ashy, quality 2; then 3, 3, 3); a reference of lively, fruit-forward; no other profile to suggest.
 
-⚠ **Check this:** two steps (`plateauSteps`) is a first guess for "a fair try", and the rest and brew tests
-assume that a quality which didn't improve over a few days, or a few brews, means that lever isn't the
-problem. The tastings in a run can be on different days of rest, which can blur the comparison; the answer
-says when they were. A clean cup gives the level no direction, so a further step is only a probe for the
+⚠ **Check this:** two steps (`plateauSteps`) is a first guess for "a fair try". The tastings in a run can be
+on different days of rest, which can blur the comparison; the answer says when they were. A clean cup gives the level no direction, so a further step is only a probe for the
 edge of the clean zone (where a defect word first appears); it costs a roast and the answer says so.
 
 ### 8. `keep-as-is`
@@ -393,8 +394,8 @@ to a change a rule can make" instead.
 ## 6. What a step means on each stock profile
 
 The steps are percentages of thermal dose, but you set a level on the machine. This table shows,
-for each stock profile at its suggested filter and espresso levels, where a 10% or 15% step in
-either direction lands: the level, the temperature it ends at, and when the profile's curve gets
+for each stock profile at the level the tool starts it at (the level the profile's own file recommends),
+where a 10% or 15% step in either direction lands: the level, the temperature it ends at, and when the profile's curve gets
 there. It is measured from the stock profile files, not estimated.
 
 How to read it: the level scale is uneven. On the same profile, a step can be a third of a level or
@@ -402,32 +403,21 @@ more than a full one; on some profiles several levels differ by only a degree. W
 show the same level, the machine's 0.1 level grid can't tell those steps apart.
 
 <!-- steps:start -->
-| Profile | For | Starts at (level · end · time) | −15% | −10% | +10% | +15% |
-|---|---|---|---|---|---|---|
-| 0-1200m RTD | filter | 2.2 · 218.3 °C · 9:31 | 1.5 · 216.5 °C · 9:08 | 1.8 · 217.2 °C · 9:16 | 2.5 · 219.3 °C · 9:44 | 2.7 · 220.0 °C · 9:53 |
-| 0-1200m RTD | espresso | 3.0 · 221.0 °C · 10:07 | 2.4 · 219.0 °C · 9:40 | 2.6 · 219.6 °C · 9:49 | 3.9 · 222.2 °C · 10:23 | 4.1 · 222.9 °C · 10:32 |
-| 0-1200m Rest | filter | 2.2 · 221.2 °C · 11:31 | 1.9 · 218.8 °C · 11:11 | 2.0 · 219.5 °C · 11:17 | 2.4 · 222.8 °C · 11:45 | 2.5 · 223.7 °C · 11:52 |
-| 0-1200m Rest | espresso | 3.0 · 227.8 °C · 12:27 | 2.7 · 225.3 °C · 12:06 | 2.8 · 226.1 °C · 12:13 | 4.0 · 229.3 °C · 12:39 | 4.2 · 230.4 °C · 12:49 |
-| 1200-1500m RTD | filter | 2.2 · 218.4 °C · 9:39 | 1.5 · 216.5 °C · 9:16 | 1.8 · 217.2 °C · 9:24 | 2.5 · 219.7 °C · 9:55 | 2.6 · 220.1 °C · 10:01 |
-| 1200-1500m RTD | espresso | 3.0 · 221.8 °C · 10:22 | 2.5 · 219.7 °C · 9:55 | 2.7 · 220.5 °C · 10:06 | 4.0 · 222.9 °C · 10:36 | 4.2 · 223.9 °C · 10:48 |
-| 1200-1500m Rest | filter | 2.2 · 219.8 °C · 8:55 | 1.5 · 217.4 °C · 8:33 | 2.0 · 218.2 °C · 8:41 | 2.4 · 221.3 °C · 9:09 | 2.5 · 222.1 °C · 9:16 |
-| 1200-1500m Rest | espresso | 3.0 · 226.0 °C · 9:52 | 2.7 · 223.7 °C · 9:30 | 2.8 · 224.4 °C · 9:37 | 3.8 · 227.6 °C · 10:06 | 4.1 · 228.5 °C · 10:14 |
-| 1500-2000m RTD | filter | 2.4 · 216.0 °C · 9:32 | 2.0 · 214.0 °C · 9:06 | 2.1 · 214.5 °C · 9:13 | 2.6 · 217.0 °C · 9:46 | 2.7 · 217.5 °C · 9:52 |
-| 1500-2000m RTD | espresso | 3.1 · 219.3 °C · 10:19 | 2.7 · 217.5 °C · 9:52 | 2.8 · 218.0 °C · 9:59 | 3.5 · 220.5 °C · 10:38 | 3.7 · 221.1 °C · 10:47 |
-| 1500-2000m Rest | filter | 2.5 · 220.2 °C · 8:41 | 2.1 · 218.6 °C · 8:19 | 2.2 · 219.0 °C · 8:24 | 2.8 · 221.3 °C · 9:00 | 2.9 · 221.7 °C · 9:06 |
-| 1500-2000m Rest | espresso | 3.2 · 222.4 °C · 9:17 | 2.6 · 220.5 °C · 8:47 | 2.8 · 221.3 °C · 9:00 | 3.9 · 223.4 °C · 9:34 | 4.1 · 224.0 °C · 9:44 |
-| 2000-2700m RTD | filter | 2.5 · 216.5 °C · 9:36 | 2.1 · 214.5 °C · 9:07 | 2.3 · 215.5 °C · 9:22 | 2.7 · 217.5 °C · 9:51 | 2.8 · 218.0 °C · 9:59 |
-| 2000-2700m RTD | espresso | 3.2 · 219.6 °C · 10:24 | 2.7 · 217.5 °C · 9:51 | 2.9 · 218.5 °C · 10:07 | 3.6 · 220.8 °C · 10:42 | 3.8 · 221.4 °C · 10:52 |
-| 2000-2700m Rest | filter | 2.0 · 217.1 °C · 7:55 | 1.0 · 216.1 °C · 7:41 | 1.1 · 216.2 °C · 7:43 | 2.3 · 217.9 °C · 8:07 | 2.5 · 218.5 °C · 8:15 |
-| 2000-2700m Rest | espresso | 3.2 · 220.1 °C · 8:40 | 2.5 · 218.5 °C · 8:15 | 2.7 · 219.1 °C · 8:23 | 4.0 · 221.0 °C · 8:54 | 4.1 · 221.4 °C · 9:01 |
-| KL Washed | filter | 1.0 · 216.5 °C · 6:55 | 0.8 · 214.4 °C · 6:34 | 0.9 · 215.4 °C · 6:44 | 1.2 · 217.6 °C · 7:06 | 1.3 · 218.2 °C · 7:12 |
-| KL Washed | espresso | 1.2 · 217.6 °C · 7:06 | 0.9 · 215.4 °C · 6:44 | 1.0 · 216.5 °C · 6:55 | 1.4 · 218.7 °C · 7:19 | 1.5 · 219.3 °C · 7:25 |
-| KL Natural | filter | 1.0 · 216.5 °C · 8:17 | 0.9 · 215.4 °C · 8:01 | 0.9 · 215.4 °C · 8:01 | 1.2 · 217.6 °C · 8:35 | 1.2 · 217.6 °C · 8:35 |
-| KL Natural | espresso | 1.3 · 218.2 °C · 8:44 | 1.0 · 216.5 °C · 8:17 | 1.1 · 217.1 °C · 8:25 | 1.4 · 218.7 °C · 8:55 | 1.5 · 219.3 °C · 9:06 |
-| Decaf | filter | 2.1 · 218.8 °C · 8:21 | 1.0 · 217.1 °C · 7:59 | 1.4 · 217.7 °C · 8:06 | 2.5 · 219.9 °C · 8:38 | 2.6 · 220.2 °C · 8:42 |
-| Decaf | espresso | 3.0 · 221.3 °C · 8:59 | 2.4 · 219.6 °C · 8:33 | 2.6 · 220.2 °C · 8:42 | 3.8 · 222.3 °C · 9:15 | 4.2 · 222.8 °C · 9:24 |
-| Robusta | filter | 2.2 · 220.1 °C · 9:47 | 1.8 · 218.5 °C · 9:23 | 1.9 · 218.9 °C · 9:29 | 2.5 · 221.4 °C · 10:05 | 2.6 · 221.8 °C · 10:11 |
-| Robusta | espresso | 3.0 · 223.4 °C · 10:36 | 2.5 · 221.4 °C · 10:05 | 2.7 · 222.2 °C · 10:17 | 4.1 · 224.7 °C · 10:56 | 4.2 · 225.1 °C · 11:01 |
+| Profile | Starts at (level · end · time) | −15% | −10% | +10% | +15% |
+|---|---|---|---|---|---|
+| 0-1200m RTD | 3.0 · 221.0 °C · 10:07 | 2.4 · 219.0 °C · 9:40 | 2.6 · 219.6 °C · 9:49 | 3.9 · 222.2 °C · 10:23 | 4.1 · 222.9 °C · 10:32 |
+| 0-1200m Rest | 3.0 · 227.8 °C · 12:27 | 2.7 · 225.3 °C · 12:06 | 2.8 · 226.1 °C · 12:13 | 4.0 · 229.3 °C · 12:39 | 4.2 · 230.4 °C · 12:49 |
+| 1200-1500m RTD | 3.0 · 221.8 °C · 10:22 | 2.5 · 219.7 °C · 9:55 | 2.7 · 220.5 °C · 10:06 | 4.0 · 222.9 °C · 10:36 | 4.2 · 223.9 °C · 10:48 |
+| 1200-1500m Rest | 3.0 · 226.0 °C · 9:52 | 2.7 · 223.7 °C · 9:30 | 2.8 · 224.4 °C · 9:37 | 3.8 · 227.6 °C · 10:06 | 4.1 · 228.5 °C · 10:14 |
+| 1500-2000m RTD | 3.1 · 219.3 °C · 10:19 | 2.7 · 217.5 °C · 9:52 | 2.8 · 218.0 °C · 9:59 | 3.5 · 220.5 °C · 10:38 | 3.7 · 221.1 °C · 10:47 |
+| 1500-2000m Rest | 3.2 · 222.4 °C · 9:17 | 2.6 · 220.5 °C · 8:47 | 2.8 · 221.3 °C · 9:00 | 3.9 · 223.4 °C · 9:34 | 4.1 · 224.0 °C · 9:44 |
+| 2000-2700m RTD | 3.2 · 219.6 °C · 10:24 | 2.7 · 217.5 °C · 9:51 | 2.9 · 218.5 °C · 10:07 | 3.6 · 220.8 °C · 10:42 | 3.8 · 221.4 °C · 10:52 |
+| 2000-2700m Rest | 3.2 · 220.1 °C · 8:40 | 2.5 · 218.5 °C · 8:15 | 2.7 · 219.1 °C · 8:23 | 4.0 · 221.0 °C · 8:54 | 4.1 · 221.4 °C · 9:01 |
+| KL Washed | 0.8 · 214.4 °C · 6:34 | 0.6 · 212.2 °C · 6:15 | 0.7 · 213.3 °C · 6:24 | 0.9 · 215.4 °C · 6:44 | 0.9 · 215.4 °C · 6:44 |
+| KL Natural | 1.4 · 218.7 °C · 8:55 | 1.1 · 217.1 °C · 8:25 | 1.2 · 217.6 °C · 8:35 | 1.5 · 219.3 °C · 9:06 | 1.6 · 219.8 °C · 9:17 |
+| Cupping | 2.0 · 212.0 °C · 8:20 | 1.4 · 210.2 °C · 7:52 | 1.6 · 210.8 °C · 8:01 | 2.5 · 213.0 °C · 8:36 | 2.8 · 213.6 °C · 8:45 |
+| Decaf | 3.0 · 221.3 °C · 8:59 | 2.4 · 219.6 °C · 8:33 | 2.6 · 220.2 °C · 8:42 | 3.8 · 222.3 °C · 9:15 | 4.2 · 222.8 °C · 9:24 |
+| Robusta | 3.0 · 223.4 °C · 10:36 | 2.5 · 221.4 °C · 10:05 | 2.7 · 222.2 °C · 10:17 | 4.1 · 224.7 °C · 10:56 | 4.2 · 225.1 °C · 11:01 |
 <!-- steps:end -->
 
 Regenerate with `npm run rules:steps` (it needs the stock profile files in your own library, which
@@ -444,8 +434,9 @@ copy (`calibration:set`, section 4).
 - It doesn't use weight loss, DTR, first-crack timing, rate of rise, crack-to-end temperature rise,
   colour readings or how the beans looked. Some of those (the first-crack press) are button
   presses; none has a validated range for the Nano yet.
-- It doesn't know your brew recipe or grind, so it can't tell an under-extracted shot from an
-  under-roasted roast, except for the one espresso case in rule 4.
+- It doesn't know your brew recipe or grind, so it can't tell an under-extracted cup from an
+  under-roasted roast. Every tasting is of filter coffee (rule 1) so that the brew is at least the same
+  from roast to roast.
 - It doesn't know the bean's density, moisture or age beyond what the first profile choice used.
 - It can only change the level, or switch to another stock profile. It can't edit a curve yet.
 - It treats a bean's earlier roasts as comparable. A different green lot, batch size or ambient
@@ -462,5 +453,4 @@ disagree about: the list of answers, every setting and the range it may be set t
 worked example's exact wording, and (where the stock profile files are present) the step table. A separate
 test (`test/voice.test.ts`) reads the worked examples, further engine replies, the starting-profile reasons,
 the colour-change warnings and every line of this page outside its worked examples, for first-person
-opinion, hedged belief and judgments of the coffee. It cannot catch a claim about the world worded neutrally
-("espresso exaggerates sourness").
+opinion, hedged belief and judgments of the coffee. It cannot catch a claim about the world worded neutrally.

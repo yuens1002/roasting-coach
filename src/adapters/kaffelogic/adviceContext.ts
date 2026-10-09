@@ -8,7 +8,7 @@ import { selectStartingProfile, startingLevel, stockProfile } from "./startingPr
 export function kaffelogicAdviceContext(intake: Intake): AdviceContext {
   const start = selectStartingProfile(intake);
   const alternative = start.alternative ? stockProfile(start.alternative) : undefined;
-  const level = alternative && startingLevel(alternative, start.goal);
+  const level = alternative && startingLevel(alternative);
   return {
     restNeeded: (profile) => stockProfile(profile)?.restDays,
     alternative: alternative && level ? { profileName: alternative.name, level: level.level, endTempC: level.endTemp } : undefined,

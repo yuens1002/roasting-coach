@@ -5,7 +5,7 @@ someone else. Update it in the same change that moves any of these. Design ratio
 [research.md](research.md) and [thread1-notes.md](thread1-notes.md); the release history is in
 [CHANGELOG.md](../CHANGELOG.md).
 
-Last updated 2026-10-08 (0.1.x alpha).
+Last updated 2026-10-09 (0.1.x alpha).
 
 ## The goal
 
@@ -27,7 +27,7 @@ bean's first roast or at its first tasted one, and how to count a roast that is 
 deliberate ladder.
 
 Where it stands: the rules name the level, or a switch to the bean's other profile, for cups with a roast
-defect. They hold (a cup tasted too soon, a sour espresso, a clean cup of good roast quality that tasted good), ask (mixed or
+defect. They hold (a cup tasted too soon, a clean cup of good roast quality that tasted good), ask (mixed or
 contradictory evidence, or a quality that disagrees with the words), and, for a clean cup below the bar,
 list every lever that can raise the quality with what it changes and what the roasts say about it. The
 first real ladder (a bean roasted at four levels, 3.0 down to 2.1) went from ashy to flat and monotone, not
@@ -51,10 +51,48 @@ Second sweep done (2026-10-09): the same standard now covers the colour-change w
 `src/core/features.ts`, the starting-profile reasons shown at intake (opinions of the coffee and unsourced
 claims about it became statements about the stock profile), and the prose of `docs/RULES.md` outside its
 worked examples (the Why and Check-this paragraphs and the `bready` note). The voice test reads all three.
-One gap the sweep left: a roaster who brews for both filter and espresso is told the roast starts at the espresso
-level, and nothing says what to do if the filter cup tastes flat (`flat` is not a word the rules act on).
+One gap the sweep left (closed 2026-10-09, see below): a roaster who brewed for both filter and espresso was told the
+roast starts at the espresso level, with no direction if the filter cup tasted flat.
 The test's patterns cannot catch a neutrally worded claim about the world (the quoted lever effects, e.g.
 "espresso exaggerates sourness"), and it does not read the README, the session skill or the research notes.
+
+**Decided (2026-10-09): rest and brew are not levers.** They change the cup, not the roast, and one bean
+cannot show what they do (conventional wisdom on them would be an outside claim the tool cannot check).
+The tool coaches the roast, so it controls them instead of advising on them.
+
+**Decided (2026-10-09): the cupping protocol is filter coffee only**, for every roaster and every bean,
+whatever the bean is brewed for. Filter is a baseline chosen for access: it is the easiest cup to make well
+with inexpensive equipment, so any roaster can follow the protocol. It is a way to compare tastings, not a
+roast target. The tasting form offers only pour over, French press / immersion and
+AeroPress, so a difference between two cups is a difference in the roast and not in the brew
+(`tasted-in-other-brew`, rule 1 of `docs/RULES.md`, answers a tasting recorded before the form was
+limited). A roast is counted by its newest tasting of filter coffee; earlier roasts with none are left out
+and the answer says how many. The levers are now the level, the profile and the curve. The rest guard
+(`tasted-too-soon`) stays: it rests on Kaffelogic's own Rest/RTD profile naming. The rule
+`espresso-sour-only` is removed: it asserted a fact about espresso that nothing the tool records could
+check.
+
+**Decided (2026-10-09): roasting is not aimed at a brew method.** The coaching is for the best result the
+bean's own properties allow (species, process, altitude, density, moisture, age), judged by roast quality. The intake no longer
+asks "Brewing for", and nothing in the tool maps a brew method to a roast level. Every bean starts from the
+same path: species and decaf first, then washed or natural (KL Washed or KL Natural, with the altitude profile
+as the alternative), then the altitude band with RTD or Rest by when it will be drunk. The starting level
+is the one the chosen profile's own file recommends (its `recommended_level`, `recommended` in
+`startingProfiles.ts`), which names no brew; the ladder of roasts finds the bean's own level from there.
+Kaffelogic's levels labelled filter, espresso, dark and cupping stay in the table as reference data and no choice
+reads them. Earlier "Brewing for" answers stay in the database (column `goal`, made optional by migration 007)
+and are not used. What changes for the roaster: a washed or natural bean now starts on KL Washed or KL Natural
+(at 0.8 and 1.4, that profile's own recommendation) whatever it was brewed for. Open: no model turns bean
+properties (density, moisture, age) into a starting level; only the profile choice uses altitude and process.
+The "Cupping" stock profile is never picked now; it stays in the table.
+
+**Idea (2026-10-09), not built: curve edits sized by thermal dose.** The thermal dose can be computed for
+any curve, so a new profile can hold the total thermal dose fixed and change only the shape (moving it
+between phases). That makes shape a clean experiment: the quality change belongs to the shape, not to a
+different amount of heat. The roaster chooses to try it; the tool reports what a change does in measured
+terms (thermal dose held, phase times, development ratio) and ranks nothing. To read first: what the curve nodes, fan and zones
+control in real logs, and how closely the machine follows an edited curve (real roasts run 6 to 12.5% above
+their curve's prediction).
 
 Measurement (thermal dose, level to end temperature, rest days) and the basic reading of a cup (ashy and
 bitter point to too much roasting, sour and grassy to too little) are shared. What a roaster may
@@ -83,11 +121,11 @@ the reference; it is the bean's `sellerNotes`, so no new storage is needed. The 
 with no reference at all, and must never treat a missing one as a sign the bean is poor.
 
 **Built: the lever ledger** (`src/core/levers.ts`, rule `clean-below-bar`). For a clean cup below the bar
-it lists the levers (rest, brew, level, profile, curve), each moving, exhausted, unclear, untested or
+it lists the levers (level, profile, curve), each moving, exhausted, unclear, untested or
 unavailable, every state read from recorded roasts and tastings, with what each lever changes
 (`docs/RULES.md` rule 7). The level is exhausted when the last `plateauSteps` (2) real steps the same way on
 one profile did not raise the quality. The answer says "what is left is the curve, or the coffee itself" only
-when rest, brew, the level and the profile are all exhausted or unavailable (the profile is exhausted after
+when the level and the profile are both exhausted or unavailable (the profile is exhausted after
 `profileTestRoasts` (2) tasted roasts on the alternative that did not beat the other profile); until then
 it says which levers are still to try. A reference cup, when there is one, is quoted so the coffee
 isn't written off. The worked example in `docs/RULES.md` rule 7 is a ladder that starts ashy and then goes
@@ -100,13 +138,13 @@ What each change does, and where it stands. The reason is there when it was set 
 | Considered | What it would change | Status |
 |---|---|---|
 | Level (thermal dose step) | Where the roast stops: more or less of the chemistry, by a measured amount | Built (rules 5, 6; a lever in 7) |
-| Rest (days before tasting) | How the roast has settled, not the roast | Built in the ledger; judged from retastes |
-| Brew method | How much of the roast reaches the cup, not the roast | Built in the ledger; judged from retastes |
+| Rest (days before tasting) | How the roast has settled, not the roast | **Dropped as a lever (2026-10-09):** the rest guard (rule 4) stays; the ledger no longer tests it |
+| Brew method | How much of the roast reaches the cup, not the roast | **Dropped as a lever (2026-10-09):** every tasting is of filter coffee (rule 1) |
 | Another stock profile | The curve's shape | Built (`level-not-helping`, ledger); Robusta has no alternative |
 | Editing the curve, fan or zones | The curve's shape, tuned to the bean | Not built (see Next, 3); the ledger lists it as unavailable |
 | Reference cup | What the coffee can be; stops it being written off | Built as the bean's `sellerNotes`, optional |
 | Roaster's own words and numbers | Taste-word meanings, step sizes, the quality bar, plateau and test sizes | Built (`calibration`) |
-| Roast quality, anchored to defects | A criterion that is about the roast, not the roaster's liking | Built (`quality`, rule 1 checks it against the words) |
+| Roast quality, anchored to defects | A criterion that is about the roast, not the roaster's liking | Built (`quality`, rule 2 checks it against the words) |
 | Liking and "next time I want" | What the roaster prefers | **Dropped:** not a goal of the tool. Data kept in `want_next`, unused |
 | Size a step by how bad the cup was | Bigger first step for quality 1 than for 2 | Not built, on purpose: one bean is too little to set the sizes, and the ladder showed the level wasn't the lever. Revisit with a second bean; a personal setting when built |
 | A rule for flat, monotone cups | Name what a flat cup means (baked, under-developed, bean) | Not built as a rule: `clean-below-bar` lists the levers; the word `flat` stays unmapped until a tasting shows what moves it |
@@ -185,7 +223,10 @@ Order is a suggestion; the roaster picks.
    on, matched by name and `profile_modified`, or a stock profile chosen at intake), write it with
    `writeKpro` to `profiles/out/` (never overwrite) and store it as the version's `profile_file`.
    Only when the rule core asks for more than a level change. Each edit needs its own
-   plain-language account of what it does to the roast.
+   plain-language account of what it does to the roast, in measured terms. First build, per the
+   2026-10-09 idea above: one edit that holds the total thermal dose and moves thermal dose between phases.
+   Read first: the "Heat transfer" section of [research.md](research.md) (how moisture and density shape the
+   bean temperature, what is unread, and the hypotheses to test with the roaster's own logs).
 4. **Profile files in Postgres as the source of truth**: an uploaded-profile table keyed by name
    and `profile_modified`, text kept verbatim, import from `profiles/`, export `.kpro` on demand.
    Fits both personal use and a later sharing feature.

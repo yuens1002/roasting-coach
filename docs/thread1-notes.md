@@ -58,10 +58,10 @@ Picked in this order (code: `selectStartingProfile`):
 
 1. Robusta → **Robusta** (higher-fan variant if chaffy).
 2. Decaf → **Decaf**.
-3. Goal "just tasting" → **Cupping**, or KL Washed / KL Natural at cupping level if the process is known.
-4. Washed or natural, brewed as filter → **KL Washed / KL Natural**, altitude profile as the alternative.
-5. Everything else → **altitude band × RTD/Rest**, process profile as the alternative.
-   Unknown altitude uses 1500–2000 m. "Both" uses the espresso level.
+3. Washed or natural → **KL Washed / KL Natural**, altitude profile as the alternative.
+4. Everything else → **altitude band × RTD/Rest**.
+   Unknown altitude uses 1500–2000 m. The start is the level the profile's own file recommends; how the bean will be brewed is not asked
+   (changed 2026-10-09; the first version of this list chose by a "brewing for" goal).
 
 | Profile | Filter level → end | Espresso level → end | Darker level → end | Profile's own targets |
 |---|---|---|---|---|
@@ -95,7 +95,7 @@ comparable across profiles**, so the app should always show the end temperature 
 Defined as data in `src/core/intake.ts`, so the CLI prompts from them (no web UI: personal use only). The log supplies profile,
 level, ambient temperature and every time and temperature, so none of that is asked.
 
-**Bean intake (once per bean).** Required: name, species, decaf, processing, brewing for, when
+**Bean intake (once per bean).** Required: name, species, decaf, processing, when
 you'll drink it. Optional: altitude, origin, variety, harvest/arrival date, moisture, density,
 chaff, seller's tasting notes.
 

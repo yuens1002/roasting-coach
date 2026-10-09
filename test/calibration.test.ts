@@ -264,8 +264,10 @@ describe("the tables list exactly what the code allows", () => {
     const list = block.match(new RegExp(`check \\(${column} in \\(([^)]*)\\)`))?.[1] ?? "";
     return [...list.matchAll(/'([^']+)'/g)].map((m) => m[1]);
   };
-  it("for setting keys", () => {
-    expect(listed("roaster_setting", "key").sort()).toEqual(Object.keys(RULE_SETTINGS).sort());
+  it("for setting keys (migration 006 replaced the list in 004 when it dropped the rest and brew settings)", () => {
+    const latest = readFileSync(join(__dirname, "..", "db", "006_drop_cup_settings.sql"), "utf8");
+    const keys = [...(latest.match(/check \(key in \(([^)]*)\)/)?.[1] ?? "").matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    expect(keys.sort()).toEqual(Object.keys(RULE_SETTINGS).sort());
   });
   it("for taste words, in the tasting form's order", () => {
     expect(listed("roaster_taste_word", "word")).toEqual(TASTE_WORDS);

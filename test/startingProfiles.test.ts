@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { levelToTemp, parseKpro, timeCurveReaches } from "../src/adapters/kaffelogic/parse.js";
-import { STOCK_PROFILES, altitudeBand, selectStartingProfile } from "../src/adapters/kaffelogic/startingProfiles.js";
-import type { Intake } from "../src/core/intake.js";
+import { STOCK_PROFILES, altitudeBand, selectStartingProfile, startingLevel } from "../src/adapters/kaffelogic/startingProfiles.js";
+import { INTAKE_FIELDS, type Intake } from "../src/core/intake.js";
 import { PRIVATE_PROFILES, headerValue } from "./privateFiles.js";
 
-const base: Intake = { name: "test", species: "arabica", decaf: false, process: "unknown", goal: "espresso", drinkWhen: "soon" };
+const base: Intake = { name: "test", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon" };
 
 describe("selectStartingProfile", () => {
-  it("uses the altitude band and timing by default", () => {
+  it("uses the altitude band and timing by default, at the level the profile recommends", () => {
     const s = selectStartingProfile({ ...base, altitudeM: 1850 });
     expect(s.profile.name).toBe("1500-2000m RTD");
     expect(s.level.level).toBe(3.1);
@@ -23,33 +23,25 @@ describe("selectStartingProfile", () => {
     expect(altitudeBand(2000)).toBe("2000-2700m");
   });
 
-  it("prefers the process profiles for washed or natural filter coffee", () => {
-    const s = selectStartingProfile({ ...base, process: "natural", goal: "filter", altitudeM: 2100 });
-    expect(s.profile.name).toBe("KL Natural");
-    expect(s.level.level).toBe(1.0);
-    expect(s.alternative).toBe("2000-2700m RTD");
-  });
-
-  it("keeps altitude profiles for washed espresso, offering KL Washed as the alternative", () => {
-    const s = selectStartingProfile({ ...base, process: "washed", altitudeM: 1400 });
-    expect(s.profile.name).toBe("1200-1500m RTD");
-    expect(s.alternative).toBe("KL Washed");
+  it("prefers the process profiles for washed or natural coffee, offering the altitude profile as the alternative", () => {
+    const natural = selectStartingProfile({ ...base, process: "natural", altitudeM: 2100 });
+    expect(natural.profile.name).toBe("KL Natural");
+    expect(natural.level.level).toBe(1.4);
+    expect(natural.alternative).toBe("2000-2700m RTD");
+    const washed = selectStartingProfile({ ...base, process: "washed", altitudeM: 1400 });
+    expect(washed.profile.name).toBe("KL Washed");
+    expect(washed.alternative).toBe("1200-1500m RTD");
   });
 
   it("lets robusta and decaf override everything else", () => {
-    expect(selectStartingProfile({ ...base, species: "robusta", decaf: true, process: "natural", goal: "filter" }).profile.name).toBe("Robusta");
-    expect(selectStartingProfile({ ...base, decaf: true, goal: "filter" }).profile.name).toBe("Decaf");
+    expect(selectStartingProfile({ ...base, species: "robusta", decaf: true, process: "natural" }).profile.name).toBe("Robusta");
+    expect(selectStartingProfile({ ...base, decaf: true }).profile.name).toBe("Decaf");
   });
 
-  it("uses espresso levels when brewing both ways", () => {
-    const s = selectStartingProfile({ ...base, goal: "both", altitudeM: 1600 });
-    expect(s.goal).toBe("espresso");
-    expect(s.why[0]).toMatch(/filter and espresso/);
-  });
-
-  it("sends cupping to the Cupping profile unless the process profile covers it", () => {
-    expect(selectStartingProfile({ ...base, goal: "cupping" }).profile.name).toBe("Cupping");
-    expect(selectStartingProfile({ ...base, goal: "cupping", process: "washed" }).profile.name).toBe("KL Washed");
+  it("does not ask how the bean will be brewed, and starts every profile at the level its own file recommends", () => {
+    // Roasting is not aimed at a brew method (docs/ROADMAP.md, 2026-10-09): no brew label picks a level.
+    expect(INTAKE_FIELDS.map((f) => f.id)).not.toContain("goal");
+    for (const profile of Object.values(STOCK_PROFILES)) expect(startingLevel(profile), profile.name).toBe(profile.recommended);
   });
 });
 
@@ -71,7 +63,9 @@ describe("starting-profile table matches the stock files", () => {
       const p = parseKpro(stock!.text);
       expect(p.roastLevels).toEqual(STOCK_PROFILES[name].roastLevels);
       expect(p.expectFirstCrack).toBe(STOCK_PROFILES[name].expectFirstCrack);
-      for (const lv of Object.values(STOCK_PROFILES[name].levels)) {
+      // The level a bean starts at is the one the profile's own file recommends.
+      expect(STOCK_PROFILES[name].recommended.level).toBe(Number(headerValue(stock!.text, "recommended_level")));
+      for (const lv of [STOCK_PROFILES[name].recommended, ...Object.values(STOCK_PROFILES[name].levels)]) {
         expect(levelToTemp(p.roastLevels, lv.level)).toBeCloseTo(lv.endTemp, 1);
         const t = Math.round(timeCurveReaches(p.roastCurve, levelToTemp(p.roastLevels, lv.level)!)!);
         expect(`${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`).toBe(lv.endsAt);

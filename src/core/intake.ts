@@ -25,7 +25,6 @@ export const INTAKE_FIELDS: Field[] = [
     options: opts(["washed", "Washed"], ["natural", "Natural / dry"], ["honey", "Honey / pulped natural"], ["anaerobic", "Anaerobic / experimental"], ["wet-hulled", "Wet-hulled"], ["unknown", "Don't know"]),
     usedFor: "Picks KL Washed / KL Natural; naturals scorch and develop faster",
   },
-  { id: "goal", label: "Brewing for", kind: "choice", required: true, options: opts(["filter", "Filter / pour over"], ["espresso", "Espresso"], ["both", "Both"], ["cupping", "Just tasting a new bean"]), usedFor: "Sets the target level" },
   { id: "drinkWhen", label: "When will you drink it", kind: "choice", required: true, options: opts(["soon", "Within a day or two"], ["rest", "After resting 3 to 5 days"]), usedFor: "RTD vs Rest profiles" },
   { id: "altitudeM", label: "Altitude", kind: "number", unit: "m", min: 0, max: 3000, help: "If the bag gives a range, use the middle.", usedFor: "Altitude band; a proxy for density" },
   { id: "origin", label: "Country / region", kind: "text", usedFor: "Display; comparing beans later" },
@@ -43,7 +42,6 @@ export interface Intake {
   species: "arabica" | "robusta" | "blend";
   decaf: boolean;
   process: "washed" | "natural" | "honey" | "anaerobic" | "wet-hulled" | "unknown";
-  goal: "filter" | "espresso" | "both" | "cupping";
   drinkWhen: "soon" | "rest";
   altitudeM?: number;
   origin?: string;
@@ -85,10 +83,19 @@ export const QUALITY_ANCHORS: Record<number, string> = {
 /** What a quality means, or a plain fallback for a value off the scale (the form never stores one, but the engine can be called directly). */
 export const qualityMeaning = (quality: number) => QUALITY_ANCHORS[quality] ?? "off the 1 to 5 scale";
 
+/**
+ * The cupping protocol: every tasting is of filter coffee, so a difference between two roasts' cups is a
+ * difference in the roast and not in the brew. Filter is a baseline chosen for access (the easiest cup to make
+ * well with inexpensive equipment), not a roast target. Brew and rest change the cup, not the roast, so the tool
+ * controls them instead of advising on them (docs/RULES.md, rule 1).
+ */
+const CUPPING_BREWS: [string, string][] = [["pourover", "Pour over"], ["immersion", "French press / immersion"], ["aeropress", "AeroPress"]];
+export const FILTER_BREWS: readonly string[] = CUPPING_BREWS.map(([value]) => value);
+
 /** After resting and brewing. This is the field that matters most; keep it quick. */
 export const TASTING_FIELDS: Field[] = [
   { id: "tastedOn", label: "Tasted on", kind: "date", required: true, help: "Defaults to today.", usedFor: "Days of rest" },
-  { id: "brew", label: "Brewed as", kind: "choice", required: true, options: opts(["espresso", "Espresso"], ["pourover", "Pour over"], ["immersion", "French press / immersion"], ["aeropress", "AeroPress"], ["moka", "Moka pot"], ["other", "Other"]), usedFor: "Espresso exaggerates sourness; filter exaggerates flatness" },
+  { id: "brew", label: "Brewed as", kind: "choice", required: true, options: opts(...CUPPING_BREWS), help: "Roasts are tasted as filter coffee so they can be compared.", usedFor: "The cupping protocol: a difference in the cup is then a difference in the roast" },
   {
     id: "quality",
     label: "Roast quality",
@@ -121,3 +128,7 @@ export const TASTING_FIELDS: Field[] = [
   },
   { id: "notes", label: "Notes", kind: "text", usedFor: "Your own words; kept with the version" },
 ];
+
+const BREW_LABELS = new Map(TASTING_FIELDS.flatMap((f): [string, string][] => (f.id === "brew" && "options" in f ? f.options.map((o): [string, string] => [o.value, o.label.toLowerCase()]) : [])));
+/** A brew as the tasting form words it ("pour over"), lower-cased for a sentence; a value the form no longer offers (an espresso tasting recorded earlier) is shown as it was stored. */
+export const brewLabel = (value: string) => BREW_LABELS.get(value) ?? value;

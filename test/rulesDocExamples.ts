@@ -10,7 +10,7 @@ const KL_WASHED: AdviceContext = { alternative: { profileName: "KL Washed", leve
 
 /** Four pour-over cups tasted the day after roasting, each roast about 10% less than the one before: ashy at first (quality 2), then flat and clean (3, 3, 3). */
 const LADDER: TastedRoast[] = [2, 3, 3, 3].map((quality, i) =>
-  roast({ thermalDose: 12 * 0.9 ** i, taste: i === 0 ? ["ashy", "flat"] : ["flat"], quality, level: [3, 2.7, 2.4, 2.1][i], profile: "Robusta", restedDays: 1, tastings: [{ restedDays: 1, brew: "pourover", quality }] }),
+  roast({ thermalDose: 12 * 0.9 ** i, taste: i === 0 ? ["ashy", "flat"] : ["flat"], quality, level: [3, 2.7, 2.4, 2.1][i], profile: "Robusta", restedDays: 1 }),
 );
 
 export interface Example {
@@ -22,6 +22,11 @@ export interface Example {
 }
 
 export const EXAMPLES: Example[] = [
+  {
+    id: "tasted-in-other-brew",
+    scenario: "sour, brewed as espresso",
+    input: { latest: roast({ taste: ["sour"], brew: "espresso" }), earlier: [] },
+  },
   { id: "quality-vs-words", scenario: "ashy, rated roast quality 4", input: { latest: roast({ taste: ["ashy"], quality: 4 }), earlier: [] } },
   { id: "mixed-signals", scenario: "tasted sour and bitter", input: { latest: roast({ taste: ["sour", "bitter"] }), earlier: [] } },
   {
@@ -29,7 +34,6 @@ export const EXAMPLES: Example[] = [
     scenario: "sour, on 1500-2000m Rest, tasted 1 day after roasting",
     input: { latest: roast({ taste: ["sour"], profile: "1500-2000m Rest", restedDays: 1, restNeeded: REST("") }), earlier: [] },
   },
-  { id: "espresso-sour-only", scenario: "only sour, brewed as espresso", input: { latest: roast({ taste: ["sour"], brew: "espresso" }), earlier: [] } },
   { id: "under-roasted", scenario: "sour and grassy, no earlier roasts", input: { latest: roast({ taste: ["sour", "grassy"] }), earlier: [] } },
   {
     id: "under-roasted-bracketed",

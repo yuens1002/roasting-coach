@@ -5,7 +5,7 @@ import { selectStartingProfile } from "../src/adapters/kaffelogic/startingProfil
 import { kaffelogicToRoastLog } from "../src/adapters/kaffelogic/toRoastLog.js";
 import { extractFeatures } from "../src/core/features.js";
 import type { Intake } from "../src/core/intake.js";
-import { type AdviceInput, type TastedRoast, advise } from "../src/core/rules.js";
+import { type AdviceInput, type TastedRoast, adviceReport, advise } from "../src/core/rules.js";
 import { EXAMPLES, sayFor } from "./rulesDocExamples.js";
 import { syntheticLog } from "./syntheticLog.js";
 
@@ -40,7 +40,7 @@ const stancesIn = (lines: string[]): string[] => {
 
 const DEFECT_WORDS = ["sour", "grassy", "bitter", "ashy", "flat", "thin"];
 const roast = (over: Partial<TastedRoast>): TastedRoast => ({ thermalDose: 10, taste: ["flat"], quality: (over.taste ?? ["flat"]).some((c) => DEFECT_WORDS.includes(c)) ? 2 : 3, brew: "pourover", ...over });
-const ladder = (qualities: number[], over: Partial<TastedRoast> = {}) => qualities.map((q, i) => roast({ thermalDose: 12 * 0.9 ** i, quality: q, level: 3 - i * 0.3, profile: "Robusta", restedDays: 1, tastings: [{ restedDays: 1, brew: "pourover", quality: q }], ...over }));
+const ladder = (qualities: number[], over: Partial<TastedRoast> = {}) => qualities.map((q, i) => roast({ thermalDose: 12 * 0.9 ** i, quality: q, level: 3 - i * 0.3, profile: "Robusta", restedDays: 1, ...over }));
 const KL_WASHED = { alternative: { profileName: "KL Washed", level: 1.2, endTempC: 217.6 } };
 
 /**
@@ -54,36 +54,41 @@ const EXTRA: { id: string; input: AdviceInput }[] = [
   // Contradicted at the same roasting (the doc examples cover the backwards direction).
   { id: "under-roasted-contradicted", input: { latest: roast({ taste: ["sour"] }), earlier: [roast({ taste: ["bitter"] })] } },
   { id: "over-roasted-contradicted", input: { latest: roast({ taste: ["bitter"] }), earlier: [roast({ taste: ["sour"] })] } },
-  // Clean cups below the bar: every lever untested, with a reference; a rest and brew that moved the quality; a fair test that did not.
+  // Clean cups below the bar: the level tried out and the other profile untested, with a reference; every lever tried out; the other profile ahead of the first.
   { id: "clean-below-bar", input: { latest: ladder([3, 3, 3])[2], earlier: ladder([3, 3, 3]).slice(0, 2), context: { ...KL_WASHED, reference: "Lively and fruit-forward." } } },
-  { id: "clean-below-bar", input: { latest: ladder([2, 3, 3, 3])[3], earlier: ladder([2, 3, 3, 3]).slice(0, 3) } },
+  { id: "clean-below-bar", input: { latest: ladder([3, 3, 3, 3])[3], earlier: ladder([3, 3, 3, 3]).slice(0, 3) } },
   {
     id: "clean-below-bar",
     input: {
-      latest: roast({ taste: ["flat"], quality: 3, thermalDose: 10, profile: "Robusta", level: 3, restedDays: 1, tastings: [{ restedDays: 1, brew: "pourover", quality: 3 }, { restedDays: 6, brew: "pourover", quality: 4 }, { restedDays: 6, brew: "espresso", quality: 2 }] }),
-      earlier: ladder([3, 3, 3]).slice(0, 2),
+      latest: roast({ taste: ["flat"], quality: 3, thermalDose: 10, profile: "KL Washed", level: 1.2 }),
+      earlier: [roast({ taste: ["flat"], quality: 2, thermalDose: 11, profile: "Robusta", level: 3 })],
       context: KL_WASHED,
     },
   },
+  // Tasted in a brew other than the filter brews the cupping protocol allows: one the form no longer offers.
+  { id: "tasted-in-other-brew", input: { latest: roast({ taste: ["sour"], brew: "moka" }), earlier: [] } },
   { id: "quality-vs-words", input: { latest: roast({ taste: ["sour", "bitter"], quality: 5 }), earlier: [] } },
   { id: "keep-as-is", input: { latest: roast({ taste: ["sweet"], quality: 5 }), earlier: [] } },
 ];
 
 /** Every reason the starting-profile choice gives, across the paths it can take. */
 const STARTING_INTAKES: Intake[] = [
-  { name: "a", species: "arabica", decaf: false, process: "unknown", goal: "both", drinkWhen: "soon" },
-  { name: "b", species: "arabica", decaf: false, process: "washed", goal: "filter", drinkWhen: "rest", altitudeM: 1850 },
-  { name: "c", species: "arabica", decaf: false, process: "natural", goal: "cupping", drinkWhen: "soon" },
-  { name: "d", species: "arabica", decaf: false, process: "honey", goal: "cupping", drinkWhen: "soon" },
-  { name: "e", species: "arabica", decaf: true, process: "unknown", goal: "filter", drinkWhen: "soon" },
-  { name: "f", species: "robusta", decaf: false, process: "unknown", goal: "espresso", drinkWhen: "soon", chaffy: true },
-  { name: "h", species: "arabica", decaf: false, process: "natural", goal: "filter", drinkWhen: "soon" },
-  { name: "g", species: "arabica", decaf: false, process: "unknown", goal: "espresso", drinkWhen: "rest", altitudeM: 900 },
+  { name: "a", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon" },
+  { name: "b", species: "arabica", decaf: false, process: "washed", drinkWhen: "rest", altitudeM: 1850 },
+  { name: "c", species: "arabica", decaf: false, process: "natural", drinkWhen: "soon" },
+  { name: "e", species: "arabica", decaf: true, process: "unknown", drinkWhen: "soon" },
+  { name: "f", species: "robusta", decaf: false, process: "unknown", drinkWhen: "soon", chaffy: true },
+  { name: "g", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", altitudeM: 900 },
 ] as Intake[];
-const EXPECTED_WHY_LINES = 11;
+const EXPECTED_WHY_LINES = 10;
 const WHY_LINES = [...new Set(STARTING_INTAKES.flatMap((intake) => selectStartingProfile(intake).why))];
 
 /** The data warnings the roast features give for a colour change that cannot be used: out of range, and too close to first crack. */
+/** The note added to an answer when earlier roasts were not tasted as filter coffee: one roast, and several. */
+const SET_ASIDE_NOTES = [1, 2].map((roasts) => {
+  const advice = advise({ latest: roast({ taste: ["sweet", "balanced"], quality: 4 }), earlier: [] });
+  return adviceReport(1, { basedOn: { version: 1, roastId: 1, tastingId: 1, measuredThermalDose: 10 }, advice, setAside: roasts }, undefined).say;
+});
 const COLOUR_WARNINGS = [{ colour_change: 534, first_crack: 540 }, { colour_change: 480, first_crack: 520 }].map((markers) => extractFeatures(kaffelogicToRoastLog(parseKlog(syntheticLog({ ...markers, roast_end: 600 })))).dataWarnings[0]);
 
 describe("the engine's voice", () => {
@@ -92,6 +97,7 @@ describe("the engine's voice", () => {
     ...EXTRA.map(({ id, input }, i) => ({ name: `extra case ${i + 1} (${id})`, text: advise(input).reason })),
     ...WHY_LINES.map((text, i) => ({ name: `starting-profile reason ${i + 1}`, text })),
     ...COLOUR_WARNINGS.map((text, i) => ({ name: `colour-change warning ${i + 1}`, text })),
+    ...SET_ASIDE_NOTES.map((text, i) => ({ name: `set-aside note ${i + 1}`, text })),
   ];
 
   for (const { name, text } of said) {
@@ -115,10 +121,10 @@ describe("the engine's voice", () => {
   });
 
   it("the starting-profile reasons cover the paths the choice can take", () => {
-    // The source has nine places that add a reason. If one is added, this fails until an intake below reaches it.
+    // The source has seven places that add a reason. If one is added, this fails until an intake below reaches it.
     const source = readFileSync(new URL("../src/adapters/kaffelogic/startingProfiles.ts", import.meta.url), "utf8");
-    expect((source.match(/why\.push\(/g) ?? []).length, "why.push sites in startingProfiles.ts").toBe(9);
-    // Eleven distinct lines come from the eight intakes (the line for a stock profile with no level for the goal cannot occur with the stock table).
+    expect((source.match(/why\.push\(/g) ?? []).length, "why.push sites in startingProfiles.ts").toBe(7);
+    // Ten distinct lines come from the six intakes.
     expect(WHY_LINES.length, WHY_LINES.join(" | ")).toBe(EXPECTED_WHY_LINES);
     expect(COLOUR_WARNINGS[0]).toMatch(/Colour change is marked at/);
     expect(COLOUR_WARNINGS[1], "the second log reaches the too-close branch").toMatch(/Colour change is only/);

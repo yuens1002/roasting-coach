@@ -176,7 +176,6 @@ export async function addBean(db: Db, input: Record<string, unknown>, makeFile?:
     return {
       beanId,
       version: await findVersion(db, beanId, 1),
-      goal: start.goal,
       endsAt: start.level.endsAt,
       alternative: start.alternative,
       why: start.why,
@@ -522,12 +521,12 @@ export async function changeCalibration(db: Db, input: unknown) {
 
 export async function listBeans(db: Db) {
   const r = await db.query(
-    `select b.id, b.name, b.process, b.goal,
+    `select b.id, b.name, b.process,
             (select max(number) from profile_version v where v.bean_id = b.id) as versions,
             (select max(r.roasted_at) from roast r join profile_version v on v.id = r.version_id where v.bean_id = b.id) as last_roasted
        from bean b order by b.id`,
   );
-  return r.rows.map((b) => ({ id: Number(b.id), name: b.name, process: b.process, goal: b.goal, versions: Number(b.versions), lastRoasted: b.last_roasted ?? undefined }));
+  return r.rows.map((b) => ({ id: Number(b.id), name: b.name, process: b.process, versions: Number(b.versions), lastRoasted: b.last_roasted ?? undefined }));
 }
 
 /** Everything about one bean, version by version, for reviewing progress and deciding the next change. */

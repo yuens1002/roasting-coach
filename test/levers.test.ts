@@ -10,7 +10,6 @@ const roast = (thermalDose: number, quality: number, over: Partial<TastedRoast> 
   brew: "pourover",
   profile: "Robusta",
   restedDays: 1,
-  tastings: [{ restedDays: 1, brew: "pourover", quality }],
   ...over,
 });
 /** A ladder of roasts, each about 10% less than the one before, oldest first, with the roast qualities given. */
@@ -23,10 +22,10 @@ const mine = (change: unknown) => {
 };
 
 describe("every lever has an effect, in the order the ledger lists them", () => {
-  it("lists rest, brew, level, profile and curve, each with a sentence", () => {
-    expect(LEVERS).toEqual(["rest", "brew", "level", "profile", "curve"]);
+  it("lists level, profile and curve, each with a sentence: rest and brew change the cup, not the roast, so they are not levers", () => {
+    expect(LEVERS).toEqual(["level", "profile", "curve"]);
     for (const l of LEVERS) expect(LEVER_EFFECTS[l].length, l).toBeGreaterThan(20);
-    expect(leverLedger(roast(10, 3), [], DEFAULT_CALIBRATION).map((l) => l.lever)).toEqual(["rest", "brew", "level", "profile", "curve"]);
+    expect(leverLedger(roast(10, 3), [], DEFAULT_CALIBRATION).map((l) => l.lever)).toEqual(["level", "profile", "curve"]);
   });
 });
 
@@ -115,75 +114,11 @@ describe("the level lever", () => {
   });
   it("says the qualities and the thermal dose it saw, and warns when the tastings were on different days of rest", () => {
     const rs = ladder([3, 3, 3]);
-    rs[2] = { ...rs[2], restedDays: 0, tastings: [{ restedDays: 0, brew: "pourover", quality: 3 }] };
+    rs[2] = { ...rs[2], restedDays: 0 };
     const l = lever("level", rs[2], rs.slice(0, 2));
     expect(l.evidence).toBe("2 steps less roasting on this profile (thermal dose 12 to 9.7, about 19% less); the roast quality was 3, 3 and 3. The last 2 steps did not raise it.");
     expect(l.caveat).toBe("The tastings were on different days of rest (1, 1 and 0), which can blur the comparison.");
     expect(lever("level", ladder([3, 3, 3])[2], ladder([3, 3, 3]).slice(0, 2)).caveat).toBeUndefined();
-  });
-});
-
-describe("the rest lever", () => {
-  it("is untested when every tasting was on one day, and says which", () => {
-    const l = lever("rest", roast(10, 3), []);
-    expect(l).toMatchObject({ state: "untested" });
-    expect(l.evidence).toBe("Every tasting so far was on day 1 after roasting; no roast has been tasted again on another day.");
-  });
-  it("is moving when a roast's quality was higher on a later day", () => {
-    const again = roast(10, 2, { level: 3, tastings: [{ restedDays: 0, brew: "pourover", quality: 1 }, { restedDays: 1, brew: "pourover", quality: 2 }] });
-    const l = lever("rest", roast(9, 3), [again]);
-    expect(l).toMatchObject({ state: "moving", evidence: "The level 3 roast had roast quality 1 on day 0 and 2 on day 1." });
-  });
-  it("is unclear after a short retaste with no gain, and exhausted after a fair one", () => {
-    const retaste = (days: number) => roast(10, 3, { tastings: [{ restedDays: 0, brew: "pourover", quality: 3 }, { restedDays: days, brew: "pourover", quality: 3 }] });
-    expect(lever("rest", roast(9, 3), [retaste(1)]).state).toBe("unclear");
-    expect(lever("rest", roast(9, 3), [retaste(3)]).state).toBe("exhausted");
-    expect(lever("rest", roast(9, 3), [retaste(3)], mine({ settings: { restTestDays: 5 } })).state).toBe("unclear");
-    expect(lever("rest", roast(9, 3), [retaste(3)]).next).toBeUndefined();
-  });
-  it("credits the best later day, not just the last: a rise and a fall is still a rise", () => {
-    const peaked = roast(10, 3, { level: 3, tastings: [{ restedDays: 0, brew: "pourover", quality: 3 }, { restedDays: 2, brew: "pourover", quality: 4 }, { restedDays: 6, brew: "pourover", quality: 3 }] });
-    expect(lever("rest", roast(9, 3), [peaked])).toMatchObject({ state: "moving", evidence: "The level 3 roast had roast quality 3 on day 0 and 4 on day 2." });
-  });
-  it("compares days only within one brew, so a change of brew can't be credited to rest", () => {
-    const changed = roast(10, 3, { tastings: [{ restedDays: 1, brew: "pourover", quality: 3 }, { restedDays: 5, brew: "espresso", quality: 4 }] });
-    expect(lever("rest", roast(9, 3), [changed])).toMatchObject({ state: "unclear", evidence: "One roast was tasted on different days but brewed differently each time, so the difference could be the brew." });
-    expect(lever("brew", roast(9, 3), [changed])).toMatchObject({ state: "unclear", evidence: "One roast was brewed more than one way but never two ways on the same day, so the difference could be the rest." });
-  });
-  it("says so when different roasts were tasted on different days but no single roast was tasted twice", () => {
-    const l = lever("rest", roast(10, 3), [roast(9, 3, { tastings: [{ restedDays: 0, brew: "pourover", quality: 3 }] })]);
-    expect(l).toMatchObject({ state: "untested", evidence: "Tastings so far were on days 0 and 1 after roasting, but no single roast has been tasted on more than one day." });
-  });
-  it("does not blame an unrecorded rest", () => {
-    expect(lever("rest", roast(10, 3, { restedDays: undefined, tastings: undefined }), []).evidence).toBe("No tasting says how many days the roast rested.");
-  });
-});
-
-describe("the brew lever", () => {
-  const brewed = (...pairs: [string, number][]) => roast(10, 3, { level: 2.4, tastings: pairs.map(([brew, quality]) => ({ restedDays: 1, brew, quality })) });
-  it("is untested when everything was brewed one way, using the form's name for it", () => {
-    expect(lever("brew", roast(10, 3), []).evidence).toBe("Every tasting so far was brewed as pour over; no roast has been brewed another way.");
-  });
-  it("is moving when another brew gave a higher quality", () => {
-    const l = lever("brew", roast(9, 3), [brewed(["pourover", 3], ["espresso", 4])]);
-    expect(l).toMatchObject({ state: "moving", evidence: "The level 2.4 roast had roast quality 4 brewed as espresso and 3 brewed as pour over." });
-  });
-  it("compares brews only on the same day, so a gain from resting isn't credited to the brew", () => {
-    // Pour over rose from 3 to 4 between day 1 and day 5; espresso on day 5 scored 3. Same-day brews: 4 and 3, a real difference.
-    const rested = roast(10, 3, { level: 2.4, tastings: [{ restedDays: 1, brew: "pourover", quality: 3 }, { restedDays: 5, brew: "pourover", quality: 4 }, { restedDays: 5, brew: "espresso", quality: 3 }] });
-    expect(lever("brew", roast(9, 3), [rested]).evidence).toBe("The level 2.4 roast had roast quality 4 brewed as pour over and 3 brewed as espresso.");
-    // The same brew twice is never a comparison of brews.
-    const twice = roast(10, 3, { tastings: [{ restedDays: 1, brew: "pourover", quality: 3 }, { restedDays: 5, brew: "pourover", quality: 4 }] });
-    expect(lever("brew", roast(9, 3), [twice]).state).toBe("untested");
-  });
-  it("says so when different roasts were brewed different ways but no single roast was brewed twice", () => {
-    const l = lever("brew", roast(10, 3), [roast(9, 3, { tastings: [{ restedDays: 1, brew: "espresso", quality: 3 }] })]);
-    expect(l).toMatchObject({ state: "untested", evidence: "No single roast has been brewed more than one way (brews so far: espresso and pour over)." });
-  });
-  it("is unclear with two brews and exhausted with three, when none gave a higher quality", () => {
-    expect(lever("brew", roast(9, 3), [brewed(["pourover", 3], ["espresso", 3])]).state).toBe("unclear");
-    expect(lever("brew", roast(9, 3), [brewed(["pourover", 3], ["espresso", 3], ["immersion", 3])]).state).toBe("exhausted");
-    expect(lever("brew", roast(9, 3), [brewed(["pourover", 3], ["espresso", 3])], mine({ settings: { brewTestCount: 2 } })).state).toBe("exhausted");
   });
 });
 
@@ -252,31 +187,34 @@ describe("the clean-below-bar rule", () => {
     const a = run();
     expect(a).toMatchObject({ kind: "ask", ruleId: "clean-below-bar" });
     expect(a.reason).toContain("The cup is clean: no roast defect, so there is nothing for the level to fix. The roast quality is 3 (clean, with little character), below the bar of 4. What can raise it:");
-    for (const lever of ["rest (untested)", "brew (untested)", "level (exhausted)", "profile (unavailable)", "curve (unavailable)"]) expect(a.reason, lever).toContain(`- ${lever}:`);
+    for (const lever of ["level (exhausted)", "profile (unavailable)", "curve (unavailable)"]) expect(a.reason, lever).toContain(`- ${lever}:`);
     expect(a.reason).toContain("The last 2 steps did not raise it.");
+  });
+  it("lists only levers that change the roast: rest and brew are conditions of the tasting, not levers", () => {
+    const a = run();
+    expect(a.reason).not.toMatch(/- (rest|brew) \(/);
+    expect(a.reason).not.toContain("exaggerates");
   });
   it("fires on a first roast too, where the level has not been tried either way", () => {
     const a = advise({ latest: roast(10, 3), earlier: [] });
     expect(a).toMatchObject({ kind: "ask", ruleId: "clean-below-bar" });
     expect(a.reason).toContain("- level (untested):");
-    expect(a.reason).toContain("Still to try before the coffee can be named as the limit: rest, brew and level.");
+    expect(a.reason).toContain("Still to try before the coffee can be named as the limit: level.");
   });
   it("names the levers still to try before naming the coffee as the limit", () => {
-    expect(run().reason).toContain("Still to try before the coffee can be named as the limit: rest and brew.");
+    const alternative = { profileName: "KL Washed", level: 1.2, endTempC: 217.6 };
+    expect(run({ context: { alternative } }).reason).toContain("Still to try before the coffee can be named as the limit: profile.");
+    expect(advise({ latest: roast(10, 3), earlier: [], context: { alternative } }).reason).toContain("Still to try before the coffee can be named as the limit: level and profile.");
   });
   it("names the coffee or the curve only when every lever the tool can reach has been tried", () => {
-    const tried = rs.map((r, i) => (i === 3 ? { ...r, tastings: [{ restedDays: 0, brew: "pourover", quality: 3 }, { restedDays: 4, brew: "pourover", quality: 3 }, { restedDays: 4, brew: "espresso", quality: 3 }, { restedDays: 4, brew: "immersion", quality: 3 }] } : r));
-    const a = run({ latest: tried[3], earlier: tried.slice(0, 3) });
-    expect(a.reason).toContain("- rest (exhausted):");
-    expect(a.reason).toContain("- brew (exhausted):");
+    const a = run();
     expect(a.reason).toContain("Everything this tool can move has had a fair test, the level in the direction it was tried. What is left is the curve, which the tool can't edit yet, or the coffee itself");
     expect(a.reason).not.toContain("Still to try before the coffee can be named");
   });
   it("can reach the 'curve or the coffee' verdict with another profile on offer, once that profile has had a fair test", () => {
     const alternative = { profileName: "KL Washed", level: 1.2, endTempC: 217.6 };
-    const tried = rs.map((r, i) => (i === 3 ? { ...r, tastings: [{ restedDays: 0, brew: "pourover", quality: 3 }, { restedDays: 4, brew: "pourover", quality: 3 }, { restedDays: 4, brew: "espresso", quality: 3 }, { restedDays: 4, brew: "immersion", quality: 3 }] } : r));
     const onAlt = [roast(9, 3, { profile: "KL Washed" }), roast(8.5, 3, { profile: "KL Washed" })];
-    const a = run({ latest: tried[3], earlier: [...tried.slice(0, 3), ...onAlt], context: { alternative } });
+    const a = run({ earlier: [...rs.slice(0, 3), ...onAlt], context: { alternative } });
     expect(a.reason).toContain("- profile (exhausted):");
     expect(a.reason).toContain("Everything this tool can move has had a fair test");
     expect(a.reason).not.toContain("Still to try before the coffee can be named");
@@ -303,9 +241,5 @@ describe("the clean-below-bar rule", () => {
     const good = ladder([4, 4, 4], { taste: ["sweet", "balanced"] });
     expect(advise({ latest: good[2], earlier: good.slice(0, 2) }).ruleId).toBe("keep-as-is");
     expect(advise({ latest: roast(10, 4), earlier: [] }).ruleId).toBe("no-rule");
-  });
-  it("does not blame an unrecorded rest", () => {
-    const bare = ladder([2, 3, 3, 3], { restedDays: undefined, tastings: undefined });
-    expect(advise({ latest: bare[3], earlier: bare.slice(0, 3) }).reason).toContain("No tasting says how many days the roast rested.");
   });
 });
