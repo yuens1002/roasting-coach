@@ -9,7 +9,7 @@
 // each lives in RULE_SETTINGS so the rules and tests can see it.
 
 import { daysBetween } from "./dates.js";
-import { QUALITY_ANCHORS, qualityMeaning } from "./intake.js";
+import { FILTER_BREWS, QUALITY_ANCHORS, brewLabel, qualityMeaning } from "./intake.js";
 import { PCT_EPSILON, cleanBelowBarMessage, leverLedger, sameProfile } from "./levers.js";
 
 export const RULE_SETTINGS = {
@@ -31,10 +31,6 @@ export const RULE_SETTINGS = {
    * roast quality improving, before the level counts as tried out (see levers.ts).
    */
   plateauSteps: 2,
-  /** Days apart, between the first and last tasting of one roast, that make resting a fair test (Kaffelogic's own Rest profiles start at 3). */
-  restTestDays: 3,
-  /** Different brews of one roast that make changing the brew a fair test. */
-  brewTestCount: 3,
   /** Tasted roasts on the bean's other profile that make switching to it a fair test. */
   profileTestRoasts: 2,
   /** A cup of at least this roast quality, with nothing wrong, is left alone; a clean cup below it gets the lever ledger. (A level can't be called exhausted at or above it.) */
@@ -78,10 +74,10 @@ export const DEFAULT_CALIBRATION: Calibration = { settings: RULE_SETTINGS, chips
  * the compiler enforce that), and docs/RULES.md must describe each one (a test checks that).
  */
 export const OUTCOME_IDS = [
+  "tasted-in-other-brew",
   "quality-vs-words",
   "mixed-signals",
   "tasted-too-soon",
-  "espresso-sour-only",
   "under-roasted",
   "under-roasted-bracketed",
   "under-roasted-contradicted",
@@ -120,8 +116,6 @@ export interface TastedRoast {
   restedDays?: number;
   /** The level the roast was made at, for telling roasts apart in what the engine says. */
   level?: number;
-  /** Every tasting of this roast (the fields above are its newest), for judging rest and brew. */
-  tastings?: { restedDays: number; brew: string; quality: number }[];
   /** Days this roast's profile wants it to rest before it is judged, when the profile says (min, max). */
   restNeeded?: readonly [number, number];
 }
@@ -130,7 +124,7 @@ export interface TastedRoast {
 export interface AdviceContext {
   /** Days a roast on this profile should rest before it is judged, if the profile says. */
   restNeeded?: (profile: string) => readonly [number, number] | undefined;
-  /** Where to go when the level isn't helping: another profile, at the level it suggests for this bean's goal. */
+  /** Where to go when the level isn't helping: another profile, at the level it starts that profile at. */
   alternative?: { profileName: string; level: number; endTempC: number };
   /** What the roaster says this coffee should taste like (the supplier's or producer's description, or their own cup), when they know. */
   reference?: string;
@@ -172,7 +166,10 @@ interface Reading {
 }
 
 const pick = (taste: string[], chips: readonly string[]) => taste.filter((c) => chips.includes(c));
-const words = (items: string[]) => (items.length < 3 ? items.join(" and ") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`);
+const joined = (items: readonly string[], conjunction: "and" | "or") => (items.length < 3 ? items.join(` ${conjunction} `) : `${items.slice(0, -1).join(", ")} ${conjunction} ${items[items.length - 1]}`);
+const words = (items: readonly string[]) => joined(items, "and");
+/** The brews the cupping protocol allows, as the tasting form words them. */
+const filterBrews = () => joined(FILTER_BREWS.map(brewLabel), "or");
 const pct = (n: number) => Math.round(Math.abs(n) * 10) / 10;
 
 function read(t: TastedRoast, { chips }: Calibration): Reading {
@@ -225,7 +222,7 @@ function developmentRule(side: Side): Rule["run"] {
       return {
         kind: "ask",
         ruleId: `${ruleId}-contradicted` as const,
-        reason: `This cup tasted ${words(mine)} (${verdict}), but an earlier roast with ${backwards ? `${pct(disagree.along)}% ${sign === 1 ? "less" : "more"}` : "about the same"} roasting tasted ${words(read(disagree.e, calibration)[opposite])} (${SIDES[opposite].verdict}). ${backwards ? `That runs against the expected direction: the roast with ${sign === 1 ? "less" : "more"} roasting should not taste ${sign === 1 ? "more" : "less"} roasted.` : "Roasts this close should not taste opposite."} So something other than the roast differs between them: the brew, the days of rest or the batch. Find out which before changing the roast.`,
+        reason: `This cup tasted ${words(mine)} (${verdict}), but an earlier roast with ${backwards ? `${pct(disagree.along)}% ${sign === 1 ? "less" : "more"}` : "about the same"} roasting tasted ${words(read(disagree.e, calibration)[opposite])} (${SIDES[opposite].verdict}). ${backwards ? `That runs against the expected direction: the roast with ${sign === 1 ? "less" : "more"} roasting should not taste ${sign === 1 ? "more" : "less"} roasted.` : "Roasts this close should not taste opposite."} So something other than the roast differs between them: the days of rest or the batch. Find out which before changing the roast.`,
       };
     }
     const bracket = gaps.reduce<(typeof gaps)[number] | undefined>((nearest, g) => (!nearest || g.along < nearest.along ? g : nearest), undefined);
@@ -256,6 +253,20 @@ function developmentRule(side: Side): Rule["run"] {
 
 /** The table, in the order the rules are tried. */
 export const RULES: Rule[] = [
+  {
+    // Brew and rest change the cup, not the roast. Every tasting is of filter coffee (the cupping protocol), so that no roast is
+    // tasted as a different kind of brew. The form only offers filter brews; this catches a tasting
+    // recorded before it did, in another brew, which says nothing the others can be set against.
+    id: "tasted-in-other-brew",
+    run: ({ latest }) => {
+      if (FILTER_BREWS.includes(latest.brew)) return undefined;
+      return {
+        kind: "ask",
+        ruleId: "tasted-in-other-brew",
+        reason: `This roast was tasted brewed as ${brewLabel(latest.brew)}. Roasts are tasted as filter coffee (${filterBrews()}), so that a difference in the cup is not a difference between filter and another kind of brew. Taste this roast brewed that way and record that tasting, then ask again.`,
+      };
+    },
+  },
   {
     // Quality is judged by defects, so it has to agree with the words: a cup with a roast defect is a 1 or 2,
     // a clean one a 3 or better. When they disagree, one of them is wrong, and advice built on either would be too.
@@ -294,20 +305,6 @@ export const RULES: Rule[] = [
         kind: "hold",
         ruleId: "tasted-too-soon",
         reason: `The cup tasted ${words(r.under)}, but this roast's profile (${latest.profile ?? "unknown"}) is written for ${needed[0]} to ${needed[1]} days of resting before brewing, and it was tasted ${when}. The rest the profile asks for is not over. Taste it again on day ${needed[0]} or later before changing anything.`,
-      };
-    },
-  },
-  {
-    id: "espresso-sour-only",
-    run: ({ latest }, r, { chips }) => {
-      if (latest.brew !== "espresso" || r.under.length !== 1 || r.under[0] !== "sour" || r.over.length) return undefined;
-      // The other words that would say the roast is the suspect, as the roaster reads them.
-      const others = chips.under.filter((c) => c !== "sour");
-      const orList = others.length < 2 ? others.join("") : `${others.slice(0, -1).join(", ")} or ${others[others.length - 1]}`;
-      return {
-        kind: "hold",
-        ruleId: "espresso-sour-only",
-        reason: `Sour is the one taste espresso can fake: a shot that runs too fast tastes sour from any roast. Adjust the grind or the shot first. If it's still sour${others.length ? `, or the next cup tastes ${orList} too` : ""}, then roast further.`,
       };
     },
   },
@@ -375,12 +372,16 @@ export interface AdviceResult {
   /** The roast and tasting the advice answers, newest first among tasted roasts. */
   basedOn: { version: number; roastId: number; tastingId: number; level?: number; measuredThermalDose: number };
   advice: Advice;
+  /** How many earlier roasts were left out of the comparison because none of their rated tastings was of filter coffee; absent when none were. */
+  setAside?: number;
 }
 
 /**
  * Advice for a bean's newest tasted roast, using its other tasted roasts as the bean's own record.
- * Each roast counts once, by its newest tasting. Roasts without a measured thermal dose can't be compared,
- * so they're left out; undefined when no roast with a thermal dose has been tasted.
+ * Each roast counts once, by its newest tasting of filter coffee (the cupping protocol, FILTER_BREWS). The
+ * newest roast counts by its newest tasting when none is of filter coffee, and the rules then ask for one.
+ * An earlier roast with no tasting of filter coffee is left out and counted in `setAside`. Roasts without a measured thermal dose can't be compared, so they're left out;
+ * undefined when no roast with a thermal dose has been tasted.
  */
 export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceContext, calibration?: Calibration): AdviceResult | undefined {
   const tasted = history.versions
@@ -388,8 +389,12 @@ export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceCon
     .flatMap((version) => version.roasts.map((roast) => ({ version, roast: { ...roast, tastings: roast.tastings.filter((t) => t.qualityRated !== false) } })))
     .filter(({ roast }) => roast.features && Number.isFinite(roast.features.thermalDose) && roast.tastings.length)
     .sort((a, b) => new Date(a.roast.roastedAt as string).getTime() - new Date(b.roast.roastedAt as string).getTime() || a.roast.id - b.roast.id);
-  const asRoast = ({ version, roast }: (typeof tasted)[number]): TastedRoast => {
-    const tasting = roast.tastings[roast.tastings.length - 1];
+  const newest = tasted[tasted.length - 1];
+  if (!newest) return undefined;
+  const lastTasting = (entry: (typeof tasted)[number]) => entry.roast.tastings[entry.roast.tastings.length - 1];
+  const countedTasting = (entry: (typeof tasted)[number]) => entry.roast.tastings.filter((t) => FILTER_BREWS.includes(t.brew)).pop();
+  const asRoast = (entry: (typeof tasted)[number], tasting: ReturnType<typeof lastTasting>): TastedRoast => {
+    const { version, roast } = entry;
     const profile = version.baseProfile ?? version.profileName;
     return {
       thermalDose: roast.features!.thermalDose,
@@ -401,16 +406,19 @@ export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceCon
       restedDays: daysBetween(roast.roastedAt as string | Date, tasting.tastedOn),
       restNeeded: context?.restNeeded?.(profile),
       level: roast.logLevel ?? version.level,
-      tastings: roast.tastings.map((t) => ({ restedDays: daysBetween(roast.roastedAt as string | Date, t.tastedOn), brew: t.brew, quality: t.quality })),
     };
   };
-  const newest = tasted[tasted.length - 1];
-  if (!newest) return undefined;
-  const tasting = newest.roast.tastings[newest.roast.tastings.length - 1];
-  const latest = asRoast(newest);
+  const tasting = countedTasting(newest) ?? lastTasting(newest);
+  const latest = asRoast(newest, tasting);
+  const earlier = tasted.slice(0, -1).flatMap((entry) => {
+    const counted = countedTasting(entry);
+    return counted ? [asRoast(entry, counted)] : [];
+  });
+  const setAside = tasted.length - 1 - earlier.length;
   return {
     basedOn: { version: newest.version.number, roastId: newest.roast.id, tastingId: tasting.id, level: newest.roast.logLevel, measuredThermalDose: latest.thermalDose },
-    advice: advise({ latest, earlier: tasted.slice(0, -1).map(asRoast), context, calibration }),
+    advice: advise({ latest, earlier, context, calibration }),
+    ...(setAside ? { setAside } : {}),
   };
 }
 
@@ -447,7 +455,15 @@ export interface AdviceReport {
  * profile; `problem` says in plain words why it couldn't be (the profile isn't on hand, or the
  * level can't go finer), in which case the advice is given without an offer to record it.
  */
-export function adviceReport(beanId: number, { basedOn, advice }: AdviceResult, move: LevelMove | undefined, problem?: string): AdviceReport {
+export function adviceReport(beanId: number, result: AdviceResult, move: LevelMove | undefined, problem?: string): AdviceReport {
+  const report = reportFor(beanId, result, move, problem);
+  const { setAside } = result;
+  if (!setAside) return report;
+  const note = `${setAside === 1 ? "One earlier roast was" : `${setAside} earlier roasts were`} without a rated tasting of filter coffee, so ${setAside === 1 ? "it is" : "they are"} left out of the comparison (roasts are tasted as ${filterBrews()}).`;
+  return { ...report, say: `${report.say} ${note}` };
+}
+
+function reportFor(beanId: number, { basedOn, advice }: AdviceResult, move: LevelMove | undefined, problem?: string): AdviceReport {
   if (advice.kind === "hold") return { say: `${advice.reason} No new version is needed.` };
   if (advice.kind === "switch-profile") {
     return {

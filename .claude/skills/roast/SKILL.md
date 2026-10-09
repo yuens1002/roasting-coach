@@ -22,8 +22,8 @@ A reference cup the roaster describes (say, the farm's or the seller's) goes in 
 ## 1. New bean (intake)
 
 1. The roaster describes the bean in free text. Map what they said onto the intake fields.
-2. Only ask about **required** fields they didn't cover (species, decaf, processing, brewing
-   for, when they'll drink it). Don't guess these. Optional fields: fill only what was said.
+2. Only ask about **required** fields they didn't cover (species, decaf, processing, when they'll
+   drink it). Don't ask how they will brew it: that doesn't change the roast. Don't guess these. Optional fields: fill only what was said.
    Bag altitude ranges: use the middle.
 3. Show the mapped answers in one short list, then `bean:add`.
 4. Report v1 in plain words: profile, level **and end temperature**, when the curve reaches it,
@@ -54,6 +54,15 @@ A reference cup the roaster describes (say, the farm's or the seller's) goes in 
 Use `taste:add` with `beanId` (and `roastId` if not the newest roast). Ask for date, brew method,
 roast quality (1-5) and taste chips (required); notes are optional. Translate the roaster's words
 into chips and **confirm the chips** before `taste:add`; don't silently interpret.
+
+The cupping protocol is filter coffee only: pour over, French press / immersion or AeroPress, whatever
+the bean is brewed for at home, so no cup is a different kind of brew from the others. Filter is a
+baseline chosen because it is accessible (any roaster can make it with inexpensive equipment); it is not a
+roast target, and the roast is never aimed at a brew method. The form
+offers only those brews. If the roaster tasted it another way (an espresso shot), tell them the tasting
+has to be of filter coffee to be compared; don't record it as another brew. `advise` asks for a
+retaste as filter coffee when every tasting of the roast it is advising on was another brew (an older
+recording, such as an espresso shot).
 
 The quality is how well the roast came out, judged by defects, **not whether the roaster likes the
 cup** (the tool doesn't ask that and doesn't use it). Offer the scale in these words (`roast.ts fields
@@ -94,7 +103,7 @@ and run the command it hands you if the roaster says yes.
    roast the roaster asked about, tell them which roast the advice is for. It returns `say` and, only when there is something to
    record, `onYes`.
 2. Say `say` to the roaster as written, adding only the one `personal` line from 3b and, when `advise` lists `unratedTastings`, the one note from step 3 (it can be several lines: for a clean cup below the bar it lists
-   the levers that can raise the quality, each with what it changes; relay every line). Don't add, drop, reword, round or second-guess any of it,
+   the levers that change the roast, each with what it changes; relay every line). Don't add, drop, reword, round or second-guess any of it,
    and don't judge the roast yourself: textbook numbers don't apply to Nano profiles, and the
    rules already allow for that.
 3. If there is an `onYes` and the roaster says yes, run its `command` with its `input` exactly as
@@ -106,8 +115,9 @@ and run the command it hands you if the roaster says yes.
    (`thermal-dose '{"profile": "...", "level": 3, "change": -15}'`, change in %), record it with
    `version:add` and their own words as the `reason`, and say it was their choice. A switch to the
    other profile they choose (the ledger names it, with a level) is recorded the same way with
-   `"profileName"` and the level the ledger gave, and it costs a roast. A rest or brew test needs no
-   record until it is tasted: add that tasting with `taste:add` on the same roast.
+   `"profileName"` and the level the ledger gave, and it costs a roast. When `say` asks for a
+   retaste as filter coffee, add that tasting with `taste:add` on the same roast and run
+   `advise` again; nothing new is recorded until the tasting is.
 5. If the roaster wants a file for the new version, `profile:write` (`{"beanId", "version"}`,
    optional `"name"`) writes `<bean> <level>.kpro` to `profiles/out/`: the version's profile with
    its level as the level the machine offers first. Only labels change, so a roast on it still

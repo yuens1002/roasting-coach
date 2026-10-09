@@ -1,15 +1,16 @@
-// The levers that can change a cup, and where each one stands for a bean: still moving the cup, tried
-// without effect, not tried yet, or out of this tool's reach. Every state is read from recorded
+// The levers that change the roast, and where each one stands for a bean: still moving the roast quality,
+// tried without effect, not tried yet, or out of this tool's reach. Every state is read from recorded
 // roasts and tastings, never guessed. The ledger is what stops "no rule covers this" from being the
 // whole answer: for a clean cup below the bar it says what can raise the quality, what each lever
-// changes, and what the evidence says about it.
+// changes, and what the evidence says about it. Rest and brew are not levers: they change the cup, not
+// the roast. Every tasting is of filter coffee so roasts can be compared (rules.ts, tasted-in-other-brew).
 //
 // This file imports only types from rules.ts, so there is no import cycle at run time (rules.ts
 // imports this file).
-import { TASTING_FIELDS, qualityMeaning } from "./intake.js";
+import { qualityMeaning } from "./intake.js";
 import type { AdviceContext, Calibration, TastedRoast } from "./rules.js";
 
-export const LEVERS = ["rest", "brew", "level", "profile", "curve"] as const;
+export const LEVERS = ["level", "profile", "curve"] as const;
 export type LeverName = (typeof LEVERS)[number];
 
 /** moving: changing it improved the roast quality. exhausted: tried enough with no gain. unclear: tried, too thin to say. untested: not tried. unavailable: out of this tool's reach. */
@@ -17,11 +18,9 @@ export type LeverState = "moving" | "exhausted" | "unclear" | "untested" | "unav
 
 /**
  * What changing each lever does, in one sentence each. docs/RULES.md quotes these word for word (a
- * test checks it). The roast levers say what the tool can measure; the cup levers say what they leave alone.
+ * test checks it).
  */
 export const LEVER_EFFECTS: Record<LeverName, string> = {
-  rest: "Changes how the roast has settled by the time you taste it; the roast itself stays as it is. Kaffelogic's Rest profiles are written for 3 to 5 days.",
-  brew: "Changes how much of the roast reaches the cup; the roast itself stays as it is. The tasting form's own note: espresso exaggerates sourness and filter exaggerates flatness.",
   level: "Moves the end temperature, so the whole roast goes further or less far, by a measured amount of thermal dose; the shape of the curve stays as it is.",
   profile: "Changes the curve's shape (how fast heat goes in and how long the beans develop), not only where the roast stops.",
   curve: "The same as a profile change, made by editing the curve yourself.",
@@ -50,13 +49,6 @@ export const PCT_EPSILON = 1e-9;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const list = (items: (string | number)[]) => (items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-/** A brew as the tasting form words it ("Pour over"), lower-cased for a sentence. */
-const BREW_LABELS = new Map(
-  TASTING_FIELDS.flatMap((f): [string, string][] => (f.id === "brew" && "options" in f ? f.options.map((o): [string, string] => [o.value, o.label.toLowerCase()]) : [])),
-);
-const brewName = (value: string) => BREW_LABELS.get(value) ?? value;
-const which = (r: TastedRoast) => (r.level === undefined ? "One roast" : `The level ${r.level} roast`);
-
 /** The run of steps, ending at the latest roast, that the level has taken on this roast's profile. */
 export interface LevelLadder {
   /** The roasts in the run, oldest first; the last is the latest. */
@@ -106,107 +98,6 @@ function levelLever(latest: TastedRoast, earlier: TastedRoast[], calibration: Ca
   return { lever: "level", state, evidence: evidence + lately, caveat, next };
 }
 
-type Tasting = NonNullable<TastedRoast["tastings"]>[number];
-
-/** One fair-looking comparison inside a single roast: what it showed, whether quality rose, whether the test was big enough to trust. */
-interface Comparison {
-  gain: number;
-  said: string;
-  fair: boolean;
-}
-
-/**
- * A lever that changes the cup but not the roast (rest, brew), judged from one roast tasted more than
- * one way. Rest is compared only between tastings with the same brew, and brew only between tastings on
- * the same day, so one pair of tastings can't credit both. Per comparison: the roast quality went up
- * (moving), or it did not although the test was fair (enough days apart, enough different brews:
- * exhausted), or the test was too small to say (unclear). Across comparisons, moving beats exhausted beats
- * unclear. A roast whose tastings differ in this lever only along with the other one is unclear (the
- * difference could be either). With no roast tasted a second way: untested.
- */
-interface CupTest {
-  /** What varies inside a comparison. */
-  vary: "restedDays" | "brew";
-  /** What a comparison holds the same. */
-  hold: "restedDays" | "brew";
-  untested: (all: TastedRoast[]) => string;
-  confounded: (r: TastedRoast) => string;
-  judge: (r: TastedRoast, group: Tasting[], calibration: Calibration) => Comparison;
-  next: string;
-  noGain: string;
-}
-
-const CUP_TESTS: Record<"rest" | "brew", CupTest> = {
-  rest: {
-    vary: "restedDays",
-    hold: "brew",
-    untested: (all) => {
-      const days = [...new Set(all.flatMap((r) => r.tastings?.map((t) => t.restedDays) ?? (r.restedDays === undefined ? [] : [r.restedDays])))].sort((a, b) => a - b);
-      if (!days.length) return "No tasting says how many days the roast rested.";
-      return days.length === 1
-        ? `Every tasting so far was on day ${days[0]} after roasting; no roast has been tasted again on another day.`
-        : `Tastings so far were on days ${list(days)} after roasting, but no single roast has been tasted on more than one day.`;
-    },
-    confounded: (r) => `${which(r)} was tasted on different days but brewed differently each time, so the difference could be the brew.`,
-    judge: (r, group, { settings }) => {
-      const byDay = [...group].sort((a, b) => a.restedDays - b.restedDays);
-      const first = byDay[0];
-      const last = byDay[byDay.length - 1];
-      const bestLater = byDay.slice(1).reduce((a, b) => (b.quality > a.quality ? b : a));
-      const to = bestLater.quality > first.quality ? bestLater : last;
-      return { gain: bestLater.quality - first.quality, said: `${which(r)} had roast quality ${first.quality} on day ${first.restedDays} and ${to.quality} on day ${to.restedDays}.`, fair: last.restedDays - first.restedDays >= settings.restTestDays };
-    },
-    next: "Taste the newest roast again after more days of rest (it costs no roast).",
-    noGain: "Resting has not improved a cup yet.",
-  },
-  brew: {
-    vary: "brew",
-    hold: "restedDays",
-    untested: (all) => {
-      const brews = [...new Set(all.flatMap((r) => (r.tastings ?? [{ brew: r.brew }]).map((t) => t.brew)))];
-      return brews.length === 1
-        ? `Every tasting so far was brewed as ${brewName(brews[0])}; no roast has been brewed another way.`
-        : `No single roast has been brewed more than one way (brews so far: ${list(brews.map(brewName))}).`;
-    },
-    confounded: (r) => `${which(r)} was brewed more than one way but never two ways on the same day, so the difference could be the rest.`,
-    judge: (r, group, { settings }) => {
-      // The best quality each brew reached, so a gain is always between two different brews.
-      const perBrew = [...new Set(group.map((t) => t.brew))].map((brew) => ({ brew, quality: Math.max(...group.filter((t) => t.brew === brew).map((t) => t.quality)) }));
-      const best = perBrew.reduce((a, b) => (b.quality > a.quality ? b : a));
-      const worst = perBrew.reduce((a, b) => (b.quality < a.quality ? b : a));
-      return {
-        gain: best.quality - worst.quality,
-        said: best.quality > worst.quality ? `${which(r)} had roast quality ${best.quality} brewed as ${brewName(best.brew)} and ${worst.quality} brewed as ${brewName(worst.brew)}.` : `${which(r)} had roast quality ${best.quality} brewed as ${list(perBrew.map((b) => brewName(b.brew)))}.`,
-        fair: perBrew.length >= settings.brewTestCount,
-      };
-    },
-    next: "Taste the newest roast brewed another way (it costs no roast).",
-    noGain: "Changing the brew has not improved a cup yet.",
-  },
-};
-
-function cupLever(lever: "rest" | "brew", all: TastedRoast[], calibration: Calibration): Lever {
-  const test = CUP_TESTS[lever];
-  const comparisons: Comparison[] = [];
-  let confounded: string | undefined;
-  for (const r of all) {
-    const tastings = r.tastings ?? [];
-    const groups = new Map<string | number, Tasting[]>();
-    for (const t of tastings) groups.set(t[test.hold], [...(groups.get(t[test.hold]) ?? []), t]);
-    const comparable = [...groups.values()].filter((g) => new Set(g.map((t) => t[test.vary])).size > 1);
-    comparisons.push(...comparable.map((g) => test.judge(r, g, calibration)));
-    if (!comparable.length && new Set(tastings.map((t) => t[test.vary])).size > 1) confounded ??= test.confounded(r);
-  }
-  if (!comparisons.length) {
-    return confounded ? { lever, state: "unclear", evidence: confounded, next: test.next } : { lever, state: "untested", evidence: test.untested(all), next: test.next };
-  }
-  const moving = comparisons.reduce((a, b) => (b.gain > a.gain ? b : a));
-  if (moving.gain > 0) return { lever, state: "moving", evidence: moving.said, next: test.next };
-  const fair = comparisons.find((c) => c.fair);
-  if (fair) return { lever, state: "exhausted", evidence: `${fair.said} ${test.noGain}` };
-  return { lever, state: "unclear", evidence: `${comparisons[0].said} ${test.noGain} That is too small a test to rule it out.`, next: test.next };
-}
-
 function profileLever(all: TastedRoast[], alternative: AdviceContext["alternative"], { settings }: Calibration): Lever {
   if (!alternative) return { lever: "profile", state: "unavailable", evidence: "No other stock profile is suggested for this bean." };
   const named = all.filter((r) => r.profile === alternative.profileName);
@@ -234,7 +125,7 @@ const CURVE: Lever = { lever: "curve", state: "unavailable", evidence: "This too
 /** Every lever with where it stands for this roast and the bean's earlier ones. */
 export function leverLedger(latest: TastedRoast, earlier: TastedRoast[], calibration: Calibration, context?: AdviceContext): Lever[] {
   const all = [...earlier, latest];
-  return [cupLever("rest", all, calibration), cupLever("brew", all, calibration), levelLever(latest, earlier, calibration), profileLever(all, context?.alternative, calibration), CURVE];
+  return [levelLever(latest, earlier, calibration), profileLever(all, context?.alternative, calibration), CURVE];
 }
 
 /**

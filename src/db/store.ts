@@ -8,7 +8,7 @@ import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, pr
 import { type Meaning, type Overrides, NO_OVERRIDES, applyChange, describeCalibration, personalChanges } from "../core/calibration.js";
 import { calendarDay, daysBetween } from "../core/dates.js";
 import { extractFeatures } from "../core/features.js";
-import { type Field, type Intake, INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../core/intake.js";
+import { type Field, type Intake, FILTER_BREWS, INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../core/intake.js";
 import type { RoastFeatures, RoastLog } from "../core/types.js";
 import { type Answers, type Shape, checkAnswers, checkShape } from "../core/validate.js";
 
@@ -176,7 +176,6 @@ export async function addBean(db: Db, input: Record<string, unknown>, makeFile?:
     return {
       beanId,
       version: await findVersion(db, beanId, 1),
-      goal: start.goal,
       endsAt: start.level.endsAt,
       alternative: start.alternative,
       why: start.why,
@@ -452,6 +451,8 @@ async function updateForm(
   changes: Record<string, unknown>,
   notFound: string,
   extraCheck?: (row: Record<string, unknown>, values: Answers) => Promise<void>,
+  /** The fields to check the merged answers against for this stored row, when it needs different options from a new one. */
+  fieldsFor?: (row: Record<string, unknown>, changes: Record<string, unknown>) => Field[],
 ) {
   const read = async (lock: boolean) =>
     // to_jsonb gives dates as YYYY-MM-DD and numbers as numbers, the shapes the form expects.
@@ -459,7 +460,7 @@ async function updateForm(
   return inTransaction(db, async () => {
     const r = await read(true);
     if (!r.rows.length) throw new InputError([notFound]);
-    const values = checked(fields, { ...rowAsAnswers(fields, r.rows[0].row), ...changes });
+    const values = checked(fieldsFor?.(r.rows[0].row, changes) ?? fields, { ...rowAsAnswers(fields, r.rows[0].row), ...changes });
     await extraCheck?.(r.rows[0].row, values);
     // Only fields the caller named; unknown names were already refused by the form check above.
     // Clearing a chips field stores an empty list: those columns can't be null.
@@ -478,13 +479,32 @@ export async function updateBean(db: Db, input: { beanId: number; answers: Recor
   return updateForm(db, "bean", input.beanId, INTAKE_FIELDS, input.answers, `Bean ${input.beanId} doesn't exist.`);
 }
 
+/**
+ * A tasting recorded before the form was limited to filter brews (an espresso shot) keeps its stored brew while its
+ * other answers are corrected or re-rated. Naming a brew in the update still has to be one the form offers.
+ */
+function withStoredBrew(row: Record<string, unknown>, changes: Record<string, unknown>): Field[] {
+  const stored = String(row.brew);
+  if (Object.hasOwn(changes, "brew") || FILTER_BREWS.includes(stored)) return TASTING_FIELDS;
+  return TASTING_FIELDS.map((f) => (f.id === "brew" && "options" in f ? { ...f, options: [...f.options, { value: stored, label: stored }] } : f));
+}
+
 /** Corrects or adds to a tasting, for example its taste chips or roast quality. A new date can't fall before its roast. */
 export async function updateTasting(db: Db, input: { tastingId: number; answers: Record<string, unknown> }) {
   checkedShape(input, TASTING_UPDATE_SHAPE);
-  return updateForm(db, "tasting", input.tastingId, TASTING_FIELDS, input.answers, `Tasting ${input.tastingId} doesn't exist.`, async (row, values) => {
-    const roast = await db.query<{ roasted_at: string | Date }>("select roasted_at from roast where id = $1", [row.roast_id]);
-    restDays(roast.rows[0].roasted_at, values.tastedOn);
-  });
+  return updateForm(
+    db,
+    "tasting",
+    input.tastingId,
+    TASTING_FIELDS,
+    input.answers,
+    `Tasting ${input.tastingId} doesn't exist.`,
+    async (row, values) => {
+      const roast = await db.query<{ roasted_at: string | Date }>("select roasted_at from roast where id = $1", [row.roast_id]);
+      restDays(roast.rows[0].roasted_at, values.tastedOn);
+    },
+    withStoredBrew,
+  );
 }
 
 /** The roaster's own settings and taste-word meanings: only what differs from the defaults. */
@@ -522,12 +542,12 @@ export async function changeCalibration(db: Db, input: unknown) {
 
 export async function listBeans(db: Db) {
   const r = await db.query(
-    `select b.id, b.name, b.process, b.goal,
+    `select b.id, b.name, b.process,
             (select max(number) from profile_version v where v.bean_id = b.id) as versions,
             (select max(r.roasted_at) from roast r join profile_version v on v.id = r.version_id where v.bean_id = b.id) as last_roasted
        from bean b order by b.id`,
   );
-  return r.rows.map((b) => ({ id: Number(b.id), name: b.name, process: b.process, goal: b.goal, versions: Number(b.versions), lastRoasted: b.last_roasted ?? undefined }));
+  return r.rows.map((b) => ({ id: Number(b.id), name: b.name, process: b.process, versions: Number(b.versions), lastRoasted: b.last_roasted ?? undefined }));
 }
 
 /** Everything about one bean, version by version, for reviewing progress and deciding the next change. */

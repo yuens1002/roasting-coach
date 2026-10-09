@@ -41,8 +41,9 @@ hard.
   back on only touching the level.
 - **The level is not the only lever.** A defect word (sour, ashy) tells you which way to move the
   level. Once a cup has no roast defect left, nothing tells you which way to go, so another step is
-  only a probe. What can still change the cup is the days of rest, the brew, the profile and the
-  curve, and it's easy to keep pushing the level because it's the one control you can see.
+  only a probe. What can still change the roast is the profile and the curve (rest and brew change the
+  cup, not the roast, so every tasting is of filter coffee), and it's easy to keep pushing the level because
+  it's the one control you can see.
 
 And the help you can find doesn't close the gap, because much of it is wrong for these machines:
 
@@ -67,10 +68,11 @@ make that experiment reliable if it:
 1. **Turns what you tasted into the next thing to change, and says what it will do.** For a cup with
    a roast defect, that is usually a change in roasting, in plain words and before you roast. It
    holds or asks instead when the roast may not be the cause: a sour cup tasted before its profile's
-   rest is over, a sour espresso shot, sour and bitter together, a roast quality that disagrees with
+   rest is over, a tasting that was not of filter coffee, sour and bitter together, a roast quality that disagrees with
    the words, or earlier roasts that contradict this one. For a clean cup short of the bar, it lists
-   every lever (rest, brew, level, profile, curve), what each one changes, and what your own roasts
-   say about it, cheapest first.
+   every lever that changes the roast (level, profile, curve), what each one changes, and what your own
+   roasts say about it. Every tasting is of filter coffee, so no cup is a different kind of brew from
+   the others.
 2. **Gives deterministic, explained advice.** The same evidence always leads to the same
    suggestion, from tested rules. A model never reads raw curves and never judges the cup. Every
    rule, setting and taste word is written out in [docs/RULES.md](docs/RULES.md), with a worked

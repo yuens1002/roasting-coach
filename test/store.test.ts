@@ -6,7 +6,7 @@ import { type Db, InputError, addBean, addRoast, addTasting, addVersion, beanHis
 import { migratedDb } from "./pg.js";
 import { PROFILE, syntheticLog } from "./syntheticLog.js";
 
-const GUJI = { name: "Ethiopia Guji", species: "arabica", decaf: false, process: "washed", goal: "espresso", drinkWhen: "rest", altitudeM: 1950, sellerNotes: "peach, jasmine" };
+const GUJI = { name: "Ethiopia Guji", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", altitudeM: 1950, sellerNotes: "peach, jasmine" };
 
 describe("checkAnswers", () => {
   it("accepts a complete intake and keeps only answered fields", () => {
@@ -26,8 +26,8 @@ describe("checkAnswers", () => {
   });
 
   it("takes numbers for choices like the roast quality, and drops repeated chips", () => {
-    const r = checkAnswers(TASTING_FIELDS, { tastedOn: "2026-10-08", brew: "espresso", quality: 4, taste: ["sour", "sour", "thin"] });
-    expect(r).toEqual({ ok: true, values: { tastedOn: "2026-10-08", brew: "espresso", quality: "4", taste: ["sour", "thin"] } });
+    const r = checkAnswers(TASTING_FIELDS, { tastedOn: "2026-10-08", brew: "pourover", quality: 4, taste: ["sour", "sour", "thin"] });
+    expect(r).toEqual({ ok: true, values: { tastedOn: "2026-10-08", brew: "pourover", quality: "4", taste: ["sour", "thin"] } });
   });
 
   it("treats whitespace-only answers as unanswered", () => {
@@ -38,13 +38,13 @@ describe("checkAnswers", () => {
   });
 
   it("rejects calendar dates that don't exist, which Date.parse would roll over", () => {
-    const r = checkAnswers(TASTING_FIELDS, { tastedOn: "2026-02-30", brew: "espresso", quality: 4, taste: ["sweet"] });
+    const r = checkAnswers(TASTING_FIELDS, { tastedOn: "2026-02-30", brew: "pourover", quality: 4, taste: ["sweet"] });
     expect(r.ok ? [] : r.errors).toEqual(["Tasted on must be a date like 2026-10-04."]);
-    expect(checkAnswers(TASTING_FIELDS, { tastedOn: "2028-02-29", brew: "espresso", quality: 4, taste: ["sweet"] }).ok).toBe(true);
+    expect(checkAnswers(TASTING_FIELDS, { tastedOn: "2028-02-29", brew: "pourover", quality: 4, taste: ["sweet"] }).ok).toBe(true);
   });
 
   it("rejects malformed dates and a list for a one-answer choice", () => {
-    const r = checkAnswers(TASTING_FIELDS, { tastedOn: "8 Oct", brew: ["espresso"], quality: 4, taste: ["sweet"] });
+    const r = checkAnswers(TASTING_FIELDS, { tastedOn: "8 Oct", brew: ["pourover"], quality: 4, taste: ["sweet"] });
     expect(r.ok ? [] : r.errors).toEqual(["Tasted on must be a date like 2026-10-04.", "Brewed as takes one answer."]);
   });
 });
@@ -72,7 +72,38 @@ describe("store", () => {
     gujiId = r.beanId;
     expect(r.version).toMatchObject({ number: 1, profileName: "1500-2000m Rest", level: 3.2, endTempC: 222.4, parentNumber: undefined });
     expect(r.version.changeReason).toMatch(/^Starting profile\. Grown at 1950 m/);
-    expect(r.alternative).toBe("KL Washed");
+    // A bean with an unknown process has no other profile to suggest.
+    expect(r.alternative).toBeUndefined();
+    expect(r.why).toContain("It starts at the level the profile's own file recommends.");
+  });
+
+  it("starts a washed bean on KL Washed at the profile's own recommended level, with the altitude profile as the alternative", async () => {
+    // A database of its own: the tests around this one count the beans in the shared one.
+    const own = await migratedDb();
+    const r = await addBean(own, { ...GUJI, name: "Washed start", process: "washed", drinkWhen: "rest" });
+    expect(r.version).toMatchObject({ number: 1, profileName: "KL Washed", level: 0.8, endTempC: 214.4 });
+    expect(r.version.changeReason).toContain("KL Washed is written for washed coffees.");
+    expect(r.version.changeReason).toContain("It starts at the level the profile's own file recommends.");
+    expect(r.alternative).toBe("1500-2000m Rest");
+  });
+
+  it("lets a tasting recorded in a brew the form no longer offers be re-rated, but refuses naming that brew again", async () => {
+    // A database of its own, and a row written the way an earlier version of the form allowed (espresso).
+    const own = await migratedDb();
+    const { beanId } = await addBean(own, { ...GUJI, name: "Legacy tasting" });
+    const { roastId } = await addRoast(own, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
+    const inserted = await own.query<{ id: number }>("insert into tasting (roast_id, tasted_on, brew, quality, quality_rated, taste) values ($1, '2026-03-12', 'espresso', 3, false, '{flat}') returning id", [roastId]);
+    const tastingId = Number(inserted.rows[0].id);
+    const row = await updateTasting(own, { tastingId, answers: { quality: 4 } });
+    expect(row).toMatchObject({ brew: "espresso", quality: 4, quality_rated: true });
+    // The stored brew stays, and so does the refusal of espresso for a new answer.
+    await expect(updateTasting(own, { tastingId, answers: { brew: "espresso" } })).rejects.toMatchObject({ errors: [expect.stringContaining("isn't an option")] });
+    expect(await updateTasting(own, { tastingId, answers: { brew: "pourover" } })).toMatchObject({ brew: "pourover" });
+  });
+
+  it("does not ask how the bean will be brewed: a brewing goal is refused as not a field", async () => {
+    await expect(addBean(db, { ...GUJI, name: "Goal given", goal: "espresso" })).rejects.toMatchObject({ errors: ['"goal" is not a field on this form.'] });
+    expect(await listBeans(db)).toHaveLength(1);
   });
 
   it("stores nothing when the intake is incomplete", async () => {
@@ -112,7 +143,7 @@ describe("store", () => {
   });
 
   it("records a tasting against a chosen roast and counts days rested", async () => {
-    const r = await addTasting(db, { beanId: gujiId, roastId: firstRoastId, answers: { tastedOn: "2025-06-29", brew: "espresso", quality: 2, taste: ["sour", "thin"] } });
+    const r = await addTasting(db, { beanId: gujiId, roastId: firstRoastId, answers: { tastedOn: "2025-06-29", brew: "pourover", quality: 2, taste: ["sour", "thin"] } });
     expect(r).toEqual({ tastingId: expect.any(Number), roastId: firstRoastId, version: 1, daysRested: 4 });
   });
 
@@ -302,7 +333,7 @@ describe("store", () => {
   it("refuses a tasting dated before its roast and stores nothing", async () => {
     const { beanId } = await addBean(db, { ...GUJI, name: "Early taste" });
     const { roastId } = await addRoast(db, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
-    await expect(addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-09", brew: "espresso", quality: 3, taste: ["sweet"] } })).rejects.toThrow(
+    await expect(addTasting(db, { beanId, roastId, answers: { tastedOn: "2026-03-09", brew: "pourover", quality: 3, taste: ["sweet"] } })).rejects.toThrow(
       "Tasted on 2026-03-09 is before the roast on 2026-03-10. Check the date.",
     );
     expect((await beanHistory(db, beanId)).versions[0].roasts[0].tastings).toEqual([]);
@@ -334,7 +365,7 @@ describe("store", () => {
     await expect(updateBean(db, { beanId, answers: { process: "wet", sellerNotes: "x" } })).rejects.toMatchObject({
       errors: ['Processing: "wet" isn\'t an option. Options: washed, natural, honey, anaerobic, wet-hulled, unknown.'],
     });
-    expect((await beanHistory(db, beanId)).bean).toMatchObject({ process: "washed", seller_notes: "peach, jasmine" });
+    expect((await beanHistory(db, beanId)).bean).toMatchObject({ process: "unknown", seller_notes: "peach, jasmine" });
     await expect(updateBean(db, { beanId: 999999, answers: {} })).rejects.toThrow("Bean 999999 doesn't exist.");
     await expect(updateBean(db, { beanId, answers: { colour: 50 } })).rejects.toMatchObject({ errors: ['"colour" is not a field on this form.'] });
   });
@@ -450,7 +481,7 @@ describe("store", () => {
 describe("profile keys across a chain of near-identical copies", () => {
   it("joins two groups that a later copy bridges, so the level ladder doesn't split", async () => {
     const db = await migratedDb();
-    const { beanId } = await addBean(db, { name: "Kenya chain", species: "arabica", decaf: false, process: "washed", goal: "filter", drinkWhen: "soon", altitudeM: 1950 });
+    const { beanId } = await addBean(db, { name: "Kenya chain", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", altitudeM: 1950 });
     // 204.1044 and 204.1056 round to different 5-figure keys and are further apart than the 6-figure tolerance;
     // 204.105 is within the tolerance of both, so it bridges them.
     const withFirstLevel = (value: string) => PROFILE.replace("profile_short_name:Test line", "profile_short_name:Kenya chain").replace("roast_levels:204,", `roast_levels:${value},`);
@@ -468,7 +499,7 @@ describe("profile keys across a chain of near-identical copies", () => {
 describe("profile keys keep distinct profiles apart", () => {
   it("gives two profiles that round to the same key different keys when they are further apart than the tolerance", async () => {
     const db = await migratedDb();
-    const { beanId } = await addBean(db, { name: "Kenya apart", species: "arabica", decaf: false, process: "washed", goal: "filter", drinkWhen: "soon", altitudeM: 1950 });
+    const { beanId } = await addBean(db, { name: "Kenya apart", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", altitudeM: 1950 });
     // 204.1001 and 204.1049 both round to 204.1 at five figures but are 0.0048 apart, well over the 6-figure tolerance.
     const withFirstLevel = (value: string) => PROFILE.replace("profile_short_name:Test line", "profile_short_name:Kenya apart").replace("roast_levels:204,", `roast_levels:${value},`);
     await addVersion(db, { beanId, profileName: "Kenya apart", level: 3.6, reason: "Profile one.", profileFile: withFirstLevel("204.1001") });
