@@ -280,9 +280,10 @@ the one just before. It won't send you back to a profile that already has a tast
 measured thermal dose for this bean (an untasted roast isn't counted, so check the history yourself);
 if there isn't an alternative, or you've used it, it asks instead and says the next lever is the
 curve, which this tool can't edit yet.
-**Why:** one lever at a time. When the level has been moved a real distance and the cup stayed on the same side, what is left
-to change is the profile's shape (how fast heat goes in and how long the beans develop), not where
-the roast stops.
+**Why:** one lever at a time. The level has been moved a real distance and the cup stayed on the same side,
+so the next lever the rule names is the profile's shape (how fast heat goes in and how long the beans
+develop), which the level does not change. The rule does not rule out a difference in brew, rest or batch
+between the two roasts.
 
 > Example: sour on 1500-2000m Rest after a roast with 10% less roasting also tasted sour; KL Washed is the alternative. "The cup tasted sour (under-roasted) even after the roasting went 10% more than an earlier roast on this profile, which tasted sour too. The level moved the roast and the cup stayed on the same side. Next, try KL Washed instead: pick it on the Nano and set level 1.2 (ends at 217.6 °C). Shall I record that as the next version?"
 

@@ -20,14 +20,11 @@ const STANCES: [RegExp, string][] = [
   [/\bworth (?:a look|finding|checking|trying)\b|\brather than guessing\b/i, "the tool talking about itself"],
 ];
 
-// In the rulebook's prose "may" is a permission ("the range it may be set to") and "appears" says where a
-// word shows up ("where a defect word first appears"), so only the hedges that claim something about the
-// world are checked there. Its worked examples are checked as engine output.
-const DOC_STANCES: [RegExp, string][] = [
-  ...STANCES.filter(([, kind]) => kind !== "hedged belief"),
-  [/\b(?:probably|likely|unlikely|usually|perhaps|maybe|hopefully|seems|might)\b/i, "hedged belief"],
-  [/\bmay\b(?! be set to)/i, "hedged belief"],
-];
+// Two phrases in the rulebook's prose are neutral and would trip the patterns: "may" as a permission ("the
+// range it may be set to") and "appears" as where a word shows up ("where a defect word first appears").
+// They are masked as exact phrases; every other use of those words is checked like the engine's replies.
+const DOC_NEUTRAL_PHRASES = [/\bmay be set to\b/g, /\bfirst appears\b/g];
+const maskNeutral = (line: string) => DOC_NEUTRAL_PHRASES.reduce((s, p) => s.replace(p, ""), line);
 
 const DEFECT_WORDS = ["sour", "grassy", "bitter", "ashy", "flat", "thin"];
 const roast = (over: Partial<TastedRoast>): TastedRoast => ({ thermalDose: 10, taste: ["flat"], quality: (over.taste ?? ["flat"]).some((c) => DEFECT_WORDS.includes(c)) ? 2 : 3, brew: "pourover", ...over });
@@ -120,15 +117,15 @@ describe("the engine's voice", () => {
       .split("\n")
       .map((line, i) => ({ line: line.replace(/\r$/, ""), n: i + 1 }))
       .filter(({ line }) => !line.startsWith(">"));
-    for (const { line, n } of prose) for (const [pattern, kind] of DOC_STANCES) expect(line.match(pattern)?.[0], `${kind} at RULES.md:${n}: ${line.slice(0, 100)}`).toBeUndefined();
+    for (const { line, n } of prose) for (const [pattern, kind] of STANCES) expect(maskNeutral(line).match(pattern)?.[0], `${kind} at RULES.md:${n}: ${line.slice(0, 100)}`).toBeUndefined();
   });
 
   it("the check itself catches each kind of stance it is meant to", () => {
     const caught = (s: string) => STANCES.some(([p]) => p.test(s));
     for (const s of ["I wouldn't blame the coffee yet", "It is probably the curve", "so don't write it off", "the best roast is between them", "below the 4 this tool aims for", "rather than guessing", "I'd suggest KL Washed", "The rest may not be over yet", "It might be the curve"]) expect(caught(s), s).toBe(true);
-    const docCaught = (s: string) => DOC_STANCES.some(([p]) => p.test(s));
-    for (const s of ["it is probably the curve", "the switch might come early", "the rule may switch too early", "the cup seems thin"]) expect(docCaught(s), s).toBe(true);
-    for (const s of ["the range it may be set to", "where a defect word first appears", "Compare the cup against it."]) expect(docCaught(s), s).toBe(false);
+    const docCaught = (s: string) => STANCES.some(([p]) => p.test(maskNeutral(s)));
+    for (const s of ["it is probably the curve", "the switch might come early", "the rule may switch too early", "the cup seems thin", "it appears the curve is wrong", "the range it may be set to, but may also change"]) expect(docCaught(s), s).toBe(true);
+    for (const s of ["the range it may be set to", "where a defect word first appears (see below)", "Compare the cup against it."]) expect(docCaught(s), s).toBe(false);
     for (const s of ["Shall I record it as the next version?", "Taste it again on day 3 or later", "I'll record the roast as a new version.", "Compare the cup against it."]) expect(caught(s), s).toBe(false);
   });
 });
