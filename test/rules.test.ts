@@ -284,7 +284,7 @@ describe("roasts are tasted as filter coffee", () => {
     const a = asked("espresso");
     expect(a).toMatchObject({ kind: "ask", ruleId: "tasted-in-other-brew" });
     expect(a.reason).toBe(
-      "This roast was tasted brewed as espresso. Roasts are tasted as filter coffee (pour over, french press / immersion or aeropress), because a difference in the cup is only a difference in the roast when the brew is the same. Taste this roast brewed that way and record that tasting, then ask again.",
+      "This roast was tasted brewed as espresso. Roasts are tasted as filter coffee (pour over, french press / immersion or aeropress), so that a difference in the cup is not a difference between filter and another kind of brew. Taste this roast brewed that way and record that tasting, then ask again.",
     );
     expect(asked("moka").reason).toContain("tasted brewed as moka.");
   });

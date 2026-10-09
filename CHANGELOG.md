@@ -20,7 +20,10 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
   offers only those brews. New rule 1, `tasted-in-other-brew`, asks for a retaste as filter coffee when a
   roast's tastings were all of another brew (recorded before the form was limited); earlier roasts with no
   filter tasting are left out of the comparison and the answer says how many. The rules are renumbered: the
-  rule list in `docs/RULES.md` now runs 1 to 9.
+  rule list in `docs/RULES.md` now runs 1 to 9. A tasting recorded in a brew the form no longer offers
+  (an espresso shot) can still be corrected or re-rated; naming that brew in an update is refused. The three
+  filter brews are counted as one standard, so the rule says it keeps other kinds of brew out of the comparison,
+  not that every cup was brewed the same way.
 - Roasting is not aimed at a brew method. The intake no longer asks "Brewing for" (earlier answers stay in the
   database and are not used; migration 007 makes the column optional), and the starting profile no longer
   depends on it: species and decaf, then washed or natural (KL Washed or KL Natural), then the altitude band.

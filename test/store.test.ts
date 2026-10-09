@@ -87,6 +87,20 @@ describe("store", () => {
     expect(r.alternative).toBe("1500-2000m Rest");
   });
 
+  it("lets a tasting recorded in a brew the form no longer offers be re-rated, but refuses naming that brew again", async () => {
+    // A database of its own, and a row written the way an earlier version of the form allowed (espresso).
+    const own = await migratedDb();
+    const { beanId } = await addBean(own, { ...GUJI, name: "Legacy tasting" });
+    const { roastId } = await addRoast(own, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
+    const inserted = await own.query<{ id: number }>("insert into tasting (roast_id, tasted_on, brew, quality, quality_rated, taste) values ($1, '2026-03-12', 'espresso', 3, false, '{flat}') returning id", [roastId]);
+    const tastingId = Number(inserted.rows[0].id);
+    const row = await updateTasting(own, { tastingId, answers: { quality: 4 } });
+    expect(row).toMatchObject({ brew: "espresso", quality: 4, quality_rated: true });
+    // The stored brew stays, and so does the refusal of espresso for a new answer.
+    await expect(updateTasting(own, { tastingId, answers: { brew: "espresso" } })).rejects.toMatchObject({ errors: [expect.stringContaining("isn't an option")] });
+    expect(await updateTasting(own, { tastingId, answers: { brew: "pourover" } })).toMatchObject({ brew: "pourover" });
+  });
+
   it("does not ask how the bean will be brewed: a brewing goal is refused as not a field", async () => {
     await expect(addBean(db, { ...GUJI, name: "Goal given", goal: "espresso" })).rejects.toMatchObject({ errors: ['"goal" is not a field on this form.'] });
     expect(await listBeans(db)).toHaveLength(1);

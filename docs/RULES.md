@@ -109,8 +109,8 @@ A flat, thin or monotone cup with no roast defect is a 3, however little you lik
 cup to a 4 is what the levers in rule 7 (level, profile, curve) are for.
 
 ⚠ **Check this:** `bitter` can also be over-extraction, and `sour` can be under-extraction, so a cup
-can be misread by the brew rather than the roast. Every tasting is of filter coffee (rule 1), so the
-brew is the same from roast to roast, but the rules do not know your recipe or grind (section 7).
+can be misread by the brew rather than the roast. Every tasting is of filter coffee (rule 1), so no roast
+is tasted as another kind of brew, but the rules do not know your recipe or grind (section 7).
 `bready` and `grassy` are treated as equal in weight to `sour`. `bready` can
 also come from a baked or stalled roast, which is a curve problem that more roasting does not fix.
 A roaster who does not want the rules to act on it can set it to none for their copy
@@ -189,15 +189,15 @@ tasting form offers only these, so this answers a tasting recorded before the fo
 **What it does:** asks; changes nothing. A roast counts by its newest tasting of filter coffee whenever it
 has one, so a retaste as filter coffee answers the question. Earlier roasts with no tasting of filter
 coffee are left out of the comparison, and the answer says how many.
-**Why:** rest and brew change the cup, not the roast. A difference between two roasts' cups is a
-difference in the roast only when the brew is the same, so every roast is tasted the same way. This is why
+**Why:** rest and brew change the cup, not the roast. A filter cup and an espresso shot of
+the same roast differ for reasons that are not the roast, so every roast is tasted as filter coffee. This is why
 rest and brew are not levers in rule 7: the tool coaches the roast, and it controls these two instead of
 advising on them. Filter coffee is a baseline chosen for access: it is the easiest cup to make well with
 inexpensive equipment, so any roaster can follow the protocol. It is not a target. The roast is coached toward
 the best result for the bean's own properties, and how a bean is brewed at home is outside what this tool
 judges.
 
-> Example: sour, brewed as espresso. "This roast was tasted brewed as espresso. Roasts are tasted as filter coffee (pour over, french press / immersion or aeropress), because a difference in the cup is only a difference in the roast when the brew is the same. Taste this roast brewed that way and record that tasting, then ask again."
+> Example: sour, brewed as espresso. "This roast was tasted brewed as espresso. Roasts are tasted as filter coffee (pour over, french press / immersion or aeropress), so that a difference in the cup is not a difference between filter and another kind of brew. Taste this roast brewed that way and record that tasting, then ask again."
 
 ⚠ **Check this:** the standard is filter coffee, and the three brews on the form are all counted as the same
 standard; the rules do not weigh a pour over against an immersion brew. Days of rest still differ between

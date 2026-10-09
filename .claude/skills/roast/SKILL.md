@@ -56,7 +56,7 @@ roast quality (1-5) and taste chips (required); notes are optional. Translate th
 into chips and **confirm the chips** before `taste:add`; don't silently interpret.
 
 The cupping protocol is filter coffee only: pour over, French press / immersion or AeroPress, whatever
-the bean is brewed for at home, so a difference between two cups is a difference in the roast. Filter is a
+the bean is brewed for at home, so no cup is a different kind of brew from the others. Filter is a
 baseline chosen because it is accessible (any roaster can make it with inexpensive equipment); it is not a
 roast target, and the roast is never aimed at a brew method. The form
 offers only those brews. If the roaster tasted it another way (an espresso shot), tell them the tasting

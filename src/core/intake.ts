@@ -84,8 +84,8 @@ export const QUALITY_ANCHORS: Record<number, string> = {
 export const qualityMeaning = (quality: number) => QUALITY_ANCHORS[quality] ?? "off the 1 to 5 scale";
 
 /**
- * The cupping protocol: every tasting is of filter coffee, so a difference between two roasts' cups is a
- * difference in the roast and not in the brew. Filter is a baseline chosen for access (the easiest cup to make
+ * The cupping protocol: every tasting is of filter coffee, so no roast's cup is a different kind of
+ * brew from the others. Filter is a baseline chosen for access (the easiest cup to make
  * well with inexpensive equipment), not a roast target. Brew and rest change the cup, not the roast, so the tool
  * controls them instead of advising on them (docs/RULES.md, rule 1).
  */
@@ -95,7 +95,7 @@ export const FILTER_BREWS: readonly string[] = CUPPING_BREWS.map(([value]) => va
 /** After resting and brewing. This is the field that matters most; keep it quick. */
 export const TASTING_FIELDS: Field[] = [
   { id: "tastedOn", label: "Tasted on", kind: "date", required: true, help: "Defaults to today.", usedFor: "Days of rest" },
-  { id: "brew", label: "Brewed as", kind: "choice", required: true, options: opts(...CUPPING_BREWS), help: "Roasts are tasted as filter coffee so they can be compared.", usedFor: "The cupping protocol: a difference in the cup is then a difference in the roast" },
+  { id: "brew", label: "Brewed as", kind: "choice", required: true, options: opts(...CUPPING_BREWS), help: "Roasts are tasted as filter coffee so they can be compared.", usedFor: "The cupping protocol: every roast is tasted as filter coffee" },
   {
     id: "quality",
     label: "Roast quality",

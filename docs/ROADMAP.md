@@ -64,7 +64,7 @@ The tool coaches the roast, so it controls them instead of advising on them.
 whatever the bean is brewed for. Filter is a baseline chosen for access: it is the easiest cup to make well
 with inexpensive equipment, so any roaster can follow the protocol. It is a way to compare tastings, not a
 roast target. The tasting form offers only pour over, French press / immersion and
-AeroPress, so a difference between two cups is a difference in the roast and not in the brew
+AeroPress, so no cup is a different kind of brew from the others
 (`tasted-in-other-brew`, rule 1 of `docs/RULES.md`, answers a tasting recorded before the form was
 limited). A roast is counted by its newest tasting of filter coffee; earlier roasts with none are left out
 and the answer says how many. The levers are now the level, the profile and the curve. The rest guard

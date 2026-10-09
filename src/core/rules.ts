@@ -254,8 +254,8 @@ function developmentRule(side: Side): Rule["run"] {
 /** The table, in the order the rules are tried. */
 export const RULES: Rule[] = [
   {
-    // Brew and rest change the cup, not the roast. Every tasting is of filter coffee (the cupping protocol), so that a
-    // difference in the cup is a difference in the roast. The form only offers filter brews; this catches a tasting
+    // Brew and rest change the cup, not the roast. Every tasting is of filter coffee (the cupping protocol), so that no roast is
+    // tasted as a different kind of brew. The form only offers filter brews; this catches a tasting
     // recorded before it did, in another brew, which says nothing the others can be set against.
     id: "tasted-in-other-brew",
     run: ({ latest }) => {
@@ -263,7 +263,7 @@ export const RULES: Rule[] = [
       return {
         kind: "ask",
         ruleId: "tasted-in-other-brew",
-        reason: `This roast was tasted brewed as ${brewLabel(latest.brew)}. Roasts are tasted as filter coffee (${filterBrews()}), because a difference in the cup is only a difference in the roast when the brew is the same. Taste this roast brewed that way and record that tasting, then ask again.`,
+        reason: `This roast was tasted brewed as ${brewLabel(latest.brew)}. Roasts are tasted as filter coffee (${filterBrews()}), so that a difference in the cup is not a difference between filter and another kind of brew. Taste this roast brewed that way and record that tasting, then ask again.`,
       };
     },
   },

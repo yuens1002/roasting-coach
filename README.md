@@ -71,8 +71,8 @@ make that experiment reliable if it:
    rest is over, a tasting that was not of filter coffee, sour and bitter together, a roast quality that disagrees with
    the words, or earlier roasts that contradict this one. For a clean cup short of the bar, it lists
    every lever that changes the roast (level, profile, curve), what each one changes, and what your own
-   roasts say about it. Every tasting is of filter coffee, so a difference between two cups is a
-   difference in the roast and not in the brew.
+   roasts say about it. Every tasting is of filter coffee, so no cup is a different kind of brew from
+   the others.
 2. **Gives deterministic, explained advice.** The same evidence always leads to the same
    suggestion, from tested rules. A model never reads raw curves and never judges the cup. Every
    rule, setting and taste word is written out in [docs/RULES.md](docs/RULES.md), with a worked
