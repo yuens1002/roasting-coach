@@ -11,7 +11,7 @@ rule covers this", never a guess. The answers state what your roasts and tasting
 rule does about it; they do not give the tool's opinion of the coffee, and a test checks the worked
 examples below and further cases for first-person opinion and hedged belief.
 
-**⚠ marks a first guess or an assumption that has not been checked.** There is no research number for
+**⚠ marks a first guess or an assumption that still needs checking.** There is no research number for
 those; they are starting values, kept in one place so they are easy to change.
 
 This page is checked against the code by tests. Rule names, settings, tasting words, rest days, the

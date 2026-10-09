@@ -26,6 +26,18 @@ const STANCES: [RegExp, string][] = [
 const DOC_NEUTRAL_PHRASES = [/\bmay be set to\b/g, /\bfirst appears\b/g];
 const maskNeutral = (line: string) => DOC_NEUTRAL_PHRASES.reduce((s, p) => s.replace(p, ""), line);
 
+/**
+ * The stances in some lines of prose, as one text: the lines are joined first, so a phrase that normal
+ * wrapping splits across two lines ("rather than" / "guessing") is still found. Each hit shows its context.
+ */
+const stancesIn = (lines: string[]): string[] => {
+  const text = lines.map(maskNeutral).join(" ");
+  return STANCES.flatMap(([pattern, kind]) => {
+    const hit = new RegExp(pattern.source, pattern.flags.replace("g", "") + "g");
+    return [...text.matchAll(hit)].map((m) => `${kind}: "${m[0]}" in "…${text.slice(Math.max(0, m.index - 40), m.index + 60)}…"`);
+  });
+};
+
 const DEFECT_WORDS = ["sour", "grassy", "bitter", "ashy", "flat", "thin"];
 const roast = (over: Partial<TastedRoast>): TastedRoast => ({ thermalDose: 10, taste: ["flat"], quality: (over.taste ?? ["flat"]).some((c) => DEFECT_WORDS.includes(c)) ? 2 : 3, brew: "pourover", ...over });
 const ladder = (qualities: number[], over: Partial<TastedRoast> = {}) => qualities.map((q, i) => roast({ thermalDose: 12 * 0.9 ** i, quality: q, level: 3 - i * 0.3, profile: "Robusta", restedDays: 1, tastings: [{ restedDays: 1, brew: "pourover", quality: q }], ...over }));
@@ -115,15 +127,16 @@ describe("the engine's voice", () => {
   it("the rulebook's prose, outside its worked examples, states no stance", () => {
     const prose = readFileSync(new URL("../docs/RULES.md", import.meta.url), "utf8")
       .split("\n")
-      .map((line, i) => ({ line: line.replace(/\r$/, ""), n: i + 1 }))
-      .filter(({ line }) => !line.startsWith(">"));
-    for (const { line, n } of prose) for (const [pattern, kind] of STANCES) expect(maskNeutral(line).match(pattern)?.[0], `${kind} at RULES.md:${n}: ${line.slice(0, 100)}`).toBeUndefined();
+      .map((line) => line.replace(/\r$/, ""))
+      .filter((line) => !line.startsWith(">"));
+    expect(stancesIn(prose)).toEqual([]);
   });
 
   it("the check itself catches each kind of stance it is meant to", () => {
     const caught = (s: string) => STANCES.some(([p]) => p.test(s));
     for (const s of ["I wouldn't blame the coffee yet", "It is probably the curve", "so don't write it off", "the best roast is between them", "below the 4 this tool aims for", "rather than guessing", "I'd suggest KL Washed", "The rest may not be over yet", "It might be the curve"]) expect(caught(s), s).toBe(true);
-    const docCaught = (s: string) => STANCES.some(([p]) => p.test(maskNeutral(s)));
+    const docCaught = (s: string) => stancesIn([s]).length > 0;
+    expect(stancesIn(["this is a guess to be made rather than", "guessing from one cup"]), "a stance split across two lines").toHaveLength(1);
     for (const s of ["it is probably the curve", "the switch might come early", "the rule may switch too early", "the cup seems thin", "it appears the curve is wrong", "the range it may be set to, but may also change"]) expect(docCaught(s), s).toBe(true);
     for (const s of ["the range it may be set to", "where a defect word first appears (see below)", "Compare the cup against it."]) expect(docCaught(s), s).toBe(false);
     for (const s of ["Shall I record it as the next version?", "Taste it again on day 3 or later", "I'll record the roast as a new version.", "Compare the cup against it."]) expect(caught(s), s).toBe(false);
