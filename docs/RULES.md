@@ -396,8 +396,8 @@ to a change a rule can make" instead.
 
 The steps are percentages of thermal dose, but you set a level on the machine. A step moves a different number of
 levels depending on where you stand on the level scale, so this table gives a range for each profile, not one
-number: for every level a bean can start at on that profile (from the lightest to the darkest colour on the
-Agtron scale, below), how many levels a 10% or 15% step in either direction moves, the fewest to the most.
+number: for every level a bean can start at on that profile before the roaster has any colour readings (from the lightest to the
+darkest colour on the Agtron scale, below), how many levels a 10% or 15% step in either direction moves, the fewest to the most.
 It is measured from the stock profile files, not estimated. It does not predict a change in the cup: the steps are
 starting values, and your cup judges whether one was right. A start at the very lightest or darkest end of a profile, where a
 step would run past level 0 or level 6 (the advice would stop at that level), is left out of the range rather than counted as a
@@ -405,7 +405,9 @@ step of no levels.
 
 It names no single starting level on purpose. The colour you are shooting for can change from bean to bean and from
 roast to roast, and the level you are at comes from your own cups, not from the first roast. The engine steps from the
-level of the roast you tasted, not from any row here.
+level of the roast you tasted, not from any row here. Colour readings move where on a profile a colour lands, not the
+profile's level scale, so a roaster who starts from a level outside the range gets the same arithmetic, which this
+table does not list.
 
 How to read it: the level scale is uneven. On the same profile, a step can be a tenth of a level at one place on the scale and
 more than a full level at another; on some profiles several levels differ by only a degree. Check the end temperature the

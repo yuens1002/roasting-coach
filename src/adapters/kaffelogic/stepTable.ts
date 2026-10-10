@@ -15,7 +15,11 @@ export const STEP_TABLE_STEPS = [-RULE_SETTINGS.strongStepPct, -RULE_SETTINGS.st
 
 const range = (values: number[]) => (values.length ? `${Math.min(...values).toFixed(1)} to ${Math.max(...values).toFixed(1)}` : "-");
 
-/** The lightest and darkest level a bean can start at on a profile: where the eight tiles of the Agtron scale land on it. */
+/**
+ * The lightest and darkest level a bean can start at on a profile before the roaster has any colour readings: where the
+ * eight tiles of the Agtron scale land on it. Readings can place a colour elsewhere on the profile; the arithmetic of a
+ * step is the same there, and not listed.
+ */
 function startingLevelSpan(stock: StockProfile): [number, number] | undefined {
   const levels = SCA_TILES.flatMap((tile) => {
     const placed = levelForAgtron(stock, tile.agtron);

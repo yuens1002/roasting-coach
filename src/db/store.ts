@@ -415,7 +415,7 @@ export async function addTasting(db: Db, t: NewTasting) {
   // A tasting left without a brew is of the brew chosen for the coffee at intake.
   const chosen = await db.query<{ tasting_brew: string }>("select tasting_brew from bean where id = $1", [t.beanId]);
   if (!chosen.rows.length) throw new InputError([`Bean ${t.beanId} doesn't exist.`]);
-  const values = checked(TASTING_FIELDS, t.answers.brew == null ? { ...t.answers, brew: chosen.rows[0].tasting_brew } : t.answers);
+  const values = checked(TASTING_FIELDS, isBlank(t.answers.brew) ? { ...t.answers, brew: chosen.rows[0].tasting_brew } : t.answers);
   const r = await db.query<{ id: string | number; roasted_at: string | Date; number: number }>(
     `select r.id, r.roasted_at, v.number from roast r join profile_version v on v.id = r.version_id
       where v.bean_id = $1 ${t.roastId === undefined ? "" : "and r.id = $2"} order by r.roasted_at desc, r.id desc limit 1`,
@@ -427,6 +427,9 @@ export async function addTasting(db: Db, t: NewTasting) {
   const tastingId = await insert(db, "tasting", { roast_id: Number(roast.id), ...asColumns(values) });
   return { tastingId, roastId: Number(roast.id), version: Number(roast.number), daysRested };
 }
+
+/** An answer left out, null, or only spaces: the form reads all three as unanswered. */
+const isBlank = (answer: unknown) => answer == null || (typeof answer === "string" && answer.trim() === "");
 
 export const BEAN_UPDATE_SHAPE: Shape = { beanId: { type: "integer", required: true }, answers: { type: "object", required: true } };
 export const TASTING_UPDATE_SHAPE: Shape = { tastingId: { type: "integer", required: true }, answers: { type: "object", required: true } };
@@ -499,6 +502,8 @@ export async function updateBean(db: Db, input: { beanId: number; answers: Recor
 /** Corrects or adds to a tasting, for example its taste chips or roast quality. A new date can't fall before its roast. */
 export async function updateTasting(db: Db, input: { tastingId: number; answers: Record<string, unknown> }) {
   checkedShape(input, TASTING_UPDATE_SHAPE);
+  // A tasting always has a brew; naming it as nothing would write nothing into a column that requires one.
+  if (Object.hasOwn(input.answers, "brew") && isBlank(input.answers.brew)) throw new InputError(["Brewed as can't be cleared: name the brew this tasting was, or leave it out to keep it."]);
   return updateForm(
     db,
     "tasting",

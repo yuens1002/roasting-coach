@@ -161,13 +161,22 @@ describe("store", () => {
     await expect(addRoast(own, { beanId, roastedAt: "2026-03-11", answers: { greenG: 120, roastedG: 102, colour: 120 } })).rejects.toBeInstanceOf(InputError);
   });
 
-  it("refuses a tasting for a bean that does not exist, and treats a brew of null like a brew left out", async () => {
+  it("refuses a tasting for a bean that does not exist, and treats a brew of null or only spaces like a brew left out", async () => {
     const own = await migratedDb();
     await expect(addTasting(own, { beanId: 99, answers: { tastedOn: "2026-03-12", quality: 3, taste: ["flat"] } })).rejects.toMatchObject({ errors: ["Bean 99 doesn't exist."] });
     const { beanId } = await addBean(own, { ...GUJI, name: "Null brew", tastingBrew: "moka" });
     await addRoast(own, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
     const { tastingId } = await addTasting(own, { beanId, answers: { tastedOn: "2026-03-12", brew: null, quality: 3, taste: ["flat"] } as never });
     expect((await own.query<{ brew: string }>("select brew from tasting where id = $1", [tastingId])).rows[0].brew).toBe("moka");
+    for (const brew of ["", "   "]) {
+      const blank = await addTasting(own, { beanId, answers: { tastedOn: "2026-03-13", brew, quality: 3, taste: ["flat"] } });
+      expect((await own.query<{ brew: string }>("select brew from tasting where id = $1", [blank.tastingId])).rows[0].brew, JSON.stringify(brew)).toBe("moka");
+    }
+    // A tasting always has a brew, so an update cannot clear it; leaving it out keeps it.
+    for (const brew of [null, "", "  "]) {
+      await expect(updateTasting(own, { tastingId, answers: { brew } as never }), JSON.stringify(brew)).rejects.toMatchObject({ errors: ["Brewed as can't be cleared: name the brew this tasting was, or leave it out to keep it."] });
+    }
+    expect(await updateTasting(own, { tastingId, answers: { quality: 4 } })).toMatchObject({ brew: "moka", quality: 4 });
   });
 
   it("requires both answers of a new bean, and lets the roaster restate them at any time", async () => {
