@@ -2,13 +2,13 @@
 // against its field definitions before anything is stored, and versions and
 // roasts are addressed the way a person talks about them: bean id plus "v3".
 import { levelToTemp, parseKlog, parseKpro } from "../adapters/kaffelogic/parse.js";
-import { MACHINE_ID, selectStartingProfile, stockProfile, stockProfileId } from "../adapters/kaffelogic/startingProfiles.js";
+import { type ColourReading, MACHINE_ID, STOCK_PROFILES, selectStartingProfile, stockProfile, stockProfileId } from "../adapters/kaffelogic/startingProfiles.js";
 import { kaffelogicToRoastLog } from "../adapters/kaffelogic/toRoastLog.js";
 import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileBodyKey, profileExactKey, profileFromKpro, profileFromLog, sameProfileBody } from "../adapters/kaffelogic/writeProfile.js";
 import { type Meaning, type Overrides, NO_OVERRIDES, applyChange, describeCalibration, personalChanges } from "../core/calibration.js";
 import { calendarDay, daysBetween } from "../core/dates.js";
 import { extractFeatures } from "../core/features.js";
-import { type Field, type Intake, FILTER_BREWS, INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../core/intake.js";
+import { type Field, type Intake, INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../core/intake.js";
 import type { RoastFeatures, RoastLog } from "../core/types.js";
 import { type Answers, type Shape, checkAnswers, checkShape } from "../core/validate.js";
 
@@ -155,10 +155,27 @@ export interface StartingChoice {
 /** A .kpro for v1: the name the machine will show and the file's text. Undefined keeps the stock profile. */
 export type StartingProfileFile = (start: StartingChoice) => { profileName: string; profileFile: string } | undefined;
 
+/**
+ * The roaster's colour-meter readings, each with the bean temperature its roast ended at as the log measured it: what ties a
+ * stock profile's levels to the Agtron scale for this roaster. The measured end, not the level's table temperature, so a roast
+ * on an edited curve counts for what it did. A roast with no recorded log or no reading, and a version that is not built on a
+ * stock profile, is left out.
+ */
+export async function loadColourReadings(db: Db): Promise<ColourReading[]> {
+  const r = await db.query<{ stock_profile_id: string; drop_temp: string | number; colour: string | number }>(
+    "select v.stock_profile_id, (r.features->>'dropTemp')::float as drop_temp, r.colour from roast r join profile_version v on v.id = r.version_id where r.colour is not null and r.features is not null and v.stock_profile_id is not null",
+  );
+  const byId = new Map(Object.values(STOCK_PROFILES).map((p) => [stockProfileId(p.name), p.name]));
+  return r.rows.flatMap((row) => {
+    const profile = byId.get(row.stock_profile_id);
+    return profile ? [{ profile, endTempC: Number(row.drop_temp), agtron: Number(row.colour) }] : [];
+  });
+}
+
 /** Bean intake: stores the bean and its starting profile, at the suggested level, as v1; as its own .kpro when makeFile gives one. */
 export async function addBean(db: Db, input: Record<string, unknown>, makeFile?: StartingProfileFile) {
   const values = checked(INTAKE_FIELDS, input);
-  const start = selectStartingProfile(values as unknown as Intake);
+  const start = selectStartingProfile(values as unknown as Intake, await loadColourReadings(db));
   const own = makeFile?.({ beanName: String(values.name), stockName: start.profile.name, level: start.level.level, endTempC: start.level.endTemp, why: start.why });
   return inTransaction(db, async () => {
     const beanId = await insert(db, "bean", asColumns(values));
@@ -176,7 +193,6 @@ export async function addBean(db: Db, input: Record<string, unknown>, makeFile?:
     return {
       beanId,
       version: await findVersion(db, beanId, 1),
-      endsAt: start.level.endsAt,
       alternative: start.alternative,
       why: start.why,
     };
@@ -396,7 +412,10 @@ export interface NewTasting {
 
 export async function addTasting(db: Db, t: NewTasting) {
   checkedShape(t, NEW_TASTING_SHAPE);
-  const values = checked(TASTING_FIELDS, t.answers);
+  // A tasting left without a brew is of the brew chosen for the coffee at intake.
+  const chosen = await db.query<{ tasting_brew: string }>("select tasting_brew from bean where id = $1", [t.beanId]);
+  if (!chosen.rows.length) throw new InputError([`Bean ${t.beanId} doesn't exist.`]);
+  const values = checked(TASTING_FIELDS, isBlank(t.answers.brew) ? { ...t.answers, brew: chosen.rows[0].tasting_brew } : t.answers);
   const r = await db.query<{ id: string | number; roasted_at: string | Date; number: number }>(
     `select r.id, r.roasted_at, v.number from roast r join profile_version v on v.id = r.version_id
       where v.bean_id = $1 ${t.roastId === undefined ? "" : "and r.id = $2"} order by r.roasted_at desc, r.id desc limit 1`,
@@ -408,6 +427,9 @@ export async function addTasting(db: Db, t: NewTasting) {
   const tastingId = await insert(db, "tasting", { roast_id: Number(roast.id), ...asColumns(values) });
   return { tastingId, roastId: Number(roast.id), version: Number(roast.number), daysRested };
 }
+
+/** An answer left out, null, or only spaces: the form reads all three as unanswered. */
+const isBlank = (answer: unknown) => answer == null || (typeof answer === "string" && answer.trim() === "");
 
 export const BEAN_UPDATE_SHAPE: Shape = { beanId: { type: "integer", required: true }, answers: { type: "object", required: true } };
 export const TASTING_UPDATE_SHAPE: Shape = { tastingId: { type: "integer", required: true }, answers: { type: "object", required: true } };
@@ -451,8 +473,6 @@ async function updateForm(
   changes: Record<string, unknown>,
   notFound: string,
   extraCheck?: (row: Record<string, unknown>, values: Answers) => Promise<void>,
-  /** The fields to check the merged answers against for this stored row, when it needs different options from a new one. */
-  fieldsFor?: (row: Record<string, unknown>, changes: Record<string, unknown>) => Field[],
 ) {
   const read = async (lock: boolean) =>
     // to_jsonb gives dates as YYYY-MM-DD and numbers as numbers, the shapes the form expects.
@@ -460,7 +480,7 @@ async function updateForm(
   return inTransaction(db, async () => {
     const r = await read(true);
     if (!r.rows.length) throw new InputError([notFound]);
-    const values = checked(fieldsFor?.(r.rows[0].row, changes) ?? fields, { ...rowAsAnswers(fields, r.rows[0].row), ...changes });
+    const values = checked(fields, { ...rowAsAnswers(fields, r.rows[0].row), ...changes });
     await extraCheck?.(r.rows[0].row, values);
     // Only fields the caller named; unknown names were already refused by the form check above.
     // Clearing a chips field stores an empty list: those columns can't be null.
@@ -479,19 +499,11 @@ export async function updateBean(db: Db, input: { beanId: number; answers: Recor
   return updateForm(db, "bean", input.beanId, INTAKE_FIELDS, input.answers, `Bean ${input.beanId} doesn't exist.`);
 }
 
-/**
- * A tasting recorded before the form was limited to filter brews (an espresso shot) keeps its stored brew while its
- * other answers are corrected or re-rated. Naming a brew in the update still has to be one the form offers.
- */
-function withStoredBrew(row: Record<string, unknown>, changes: Record<string, unknown>): Field[] {
-  const stored = String(row.brew);
-  if (Object.hasOwn(changes, "brew") || FILTER_BREWS.includes(stored)) return TASTING_FIELDS;
-  return TASTING_FIELDS.map((f) => (f.id === "brew" && "options" in f ? { ...f, options: [...f.options, { value: stored, label: stored }] } : f));
-}
-
 /** Corrects or adds to a tasting, for example its taste chips or roast quality. A new date can't fall before its roast. */
 export async function updateTasting(db: Db, input: { tastingId: number; answers: Record<string, unknown> }) {
   checkedShape(input, TASTING_UPDATE_SHAPE);
+  // A tasting always has a brew; naming it as nothing would write nothing into a column that requires one.
+  if (Object.hasOwn(input.answers, "brew") && isBlank(input.answers.brew)) throw new InputError(["Brewed as can't be cleared: name the brew this tasting was, or leave it out to keep it."]);
   return updateForm(
     db,
     "tasting",
@@ -503,7 +515,6 @@ export async function updateTasting(db: Db, input: { tastingId: number; answers:
       const roast = await db.query<{ roasted_at: string | Date }>("select roasted_at from roast where id = $1", [row.roast_id]);
       restDays(roast.rows[0].roasted_at, values.tastedOn);
     },
-    withStoredBrew,
   );
 }
 

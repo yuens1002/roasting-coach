@@ -47,10 +47,22 @@ export function levelAfterChange(profile: KaffelogicProfile, from: LevelThermalD
  * End temperature rises with level, so thermal dose does too, and a search over 0..6 finds it.
  */
 export function levelForThermalDose(profile: KaffelogicProfile, target: number): LevelThermalDose | undefined {
-  let best: LevelThermalDose | undefined;
+  return nearestThermalDose(thermalDoseLadder(profile), target);
+}
+
+/** The profile's thermal dose at every level from 0 to 6 in 0.1 steps, lightest first; levels it never reaches are left out. Worked out once, it serves many searches. */
+export function thermalDoseLadder(profile: KaffelogicProfile): LevelThermalDose[] {
+  const ladder: LevelThermalDose[] = [];
   for (let tenths = 0; tenths <= 60; tenths++) {
     const d = profileThermalDoseAtLevel(profile, tenths / 10);
-    if (d && (!best || Math.abs(d.thermalDose - target) < Math.abs(best.thermalDose - target))) best = d;
+    if (d) ladder.push(d);
   }
+  return ladder;
+}
+
+/** The level on a ladder whose thermal dose is closest to `target` (the lighter one on a tie). */
+export function nearestThermalDose(ladder: readonly LevelThermalDose[], target: number): LevelThermalDose | undefined {
+  let best: LevelThermalDose | undefined;
+  for (const d of ladder) if (!best || Math.abs(d.thermalDose - target) < Math.abs(best.thermalDose - target)) best = d;
   return best;
 }

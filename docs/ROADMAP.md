@@ -5,7 +5,7 @@ someone else. Update it in the same change that moves any of these. Design ratio
 [research.md](research.md) and [thread1-notes.md](thread1-notes.md); the release history is in
 [CHANGELOG.md](../CHANGELOG.md).
 
-Last updated 2026-10-09 (0.1.x alpha).
+Last updated 2026-10-10 (0.2.x alpha).
 
 ## The goal
 
@@ -60,29 +60,52 @@ The test's patterns cannot catch a neutrally worded claim about the world (the q
 cannot show what they do (conventional wisdom on them would be an outside claim the tool cannot check).
 The tool coaches the roast, so it controls them instead of advising on them.
 
-**Decided (2026-10-09): the cupping protocol is filter coffee only**, for every roaster and every bean,
-whatever the bean is brewed for. Filter is a baseline chosen for access: it is the easiest cup to make well
-with inexpensive equipment, so any roaster can follow the protocol. It is a way to compare tastings, not a
-roast target. The tasting form offers only pour over, French press / immersion and
-AeroPress, so no cup is a different kind of brew from the others
-(`tasted-in-other-brew`, rule 1 of `docs/RULES.md`, answers a tasting recorded before the form was
-limited). A roast is counted by its newest tasting of filter coffee; earlier roasts with none are left out
-and the answer says how many. The levers are now the level, the profile and the curve. The rest guard
+**Decided (2026-10-09), changed 2026-10-10: the cupping protocol is one brew per coffee, the roaster's own.**
+It was filter coffee only; a filter brew is now the suggestion for a roaster with no usual brew (the easiest cup to
+make well with inexpensive equipment), and the roaster's own brew is theirs to say, because what the tool's author
+brews is not what each roaster is used to. This is a customisation to each roaster that the tool accounts for and
+still gives useful guidance with: the intake asks for the brew (`tastingBrew`: pour over, French press / immersion,
+AeroPress, espresso, moka pot or other), every tasting of that coffee is of it, and `tasted-in-other-brew` (rule 1
+of `docs/RULES.md`) asks for a retaste in it. A tasting left without a brew is recorded in it. A roast is counted by its
+newest tasting in that brew; earlier roasts with none are left out and the answer says how many. The roaster can name a
+different brew at any time. It is a way to compare tastings, not a roast target. The rules do not correct for what a
+brew does to the cup; a roaster whose brew changes what a taste word means can set that word's meaning. The levers are now the level, the profile and the curve. The rest guard
 (`tasted-too-soon`) stays: it rests on Kaffelogic's own Rest/RTD profile naming. The rule
 `espresso-sour-only` is removed: it asserted a fact about espresso that nothing the tool records could
 check.
+
+**Decided (2026-10-10): database changes convert, they do not tolerate; breaking changes are versioned.** Nobody uses the
+tool yet and the author's own roasts and profiles are disposable, so when the schema or a form changes, the migration
+converts the stored rows (a default, a derivation, or a drop) and the code has no case for the old shape: no nullable
+column kept for old rows, no fallback branch, no "unused, kept so answers are not lost". A change that breaks the stored
+data, a command or a form is a breaking change and is versioned as one: while the version is 0.x, a minor bump
+(0.2.0), listed under "Breaking" in `CHANGELOG.md`. Migration 008 is the first. Older tolerance still in the code and
+to convert the same way: the unrated tastings (`quality_rated`, migration 005) with their skip logic in the rules, the
+CLI and the skill.
 
 **Decided (2026-10-09): roasting is not aimed at a brew method.** The coaching is for the best result the
 bean's own properties allow (species, process, altitude, density, moisture, age), judged by roast quality. The intake no longer
 asks "Brewing for", and nothing in the tool maps a brew method to a roast level. Every bean starts from the
 same path: species and decaf first, then washed or natural (KL Washed or KL Natural, with the altitude profile
-as the alternative), then the altitude band with RTD or Rest by when it will be drunk. The starting level
-is the one the chosen profile's own file recommends (its `recommended_level`, `recommended` in
-`startingProfiles.ts`), which names no brew; the ladder of roasts finds the bean's own level from there.
-Kaffelogic's levels labelled filter, espresso, dark and cupping stay in the table as reference data and no choice
-reads them. Earlier "Brewing for" answers stay in the database (column `goal`, made optional by migration 007)
-and are not used. What changes for the roaster: a washed or natural bean now starts on KL Washed or KL Natural
-(at 0.8 and 1.4, that profile's own recommendation) whatever it was brewed for. Open: no model turns bean
+as the alternative), then the altitude band with RTD or Rest by when it will be drunk. The starting level was the one the
+chosen profile's own file recommends (its `recommended_level`), which names no brew; the ladder of roasts finds the bean's
+own level from there.
+**Changed 2026-10-10: the intake asks for the roast colour the roaster is shooting for, on the SCA / Agtron scale**
+(`agtronTarget`, 95 very light to 25 extremely dark; `src/core/roastColour.ts`), so a first level can be suggested for
+that colour instead of every bean starting at the profile's default. The level is no longer defined by a brew
+method: Kaffelogic's labels (filter, espresso, dark) are read only as three points on a profile's own ladder of levels.
+Kaffelogic publishes no level-to-Agtron table (its levels are end temperatures), so the tie is made two ways. Until the
+roaster has two colour readings on a profile at end temperatures 3 °C or more apart (the roast form's `colour` is an Agtron
+reading now), those three points are taken as Agtron 65, 55 and 45 (`LABELLED_LEVEL_AGTRON`; the basis is the Robusta file
+calling them Light/Medium, Medium and Medium Dark, assumed alike on the other profiles, not measured) and the level is found
+between and beyond them; the answer says it is an approximation. With the readings, the level comes from the least-squares line
+through them for that profile (`loadColourReadings`), across all the roaster's beans. A profile whose labelled levels reach
+no darker than Agtron 55 (KL Washed, KL Natural) hands a darker target to the altitude profile; a colour beyond the
+profile's lightest or darkest level gets that level and the answer says so. After the first roast the defects in the cup
+decide every step. The roaster can restate the colour at any time (`bean:update`); it is their aim, not a measurement. Open: the
+advice does not use the colour readings yet (a roast read lighter or darker than its target says nothing to the rules);
+the readings are fitted per profile, not per bean or per density. Earlier "Brewing for" answers are dropped (column `goal`, removed by migration 008). What changes for the roaster: a washed or natural bean now starts on KL Washed or KL Natural
+(at 0.8 and 1.4 then, that profile's own recommendation) whatever it was brewed for. Open: no model turns bean
 properties (density, moisture, age) into a starting level; only the profile choice uses altitude and process.
 The "Cupping" stock profile is never picked now; it stays in the table.
 
@@ -139,7 +162,7 @@ What each change does, and where it stands. The reason is there when it was set 
 |---|---|---|
 | Level (thermal dose step) | Where the roast stops: more or less of the chemistry, by a measured amount | Built (rules 5, 6; a lever in 7) |
 | Rest (days before tasting) | How the roast has settled, not the roast | **Dropped as a lever (2026-10-09):** the rest guard (rule 4) stays; the ledger no longer tests it |
-| Brew method | How much of the roast reaches the cup, not the roast | **Dropped as a lever (2026-10-09):** every tasting is of filter coffee (rule 1) |
+| Brew method | How much of the roast reaches the cup, not the roast | **Dropped as a lever (2026-10-09):** every tasting of a coffee is of one brew, the roaster's own (rule 1) |
 | Another stock profile | The curve's shape | Built (`level-not-helping`, ledger); only washed and natural beans (which start on KL Washed or KL Natural) have an alternative, so the profile lever is unavailable for the rest |
 | Editing the curve, fan or zones | The curve's shape, tuned to the bean | Not built (see Next, 3); the ledger lists it as unavailable |
 | Reference cup | What the coffee can be; stops it being written off | Built as the bean's `sellerNotes`, optional |
@@ -169,6 +192,11 @@ What each change does, and where it stands. The reason is there when it was set 
   base only in name, description and the level it offers first.
 - **Sizing a level change in thermal dose** (`thermal-dose`, `levelForThermalDose`), so "about 15% less
   roasting" becomes the right level for the profile at hand.
+- **Restating the roast colour** (`level-for`, `placeColour`): when the roaster's target colour changes, the level to try
+  for an Agtron number on a stock profile, from their own readings where they give a line. It records nothing; the roaster
+  says yes and `version:add` records it with their words. The rulebook's step table gives ranges of levels a step moves
+  across the levels a bean can start at, not one row at a recommended level, because neither the colour aimed at nor the
+  level the cups lead to is fixed.
 - **The rulebook for audit** (`docs/RULES.md`): every rule, setting, taste word and message in
   roasting terms, with worked examples and a step table measured from the stock profiles. A test
   fails if it and the code disagree, so a roaster can audit what runs.
@@ -182,7 +210,7 @@ What each change does, and where it stands. The reason is there when it was set 
   one), holds a clean cup of good roast quality, lists what else can raise a clean cup below the
   bar, holds a sour cup tasted before its profile's rest is over (the Rest profiles assume
   3 to 5 days; RTD, ready to drink, ones none), switches to the bean's alternative profile when more
-  roasting left the cup on the same side (the level isn't what's wrong; not one that already has a tasted roast), asks for a retaste as filter coffee when a roast was tasted another way, and says
+  roasting left the cup on the same side (the level isn't what's wrong; not one that already has a tasted roast), asks for a retaste in the coffee's tasting brew when a roast was tasted another way, and says
   "no rule" for anything else rather than improvising. The engine returns the finished answer: `say`,
   the whole reply in plain words, and `onYes`, the exact `version:add` command for a yes. The
   `/roast` skill only relays `say` and runs `onYes`; it interprets nothing.

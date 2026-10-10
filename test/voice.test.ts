@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseKlog } from "../src/adapters/kaffelogic/parse.js";
-import { selectStartingProfile } from "../src/adapters/kaffelogic/startingProfiles.js";
+import { placeColour, placementSay, selectStartingProfile } from "../src/adapters/kaffelogic/startingProfiles.js";
 import { kaffelogicToRoastLog } from "../src/adapters/kaffelogic/toRoastLog.js";
 import { extractFeatures } from "../src/core/features.js";
 import type { Intake } from "../src/core/intake.js";
@@ -65,29 +65,50 @@ const EXTRA: { id: string; input: AdviceInput }[] = [
       context: KL_WASHED,
     },
   },
-  // Tasted in a brew other than the filter brews the cupping protocol allows: one the form no longer offers.
-  { id: "tasted-in-other-brew", input: { latest: roast({ taste: ["sour"], brew: "moka" }), earlier: [] } },
+  // Tasted in a brew other than the one every tasting of the coffee is of: a filter brew chosen, and another brew chosen.
+  { id: "tasted-in-other-brew", input: { latest: roast({ taste: ["sour"], brew: "moka" }), earlier: [], context: { tastingBrew: "pourover" } } },
+  { id: "tasted-in-other-brew", input: { latest: roast({ taste: ["sour"], brew: "immersion" }), earlier: [], context: { tastingBrew: "aeropress" } } },
   { id: "quality-vs-words", input: { latest: roast({ taste: ["sour", "bitter"], quality: 5 }), earlier: [] } },
   { id: "keep-as-is", input: { latest: roast({ taste: ["sweet"], quality: 5 }), earlier: [] } },
 ];
 
 /** Every reason the starting-profile choice gives, across the paths it can take. */
 const STARTING_INTAKES: Intake[] = [
-  { name: "a", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon" },
-  { name: "b", species: "arabica", decaf: false, process: "washed", drinkWhen: "rest", altitudeM: 1850 },
-  { name: "c", species: "arabica", decaf: false, process: "natural", drinkWhen: "soon" },
-  { name: "e", species: "arabica", decaf: true, process: "unknown", drinkWhen: "soon" },
-  { name: "f", species: "robusta", decaf: false, process: "unknown", drinkWhen: "soon", chaffy: true },
-  { name: "g", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", altitudeM: 900 },
+  { name: "a", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" },
+  { name: "b", species: "arabica", decaf: false, process: "washed", drinkWhen: "rest", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 1850 },
+  { name: "c", species: "arabica", decaf: false, process: "natural", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" },
+  { name: "e", species: "arabica", decaf: true, process: "unknown", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" },
+  { name: "f", species: "robusta", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover", chaffy: true },
+  { name: "g", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 900 },
+  // Other colours, and the profile whose file names no level as dark as the target.
+  { name: "h", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 85, tastingBrew: "pourover" },
+  { name: "i", species: "arabica", decaf: false, process: "washed", drinkWhen: "rest", altitudeM: 1850, agtronTarget: 35, tastingBrew: "pourover" },
+  { name: "j", species: "arabica", decaf: false, process: "natural", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" },
+  // A colour so dark that the profile's darkest level is as near as it gets.
+  { name: "k", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", altitudeM: 1850, agtronTarget: 25, tastingBrew: "pourover" },
 ] as Intake[];
-const EXPECTED_WHY_LINES = 10;
-const WHY_LINES = [...new Set(STARTING_INTAKES.flatMap((intake) => selectStartingProfile(intake).why))];
+/** The roaster's own colour readings on Robusta, which give the line a starting level is placed on. */
+const STARTING_READINGS = [{ profile: "Robusta", endTempC: 219.3, agtron: 70 }, { profile: "Robusta", endTempC: 224.4, agtron: 50 }];
+const READINGS_INTAKE = { name: "m", species: "robusta", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover" } as Intake;
+const EXPECTED_WHY_LINES = 18;
+const WHY_LINES = [...new Set([...STARTING_INTAKES.flatMap((intake) => selectStartingProfile(intake).why), ...selectStartingProfile(READINGS_INTAKE, STARTING_READINGS).why])];
 
 /** The data warnings the roast features give for a colour change that cannot be used: out of range, and too close to first crack. */
-/** The note added to an answer when earlier roasts were without a rated tasting of filter coffee: one roast, and several. */
-const SET_ASIDE_NOTES = [1, 2].map((roasts) => {
-  const advice = advise({ latest: roast({ taste: ["sweet", "balanced"], quality: 4 }), earlier: [] });
-  return adviceReport(1, { basedOn: { version: 1, roastId: 1, tastingId: 1, measuredThermalDose: 10 }, advice, setAside: roasts }, undefined).say;
+/** The note added to an answer when earlier roasts were without a rated tasting in the coffee's tasting brew: one roast, and several, in a filter brew and in espresso. */
+const SET_ASIDE_NOTES = [1, 2].flatMap((roasts) =>
+  ["pourover", "espresso"].map((tastingBrew) => {
+    const advice = advise({ latest: roast({ taste: ["sweet", "balanced"], quality: 4 }), earlier: [] });
+    return adviceReport(1, { basedOn: { version: 1, roastId: 1, tastingId: 1, measuredThermalDose: 10 }, advice, setAside: { roasts, tastingBrew } }, undefined).say;
+  }),
+);
+/** What the level-for command says: placed on the profile's labelled levels, placed from the roaster's readings, and at the end of a profile's range. */
+const PLACEMENT_SAYS = [
+  placeColour("Robusta", 65),
+  placeColour("Robusta", 60, STARTING_READINGS),
+  placeColour("1500-2000m RTD", 25),
+].map((placed) => {
+  if (!placed.ok) throw new Error(placed.problem);
+  return placementSay(placed, "10:36");
 });
 const COLOUR_WARNINGS = [{ colour_change: 534, first_crack: 540 }, { colour_change: 480, first_crack: 520 }].map((markers) => extractFeatures(kaffelogicToRoastLog(parseKlog(syntheticLog({ ...markers, roast_end: 600 })))).dataWarnings[0]);
 
@@ -98,6 +119,7 @@ describe("the engine's voice", () => {
     ...WHY_LINES.map((text, i) => ({ name: `starting-profile reason ${i + 1}`, text })),
     ...COLOUR_WARNINGS.map((text, i) => ({ name: `colour-change warning ${i + 1}`, text })),
     ...SET_ASIDE_NOTES.map((text, i) => ({ name: `set-aside note ${i + 1}`, text })),
+    ...PLACEMENT_SAYS.map((text, i) => ({ name: `level-for answer ${i + 1}`, text })),
   ];
 
   for (const { name, text } of said) {
@@ -121,10 +143,10 @@ describe("the engine's voice", () => {
   });
 
   it("the starting-profile reasons cover the paths the choice can take", () => {
-    // The source has seven places that add a reason. If one is added, this fails until an intake below reaches it.
+    // The source has eight places that add a reason. If one is added, this fails until an intake below reaches it.
     const source = readFileSync(new URL("../src/adapters/kaffelogic/startingProfiles.ts", import.meta.url), "utf8");
-    expect((source.match(/why\.push\(/g) ?? []).length, "why.push sites in startingProfiles.ts").toBe(7);
-    // Ten distinct lines come from the six intakes.
+    expect((source.match(/why\.push\(/g) ?? []).length, "why.push sites in startingProfiles.ts").toBe(8);
+    // These distinct lines come from the intakes, and from one with readings.
     expect(WHY_LINES.length, WHY_LINES.join(" | ")).toBe(EXPECTED_WHY_LINES);
     expect(COLOUR_WARNINGS[0]).toMatch(/Colour change is marked at/);
     expect(COLOUR_WARNINGS[1], "the second log reaches the too-close branch").toMatch(/Colour change is only/);

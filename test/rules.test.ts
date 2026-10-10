@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FILTER_BREWS, QUALITY_ANCHORS, TASTING_FIELDS } from "../src/core/intake.js";
+import { type Field, INTAKE_FIELDS, QUALITY_ANCHORS, TASTING_FIELDS } from "../src/core/intake.js";
 import { migratedDb } from "./pg.js";
 import { syntheticLog } from "./syntheticLog.js";
 import { addBean, addRoast, addTasting, beanHistory, updateTasting } from "../src/db/store.js";
@@ -218,7 +218,7 @@ describe("advice from a bean's history", () => {
 describe("advice from what the store actually returns", () => {
   it("reads a bean, a logged roast and a tasting end to end", async () => {
     const db = await migratedDb();
-    const { beanId } = await addBean(db, { name: "Rules bean", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon" });
+    const { beanId } = await addBean(db, { name: "Rules bean", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" });
     const { roastId } = await addRoast(db, { beanId, klog: syntheticLog({ first_crack: 540, roast_end: 600 }), answers: { greenG: 120, roastedG: 101.5 } });
     expect(adviseFromHistory(await beanHistory(db, beanId))).toBeUndefined();
     await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-29", brew: "pourover", quality: 2, taste: ["sour", "grassy"] } });
@@ -277,65 +277,87 @@ describe("the finished answer", () => {
   });
 });
 
-describe("roasts are tasted as filter coffee", () => {
-  const asked = (brew: string, extra: Partial<TastedRoast> = {}) => advise({ latest: roast({ taste: ["sour"], brew, ...extra }), earlier: [] });
+describe("every tasting of a coffee is of the brew its roaster chose", () => {
+  const chosen = (brew: string, tastingBrew: string, extra: Partial<TastedRoast> = {}) =>
+    advise({ latest: roast({ taste: ["sour"], brew, ...extra }), earlier: [], context: { tastingBrew } });
 
-  it("asks for a retaste when the newest tasting is not of filter coffee, and says which brews count", () => {
-    const a = asked("espresso");
+  it("lets a tasting in the chosen brew through to the other rules, whatever the brew is", () => {
+    for (const brew of ["espresso", "moka", "other", "pourover", "immersion", "aeropress"]) expect(change(chosen(brew, brew)).ruleId, brew).toBe("under-roasted");
+  });
+  it("asks for a retaste when the tasting is in another brew, filter or not, and names the chosen one", () => {
+    const a = chosen("pourover", "espresso");
     expect(a).toMatchObject({ kind: "ask", ruleId: "tasted-in-other-brew" });
     expect(a.reason).toBe(
-      "This roast was tasted brewed as espresso. Roasts are tasted as filter coffee (pour over, french press / immersion or aeropress), so that a difference in the cup is not a difference between filter and another kind of brew. Taste this roast brewed that way and record that tasting, then ask again.",
+      "This roast was tasted brewed as pour over. Roasts of this coffee are tasted as espresso, so that a difference in the cup is not a difference between kinds of brew. Taste this roast brewed as espresso and record that tasting, then ask again.",
     );
-    expect(asked("moka").reason).toContain("tasted brewed as moka.");
+    expect(chosen("espresso", "immersion").reason).toContain("tasted brewed as espresso.");
+    expect(chosen("moka", "pourover").reason).toContain("tasted brewed as moka pot.");
   });
-  it("lets a tasting of any filter brew through to the other rules", () => {
-    for (const brew of FILTER_BREWS) expect(change(advise(input({ taste: ["sour"], brew }))).ruleId, brew).toBe("under-roasted");
-  });
-  it("is the same for every bean: the cupping protocol does not depend on how the bean is brewed at home", () => {
-    expect(asked("espresso", { profile: "1500-2000m Rest" }).ruleId).toBe("tasted-in-other-brew");
+  it("is the same on every profile: the cupping protocol does not depend on the bean or its roast", () => {
+    expect(chosen("espresso", "pourover", { profile: "1500-2000m Rest" }).ruleId).toBe("tasted-in-other-brew");
   });
   it("comes first: a cup in another brew is not judged on its words, its quality or its rest", () => {
-    expect(asked("espresso", { quality: 4 }).ruleId).toBe("tasted-in-other-brew");
-    expect(asked("espresso", { profile: "1500-2000m Rest", restNeeded: [3, 5], restedDays: 1 }).ruleId).toBe("tasted-in-other-brew");
+    expect(chosen("espresso", "pourover", { quality: 4 }).ruleId).toBe("tasted-in-other-brew");
+    expect(chosen("espresso", "pourover", { profile: "1500-2000m Rest", restNeeded: [3, 5], restedDays: 1 }).ruleId).toBe("tasted-in-other-brew");
   });
-  it("is the only place a tasting form's brews are named: the form offers exactly the filter brews", () => {
-    const field = TASTING_FIELDS.find((f) => f.id === "brew");
-    expect(field && "options" in field ? field.options.map((o) => o.value) : []).toEqual([...FILTER_BREWS]);
+  it("has no brew to hold to when the engine is used without a bean: any brew goes through", () => {
+    for (const brew of ["espresso", "pourover"]) expect(change(advise(input({ taste: ["sour"], brew }))).ruleId, brew).toBe("under-roasted");
+  });
+  it("offers the same brews at intake and in the tasting form: the roaster's own brew is theirs to choose", () => {
+    const brewsOf = (fields: Field[], id: string) => {
+      const field = fields.find((f) => f.id === id);
+      return field && "options" in field ? field.options.map((o) => o.value) : [];
+    };
+    expect(brewsOf(TASTING_FIELDS, "brew")).toEqual(brewsOf(INTAKE_FIELDS, "tastingBrew"));
+    expect(brewsOf(TASTING_FIELDS, "brew")).toEqual(["pourover", "immersion", "aeropress", "espresso", "moka", "other"]);
   });
 
   describe("from a bean's history", () => {
+    const pourover: AdviceContext = { tastingBrew: "pourover" };
+    const espresso: AdviceContext = { tastingBrew: "espresso" };
     const tasting = (id: number, taste: string[], brew: string, extra: Partial<HistoryForAdvice["versions"][0]["roasts"][0]["tastings"][0]> = {}) => ({ id, tastedOn: "2026-10-10", quality: taste.some((c) => DEFECTS.includes(c)) ? 2 : 3, taste, brew, ...extra });
     const roastRow = (id: number, roastedAt: string, thermalDose: number, tastings: ReturnType<typeof tasting>[]) => ({ id, roastedAt, logLevel: 3, features: { thermalDose }, tastings });
     const history = (...roasts: ReturnType<typeof roastRow>[]): HistoryForAdvice => ({ versions: [{ number: 1, profileName: "Test", roasts }] });
 
-    it("counts each roast by its newest tasting of filter coffee, not by its newest tasting", () => {
+    it("counts each roast by its newest tasting in the chosen brew, not by its newest tasting", () => {
       // Roast 1 was tasted as pour over (sour) and then as espresso (balanced): the pour over tasting counts.
       const h = history(roastRow(1, "2026-10-01", 10, [tasting(1, ["sour"], "pourover"), tasting(2, ["balanced", "sweet"], "espresso", { quality: 5 })]));
-      const r = adviseFromHistory(h)!;
+      const r = adviseFromHistory(h, pourover)!;
       expect(r.basedOn.tastingId).toBe(1);
       expect(r.advice).toMatchObject({ ruleId: "under-roasted" });
       expect(r.setAside).toBeUndefined();
     });
-    it("asks for a retaste when the newest roast has no tasting of filter coffee, and still reports which tasting it read", () => {
-      const r = adviseFromHistory(history(roastRow(1, "2026-10-01", 10, [tasting(7, ["sour"], "espresso")])))!;
+    it("asks for a retaste when the newest roast has no tasting in the chosen brew, and still reports which tasting it read", () => {
+      const r = adviseFromHistory(history(roastRow(1, "2026-10-01", 10, [tasting(7, ["sour"], "espresso")])), pourover)!;
       expect(r.advice).toMatchObject({ kind: "ask", ruleId: "tasted-in-other-brew" });
       expect(r.basedOn.tastingId).toBe(7);
     });
-    it("leaves out earlier roasts with no tasting of filter coffee, and says how many", () => {
+    it("leaves out earlier roasts with no tasting in the chosen brew, and says how many and which brew", () => {
       const h = history(roastRow(1, "2026-10-01", 10.5, [tasting(1, ["bitter"], "espresso")]), roastRow(2, "2026-10-03", 11, [tasting(2, ["bitter"], "pourover")]), roastRow(3, "2026-10-05", 10, [tasting(3, ["grassy"], "pourover")]));
-      const r = adviseFromHistory(h)!;
-      expect(r.setAside).toBe(1);
+      const r = adviseFromHistory(h, pourover)!;
+      expect(r.setAside).toEqual({ roasts: 1, tastingBrew: "pourover" });
       // Roast 2 (11) is the earlier result that counts. Roast 1 (10.5) is closer, and would halve the gap to 2.5%, if it counted.
       expect(change(r.advice)).toMatchObject({ ruleId: "under-roasted-bracketed", thermalDoseChangePct: 5 });
       const say = adviceReport(1, r, undefined, "No profile.").say;
-      expect(say.endsWith("One earlier roast was without a rated tasting of filter coffee, so it is left out of the comparison (roasts are tasted as pour over, french press / immersion or aeropress).")).toBe(true);
+      expect(say.endsWith("One earlier roast was without a rated tasting brewed as pour over, so it is left out of the comparison (roasts are tasted as pour over).")).toBe(true);
     });
     it("counts several set-aside roasts in the plural, and says nothing when there are none", () => {
       const h = history(roastRow(1, "2026-10-01", 12, [tasting(1, ["bitter"], "espresso")]), roastRow(2, "2026-10-02", 11, [tasting(2, ["bitter"], "moka")]), roastRow(3, "2026-10-05", 10, [tasting(3, ["grassy"], "pourover")]));
-      expect(adviceReport(1, adviseFromHistory(h)!, undefined, "No profile.").say).toContain("2 earlier roasts were without a rated tasting of filter coffee, so they are left out of the comparison");
-      const clean = adviseFromHistory(history(roastRow(1, "2026-10-01", 10, [tasting(1, ["sour"], "pourover")])))!;
+      expect(adviceReport(1, adviseFromHistory(h, pourover)!, undefined, "No profile.").say).toContain("2 earlier roasts were without a rated tasting brewed as pour over, so they are left out of the comparison");
+      const clean = adviseFromHistory(history(roastRow(1, "2026-10-01", 10, [tasting(1, ["sour"], "pourover")])), pourover)!;
       expect(clean.setAside).toBeUndefined();
       expect(adviceReport(1, clean, undefined, "No profile.").say).not.toContain("left out");
+    });
+    it("holds a coffee to its own brew, espresso as much as any: the tastings in it count and the others are left out", () => {
+      const h = history(roastRow(1, "2026-10-01", 10.5, [tasting(1, ["bitter"], "pourover")]), roastRow(2, "2026-10-03", 11, [tasting(2, ["bitter"], "espresso")]), roastRow(3, "2026-10-05", 10, [tasting(3, ["grassy"], "espresso")]));
+      const r = adviseFromHistory(h, espresso)!;
+      expect(r.setAside).toEqual({ roasts: 1, tastingBrew: "espresso" });
+      expect(change(r.advice)).toMatchObject({ ruleId: "under-roasted-bracketed" });
+      expect(adviceReport(1, r, undefined, "No profile.").say.endsWith("One earlier roast was without a rated tasting brewed as espresso, so it is left out of the comparison (roasts are tasted as espresso).")).toBe(true);
+    });
+    it("counts every tasting when the engine is used without a bean", () => {
+      const h = history(roastRow(1, "2026-10-01", 10.5, [tasting(1, ["bitter"], "espresso")]), roastRow(2, "2026-10-05", 10, [tasting(3, ["grassy"], "pourover")]));
+      expect(adviseFromHistory(h)!.setAside).toBeUndefined();
     });
   });
 });
@@ -433,7 +455,7 @@ describe("when the level isn't helping", () => {
 });
 
 describe("what the Kaffelogic adapter tells the rules", () => {
-  const washed = { name: "Guji", species: "arabica", decaf: false, process: "washed", drinkWhen: "rest", altitudeM: 1950 } as const;
+  const washed = { name: "Guji", species: "arabica", decaf: false, process: "washed", drinkWhen: "rest", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 1950 } as const;
 
   it("knows which stock profiles must rest, and for how long", () => {
     const { restNeeded } = kaffelogicAdviceContext(washed);
@@ -456,7 +478,7 @@ describe("what the Kaffelogic adapter tells the rules", () => {
 describe("rest and profile switching, from what the store returns", () => {
   it("holds a sour cup tasted a day after a Rest-profile roast, then judges the retaste", async () => {
     const db = await migratedDb();
-    const intake = { name: "Rest bean", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", altitudeM: 1950 } as const;
+    const intake = { name: "Rest bean", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 1950 } as const;
     const { beanId } = await addBean(db, intake);
     const { roastId } = await addRoast(db, { beanId, klog: syntheticLog({ first_crack: 540, roast_end: 600 }), answers: { greenG: 120, roastedG: 101.5 } });
     const context = kaffelogicAdviceContext(intake);
@@ -475,7 +497,7 @@ describe("rest and profile switching, from what the store returns", () => {
 });
 
 describe("tastings recorded before roast quality replaced the overall score", () => {
-  const intake = { name: "Legacy bean", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", altitudeM: 1950 } as const;
+  const intake = { name: "Legacy bean", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 1950 } as const;
   async function beanWithTasting() {
     const db = await migratedDb();
     const { beanId } = await addBean(db, intake);

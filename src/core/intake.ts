@@ -3,15 +3,31 @@
 // the rules can rely on the same ids. Anything the log already records
 // (profile, level, ambient temperature, times, temperatures) is not asked for.
 
+import { AGTRON_MAX, AGTRON_MIN, SCA_TILES } from "./roastColour.js";
+
 export type Field =
   | { id: string; label: string; kind: "text"; required?: boolean; help?: string; usedFor: string }
-  | { id: string; label: string; kind: "number"; unit?: string; min?: number; max?: number; required?: boolean; help?: string; usedFor: string }
+  | { id: string; label: string; kind: "number"; unit?: string; min?: number; max?: number; integer?: boolean; required?: boolean; help?: string; usedFor: string }
   | { id: string; label: string; kind: "date"; required?: boolean; help?: string; usedFor: string }
   | { id: string; label: string; kind: "boolean"; required?: boolean; help?: string; usedFor: string }
   | { id: string; label: string; kind: "choice" | "chips"; options: { value: string; label: string }[]; required?: boolean; help?: string; usedFor: string };
 
 const opts = (...pairs: [string, string][]) => pairs.map(([value, label]) => ({ value, label }));
 
+/**
+ * The cupping protocol: every tasting of a coffee is of one brew, the roaster's own, chosen at intake, so no roast's cup is
+ * a different kind of brew from the others. What the roaster usually brews is theirs to say; the tool does not aim the
+ * roast at it. Brew and rest change the cup, not the roast, so the tool holds the brew steady instead of advising on it
+ * (docs/RULES.md, rule 1).
+ */
+const BREWS: [string, string][] = [
+  ["pourover", "Pour over"],
+  ["immersion", "French press / immersion"],
+  ["aeropress", "AeroPress"],
+  ["espresso", "Espresso"],
+  ["moka", "Moka pot"],
+  ["other", "Other"],
+];
 /** Bean intake: one per bean, i.e. per roast project. */
 export const INTAKE_FIELDS: Field[] = [
   { id: "name", label: "Bean name", kind: "text", required: true, help: "Whatever you call it, e.g. 'Ethiopia Guji from Sweet Maria's'.", usedFor: "Display" },
@@ -26,12 +42,33 @@ export const INTAKE_FIELDS: Field[] = [
     usedFor: "Picks KL Washed / KL Natural; naturals scorch and develop faster",
   },
   { id: "drinkWhen", label: "When will you drink it", kind: "choice", required: true, options: opts(["soon", "Within a day or two"], ["rest", "After resting 3 to 5 days"]), usedFor: "RTD vs Rest profiles" },
-  { id: "altitudeM", label: "Altitude", kind: "number", unit: "m", min: 0, max: 3000, help: "If the bag gives a range, use the middle.", usedFor: "Altitude band; a proxy for density" },
+  {
+    id: "agtronTarget",
+    label: "Roast you are shooting for",
+    kind: "number",
+    unit: "Agtron",
+    min: AGTRON_MIN,
+    max: AGTRON_MAX,
+    integer: true,
+    required: true,
+    help: `The SCA / Agtron roast colour, higher is lighter: ${SCA_TILES.map((t) => `${t.agtron} ${t.name}`).join(", ")}. A word is taken as its number; a colour meter's reading can be used as it is. It only picks the first level to try: after that, the defects in the cup decide each step.`,
+    usedFor: "The first level to try, from the Agtron scale",
+  },
+  {
+    id: "tastingBrew",
+    label: "The brew you will taste every roast of this coffee with",
+    kind: "choice",
+    required: true,
+    options: opts(...BREWS),
+    help: "Your usual brew, whatever it is. Stay on it for every tasting of this coffee, so a difference in the cup is a difference in the roast. With no usual brew, a filter brew (pour over, French press or AeroPress) is the easiest to make the same way each time.",
+    usedFor: "Every tasting is of this brew (docs/RULES.md, rule 1)",
+  },
+  { id: "altitudeM", label: "Altitude", kind: "number", unit: "m", min: 0, max: 3000, integer: true, help: "If the bag gives a range, use the middle.", usedFor: "Altitude band; a proxy for density" },
   { id: "origin", label: "Country / region", kind: "text", usedFor: "Display; comparing beans later" },
   { id: "variety", label: "Variety", kind: "text", help: "e.g. Bourbon, Gesha, SL28.", usedFor: "Comparing beans later" },
   { id: "cropDate", label: "Harvest or arrival date", kind: "date", help: "Old crop roasts faster and tastes flatter.", usedFor: "Flags past-crop beans" },
   { id: "moisturePct", label: "Moisture", kind: "number", unit: "%", min: 5, max: 15, help: "Only if the seller lists it.", usedFor: "Adjusts drying expectations" },
-  { id: "densityGL", label: "Density", kind: "number", unit: "g/L", min: 550, max: 850, help: "Only if the seller lists it.", usedFor: "Better than altitude when known" },
+  { id: "densityGL", label: "Density", kind: "number", unit: "g/L", min: 550, max: 850, integer: true, help: "Only if the seller lists it.", usedFor: "Better than altitude when known" },
   { id: "chaffy", label: "Lots of chaff", kind: "boolean", help: "Leave blank until you've roasted it once.", usedFor: "Suggests the higher-fan variant" },
   { id: "sellerNotes", label: "Seller's tasting notes", kind: "text", usedFor: "What 'good' should taste like for this bean" },
 ];
@@ -43,6 +80,10 @@ export interface Intake {
   decaf: boolean;
   process: "washed" | "natural" | "honey" | "anaerobic" | "wet-hulled" | "unknown";
   drinkWhen: "soon" | "rest";
+  /** The SCA / Agtron roast colour shot for, 25 to 95. The roaster can restate it at any time. */
+  agtronTarget: number;
+  /** The one brew every tasting of this coffee is of. */
+  tastingBrew: string;
   altitudeM?: number;
   origin?: string;
   variety?: string;
@@ -58,7 +99,7 @@ export const ROAST_FIELDS: Field[] = [
   { id: "greenG", label: "Green weight", kind: "number", unit: "g", min: 50, max: 200, required: true, help: "Weigh it; the machine's load setting isn't the actual weight.", usedFor: "Weight loss" },
   { id: "roastedG", label: "Roasted weight", kind: "number", unit: "g", min: 30, max: 200, required: true, usedFor: "Weight loss: a check on development that doesn't depend on button presses" },
   { id: "cracksPressedOk", label: "I pressed first crack when I heard it", kind: "boolean", help: "Untick if you missed it or pressed late.", usedFor: "Whether to trust development time" },
-  { id: "colour", label: "Colour reading", kind: "number", min: 0, max: 150, help: "Only with a colour meter; say which scale in notes.", usedFor: "Ground truth for roast level" },
+  { id: "colour", label: "Agtron reading", kind: "number", unit: "Agtron", min: AGTRON_MIN, max: AGTRON_MAX, help: "The SCA / Agtron reading of the roasted coffee, only with a colour meter. Readings tune the first level suggested for a roast colour on that profile, when the roast's log is recorded.", usedFor: "Ties the profile's levels to the Agtron scale for this roaster" },
   {
     id: "looks",
     label: "How the beans look",
@@ -83,19 +124,10 @@ export const QUALITY_ANCHORS: Record<number, string> = {
 /** What a quality means, or a plain fallback for a value off the scale (the form never stores one, but the engine can be called directly). */
 export const qualityMeaning = (quality: number) => QUALITY_ANCHORS[quality] ?? "off the 1 to 5 scale";
 
-/**
- * The cupping protocol: every tasting is of filter coffee, so no roast's cup is a different kind of
- * brew from the others. Filter is a baseline chosen for access (the easiest cup to make
- * well with inexpensive equipment), not a roast target. Brew and rest change the cup, not the roast, so the tool
- * controls them instead of advising on them (docs/RULES.md, rule 1).
- */
-const CUPPING_BREWS: [string, string][] = [["pourover", "Pour over"], ["immersion", "French press / immersion"], ["aeropress", "AeroPress"]];
-export const FILTER_BREWS: readonly string[] = CUPPING_BREWS.map(([value]) => value);
-
 /** After resting and brewing. This is the field that matters most; keep it quick. */
 export const TASTING_FIELDS: Field[] = [
   { id: "tastedOn", label: "Tasted on", kind: "date", required: true, help: "Defaults to today.", usedFor: "Days of rest" },
-  { id: "brew", label: "Brewed as", kind: "choice", required: true, options: opts(...CUPPING_BREWS), help: "Roasts are tasted as filter coffee so they can be compared.", usedFor: "The cupping protocol: every roast is tasted as filter coffee" },
+  { id: "brew", label: "Brewed as", kind: "choice", options: opts(...BREWS), help: "Left out, it is the brew chosen for this coffee at intake, so roasts can be compared. Name one only when this tasting was a different brew.", usedFor: "The cupping protocol: every roast of a coffee is tasted as the same brew" },
   {
     id: "quality",
     label: "Roast quality",
@@ -130,5 +162,5 @@ export const TASTING_FIELDS: Field[] = [
 ];
 
 const BREW_LABELS = new Map(TASTING_FIELDS.flatMap((f): [string, string][] => (f.id === "brew" && "options" in f ? f.options.map((o): [string, string] => [o.value, o.label.toLowerCase()]) : [])));
-/** A brew as the tasting form words it ("pour over"), lower-cased for a sentence; a value the form no longer offers (an espresso tasting recorded earlier) is shown as it was stored. */
+/** A brew as the tasting form words it ("pour over"), lower-cased for a sentence; a value that is not one of the form's brews (the engine can be called with any text) is shown as given. */
 export const brewLabel = (value: string) => BREW_LABELS.get(value) ?? value;

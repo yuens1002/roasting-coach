@@ -62,6 +62,7 @@ export function checkAnswers(fields: Field[], input: Record<string, unknown>): C
         const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : Number.NaN;
         const unit = f.unit ? ` ${f.unit}` : "";
         if (!Number.isFinite(n)) errors.push(`${f.label} must be a number.`);
+        else if (f.integer && !Number.isInteger(n)) errors.push(`${f.label} must be a whole number; got ${n}${unit}.`);
         else if ((f.min !== undefined && n < f.min) || (f.max !== undefined && n > f.max))
           errors.push(`${f.label} must be between ${f.min ?? "-∞"} and ${f.max ?? "∞"}${unit}; got ${n}${unit}.`);
         else values[f.id] = n;

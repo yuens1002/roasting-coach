@@ -25,8 +25,8 @@ export interface Example {
 export const EXAMPLES: Example[] = [
   {
     id: "tasted-in-other-brew",
-    scenario: "sour, brewed as espresso",
-    input: { latest: roast({ taste: ["sour"], brew: "espresso" }), earlier: [] },
+    scenario: "sour, tasted as pour over, when espresso is the coffee's tasting brew",
+    input: { latest: roast({ taste: ["sour"], brew: "pourover" }), earlier: [], context: { tastingBrew: "espresso" } },
   },
   { id: "quality-vs-words", scenario: "ashy, rated roast quality 4", input: { latest: roast({ taste: ["ashy"], quality: 4 }), earlier: [] } },
   { id: "mixed-signals", scenario: "tasted sour and bitter", input: { latest: roast({ taste: ["sour", "bitter"] }), earlier: [] } },

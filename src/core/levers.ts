@@ -3,7 +3,7 @@
 // roasts and tastings, never guessed. The ledger is what stops "no rule covers this" from being the
 // whole answer: for a clean cup below the bar it says what can raise the quality, what each lever
 // changes, and what the evidence says about it. Rest and brew are not levers: they change the cup, not
-// the roast. Every tasting is of filter coffee so roasts can be compared (rules.ts, tasted-in-other-brew).
+// the roast. Every tasting of a coffee is of its roaster's chosen brew so roasts can be compared (rules.ts, tasted-in-other-brew).
 //
 // This file imports only types from rules.ts, so there is no import cycle at run time (rules.ts
 // imports this file).

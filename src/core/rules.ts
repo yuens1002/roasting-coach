@@ -9,7 +9,7 @@
 // each lives in RULE_SETTINGS so the rules and tests can see it.
 
 import { daysBetween } from "./dates.js";
-import { FILTER_BREWS, QUALITY_ANCHORS, brewLabel, qualityMeaning } from "./intake.js";
+import { QUALITY_ANCHORS, brewLabel, qualityMeaning } from "./intake.js";
 import { PCT_EPSILON, cleanBelowBarMessage, leverLedger, sameProfile } from "./levers.js";
 
 export const RULE_SETTINGS = {
@@ -128,6 +128,8 @@ export interface AdviceContext {
   alternative?: { profileName: string; level: number; endTempC: number };
   /** What the roaster says this coffee should taste like (the supplier's or producer's description, or their own cup), when they know. */
   reference?: string;
+  /** The one brew every tasting of this coffee is of, chosen at intake. Left out when the engine is used without a bean: any brew counts then. */
+  tastingBrew?: string;
 }
 
 export interface AdviceInput {
@@ -168,8 +170,8 @@ interface Reading {
 const pick = (taste: string[], chips: readonly string[]) => taste.filter((c) => chips.includes(c));
 const joined = (items: readonly string[], conjunction: "and" | "or") => (items.length < 3 ? items.join(` ${conjunction} `) : `${items.slice(0, -1).join(", ")} ${conjunction} ${items[items.length - 1]}`);
 const words = (items: readonly string[]) => joined(items, "and");
-/** The brews the cupping protocol allows, as the tasting form words them. */
-const filterBrews = () => joined(FILTER_BREWS.map(brewLabel), "or");
+/** Whether a tasting counts for a coffee: it is of the brew chosen at intake (any brew, when the engine is used without a bean). */
+const countsAsTasted = (brew: string, context?: AdviceContext) => !context?.tastingBrew || brew === context.tastingBrew;
 const pct = (n: number) => Math.round(Math.abs(n) * 10) / 10;
 
 function read(t: TastedRoast, { chips }: Calibration): Reading {
@@ -254,16 +256,17 @@ function developmentRule(side: Side): Rule["run"] {
 /** The table, in the order the rules are tried. */
 export const RULES: Rule[] = [
   {
-    // Brew and rest change the cup, not the roast. Every tasting is of filter coffee (the cupping protocol), so that no roast is
-    // tasted as a different kind of brew. The form only offers filter brews; this catches a tasting
-    // recorded before it did, in another brew, which says nothing the others can be set against.
+    // Brew and rest change the cup, not the roast. Every tasting of a coffee is of the one brew chosen at intake (the cupping
+    // protocol), so that no roast is tasted as a different kind of brew. The form offers every brew, so this catches a tasting
+    // in another one, which says nothing the others can be set against.
     id: "tasted-in-other-brew",
-    run: ({ latest }) => {
-      if (FILTER_BREWS.includes(latest.brew)) return undefined;
+    run: ({ latest, context }) => {
+      const chosen = context?.tastingBrew;
+      if (!chosen || countsAsTasted(latest.brew, context)) return undefined;
       return {
         kind: "ask",
         ruleId: "tasted-in-other-brew",
-        reason: `This roast was tasted brewed as ${brewLabel(latest.brew)}. Roasts are tasted as filter coffee (${filterBrews()}), so that a difference in the cup is not a difference between filter and another kind of brew. Taste this roast brewed that way and record that tasting, then ask again.`,
+        reason: `This roast was tasted brewed as ${brewLabel(latest.brew)}. Roasts of this coffee are tasted as ${brewLabel(chosen)}, so that a difference in the cup is not a difference between kinds of brew. Taste this roast brewed as ${brewLabel(chosen)} and record that tasting, then ask again.`,
       };
     },
   },
@@ -372,15 +375,15 @@ export interface AdviceResult {
   /** The roast and tasting the advice answers, newest first among tasted roasts. */
   basedOn: { version: number; roastId: number; tastingId: number; level?: number; measuredThermalDose: number };
   advice: Advice;
-  /** How many earlier roasts were left out of the comparison because none of their rated tastings was of filter coffee; absent when none were. */
-  setAside?: number;
+  /** The earlier roasts left out of the comparison because none of their rated tastings was of the coffee's tasting brew: how many, and that brew. Absent when none were. */
+  setAside?: { roasts: number; tastingBrew: string };
 }
 
 /**
  * Advice for a bean's newest tasted roast, using its other tasted roasts as the bean's own record.
- * Each roast counts once, by its newest tasting of filter coffee (the cupping protocol, FILTER_BREWS). The
- * newest roast counts by its newest tasting when none is of filter coffee, and the rules then ask for one.
- * An earlier roast with no tasting of filter coffee is left out and counted in `setAside`. Roasts without a measured thermal dose can't be compared, so they're left out;
+ * Each roast counts once, by its newest tasting in the coffee's tasting brew (the cupping protocol; any brew when the
+ * context names none). The newest roast counts by its newest tasting when none is in that brew, and the rules then ask
+ * for one. An earlier roast with no tasting in that brew is left out and counted in `setAside`. Roasts without a measured thermal dose can't be compared, so they're left out;
  * undefined when no roast with a thermal dose has been tasted.
  */
 export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceContext, calibration?: Calibration): AdviceResult | undefined {
@@ -392,7 +395,7 @@ export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceCon
   const newest = tasted[tasted.length - 1];
   if (!newest) return undefined;
   const lastTasting = (entry: (typeof tasted)[number]) => entry.roast.tastings[entry.roast.tastings.length - 1];
-  const countedTasting = (entry: (typeof tasted)[number]) => entry.roast.tastings.filter((t) => FILTER_BREWS.includes(t.brew)).pop();
+  const countedTasting = (entry: (typeof tasted)[number]) => entry.roast.tastings.filter((t) => countsAsTasted(t.brew, context)).pop();
   const asRoast = (entry: (typeof tasted)[number], tasting: ReturnType<typeof lastTasting>): TastedRoast => {
     const { version, roast } = entry;
     const profile = version.baseProfile ?? version.profileName;
@@ -418,7 +421,8 @@ export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceCon
   return {
     basedOn: { version: newest.version.number, roastId: newest.roast.id, tastingId: tasting.id, level: newest.roast.logLevel, measuredThermalDose: latest.thermalDose },
     advice: advise({ latest, earlier, context, calibration }),
-    ...(setAside ? { setAside } : {}),
+    // A roast is only set aside by a brew the context names, so the brew is there whenever there is a roast set aside.
+    ...(setAside && context?.tastingBrew ? { setAside: { roasts: setAside, tastingBrew: context.tastingBrew } } : {}),
   };
 }
 
@@ -457,9 +461,9 @@ export interface AdviceReport {
  */
 export function adviceReport(beanId: number, result: AdviceResult, move: LevelMove | undefined, problem?: string): AdviceReport {
   const report = reportFor(beanId, result, move, problem);
-  const { setAside } = result;
-  if (!setAside) return report;
-  const note = `${setAside === 1 ? "One earlier roast was" : `${setAside} earlier roasts were`} without a rated tasting of filter coffee, so ${setAside === 1 ? "it is" : "they are"} left out of the comparison (roasts are tasted as ${filterBrews()}).`;
+  if (!result.setAside) return report;
+  const { roasts, tastingBrew } = result.setAside;
+  const note = `${roasts === 1 ? "One earlier roast was" : `${roasts} earlier roasts were`} without a rated tasting brewed as ${brewLabel(tastingBrew)}, so ${roasts === 1 ? "it is" : "they are"} left out of the comparison (roasts are tasted as ${brewLabel(tastingBrew)}).`;
   return { ...report, say: `${report.say} ${note}` };
 }
 
