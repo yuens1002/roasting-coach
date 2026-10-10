@@ -144,6 +144,13 @@ describe("the bean's table", () => {
     expect(beanTable({ versions }).levelChangesMade).toBe(1);
   });
 
+  it("shows what was roasted: a profile of the roaster's own with the stock profile it is built on", () => {
+    const own = { ...version(1, undefined, [roast(1, 3, 10, { words: ["sweet"], quality: 4 })]), profileName: "Kenya slow", baseProfile: "1500-2000m Rest" };
+    expect(beanTable({ versions: [own] }).rows[0].profile).toBe("Kenya slow (1500-2000m Rest)");
+    expect(beanTable({ versions: [{ ...own, profileName: "1500-2000m Rest" }] }).rows[0].profile).toBe("1500-2000m Rest");
+    expect(beanTable({ versions: [version(1, undefined, [roast(1, 3, 10, { words: ["sweet"], quality: 4 })])] }).rows[0].profile).toBe("Robusta");
+  });
+
   it("keeps a bar inside a profile name from splitting its row", () => {
     const { say } = beanTable({ versions: [{ ...version(1, undefined, [roast(1, 3, 10, { words: ["sweet"], quality: 4 })]), profileName: "A | B" }] });
     expect(say).toContain("| 1 | 1 | A \\| B | 3 |");

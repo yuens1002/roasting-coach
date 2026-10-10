@@ -227,6 +227,12 @@ describe("advice from a bean's history", () => {
       const different: HistoryForAdvice = chain({ 1: undefined, 2: 1, 3: 2 });
       different.versions.forEach((v, i) => ((v as { profileKey?: string }).profileKey = i === 0 ? "stock" : "edited"));
       expect(adviseFromHistory(different)!.basedOn.levelChange).toBe(2);
+      // A stock version has no fingerprint and an edited copy of it has one under the same stock name: not the same profile.
+      const edited: HistoryForAdvice = chain({ 1: undefined, 2: 1, 3: 2 });
+      edited.versions.forEach((v) => ((v as { baseProfile?: string }).baseProfile = "1500-2000m Rest"));
+      (edited.versions[1] as { profileKey?: string }).profileKey = "edited";
+      (edited.versions[2] as { profileKey?: string }).profileKey = "edited";
+      expect(adviseFromHistory(edited)!.basedOn.levelChange).toBe(2);
     });
     it("is not thrown by a history with no parent links, or a parent loop", () => {
       expect(adviseFromHistory(chain({ 1: undefined, 2: undefined }))!.basedOn.levelChange).toBe(1);

@@ -22,7 +22,7 @@ Two things are kept apart (decided 2026-10-08):
 
 Concretely (decided 2026-10-10): get a bean's roast right in **no more than three level changes**, by telling the
 roaster which way to go each time. The count starts at the first level change the tool recommends, and counts the
-versions behind the roast tasted (each is one change, whoever chose it; a profile switch is one). "Right", for what is
+versions behind the roast tasted on its profile (each is one change, whoever chose it; a switch of profile starts the count again). "Right", for what is
 built, is a **clean cup, roast quality 3 or better**: the tool can't choose another profile for a cup that shows no
 defect to point the way, and it can't edit a curve or make a new profile yet. A quality of **4 or better** stays the
 aim for when it can. The levers are the level, then the profile and the curve. When three level changes are used and the

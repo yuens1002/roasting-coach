@@ -55,7 +55,8 @@ export function beanTable(history: HistoryForAdvice, context?: AdviceContext, ca
     const row: BeanTableRow = {
       roast: i + 1,
       version: version.number,
-      profile: version.baseProfile ?? version.profileName,
+      // What was roasted: the profile's own name, with the stock profile it is built on when that is another name.
+      profile: version.baseProfile && version.baseProfile !== version.profileName ? `${version.profileName} (${version.baseProfile})` : version.profileName,
       level: roast.logLevel ?? version.level,
       thermalDose: thermalDose === undefined ? undefined : roundTo(thermalDose, 2),
       stepPct: entry && previousDose !== undefined ? round1((entry.tasted.thermalDose / previousDose - 1) * 100) : undefined,

@@ -383,7 +383,11 @@ export interface AdviceResult {
 }
 
 type HistoryVersion = HistoryForAdvice["versions"][number];
-const sameVersionProfile = (a: HistoryVersion, b: HistoryVersion) => (a.profileKey && b.profileKey ? a.profileKey === b.profileKey : (a.baseProfile ?? a.profileName) === (b.baseProfile ?? b.profileName));
+/**
+ * Two versions are on the same profile when their fingerprints agree. A stock version has none and an edited copy of it has one while keeping
+ * the stock name, so one fingerprint on one side only is a different profile; names are compared only when neither version has one.
+ */
+const sameVersionProfile = (a: HistoryVersion, b: HistoryVersion) => (a.profileKey || b.profileKey ? a.profileKey === b.profileKey : (a.baseProfile ?? a.profileName) === (b.baseProfile ?? b.profileName));
 
 /**
  * How many level changes lie behind a version on its profile: the steps back along the versions' parents while the profile stays
