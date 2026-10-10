@@ -211,7 +211,7 @@ What each change does, and where it stands. The reason is there when it was set 
   together, a roast quality that contradicts the words, an earlier roast that contradicts this
   one), holds a clean cup (a quality of 3 or more) as done, holds an uncooked cup tasted before its profile's rest is over (the Rest profiles assume
   3 to 5 days; RTD, ready to drink, ones none), switches to the bean's alternative profile when more
-  roasting left the cup on the same side (the level isn't what's wrong; not one that already has a tasted roast), asks for a retaste in the coffee's tasting brew when a roast was tasted another way, and says which of the three level changes a
+  roasting left the cup on the same side (the level isn't what's wrong; not one the bean has been roasted on), asks for a retaste in the coffee's tasting brew when a roast was tasted another way, and says which of the three level changes a
   recommendation is. The engine returns the finished answer: `say`,
   the whole reply in plain words, and `onYes`, the exact `version:add` command for a yes. The
   `/roast` skill only relays `say` and runs `onYes`; it interprets nothing.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { beanTable } from "../src/core/beanTable.js";
 import { NO_OVERRIDES, applyChange, resolveCalibration } from "../src/core/calibration.js";
-import { LEVEL_CHANGE_BUDGET, type HistoryForAdvice } from "../src/core/rules.js";
+import { LEVEL_CHANGE_BUDGET, type HistoryForAdvice, adviseFromHistory } from "../src/core/rules.js";
 
 type Tasting = { words: string[]; quality: number; brew?: string };
 /** A roast: its number (which also dates it), version, level, measured thermal dose (absent: no log), and tasting (absent: not tasted). */
@@ -117,6 +117,16 @@ describe("the bean's table", () => {
     expect(close.say).toContain("The roasts disagree about which way to go.");
     const apart = beanTable({ versions: [version(1, undefined, [roast(1, 3, 10, { words: ["grassy"], quality: 2 })]), version(2, 1, [roast(2, 3.4, 10.5, { words: ["bitter"], quality: 2 })])] });
     expect(apart.say).toContain("lies between them");
+  });
+
+  it("takes the gap from the later roast, on unrounded thermal doses, so the bracket is the one the advice would draw", () => {
+    // 10 and 10.305: the gap is 2.96% of 10.305 (inside the 3% band) when the scorched roast is the later one, and 3.05% of 10 (outside it) when the uncooked one is.
+    const scorchedLater: HistoryForAdvice = { versions: [version(1, undefined, [roast(1, 3, 10, { words: ["grassy"], quality: 2 })]), version(2, 1, [roast(2, 3.1, 10.305, { words: ["bitter"], quality: 2 })])] };
+    const uncookedLater: HistoryForAdvice = { versions: [version(1, undefined, [roast(1, 3.1, 10.305, { words: ["bitter"], quality: 2 })]), version(2, 1, [roast(2, 3, 10, { words: ["grassy"], quality: 2 })])] };
+    expect(beanTable(scorchedLater).say).toContain("The roasts disagree about which way to go.");
+    expect(beanTable(uncookedLater).say).toContain("lies between them");
+    expect(adviseFromHistory(scorchedLater)!.advice.ruleId).toBe("over-roasted-contradicted");
+    expect(adviseFromHistory(uncookedLater)!.advice.ruleId).toBe("under-roasted-bracketed");
   });
 
   it("says what it has when no tasted roast is in the coffee's tasting brew, or none has a measured thermal dose", () => {

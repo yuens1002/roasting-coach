@@ -316,8 +316,7 @@ tasted the same side with at least `noResponsePct` less roasting
 (for under-roasted; more for over-roasted). The level has moved the roast and the cup has stayed on the same side.
 **What it does:** suggests the bean's other profile (the alternative worked out from the bean's
 process and altitude as they are recorded now), at the level the tool starts that profile at. The comparison is with the first earlier roast on this profile that qualifies, not necessarily
-the one just before. It won't send you back to a profile that already has a tasted roast with a
-measured thermal dose for this bean (an untasted roast isn't counted, so check the history yourself);
+the one just before. It won't send you back to a profile this bean has already been roasted on, tasted or not;
 if there isn't an alternative, or you've used it, it asks instead and says the next lever is the
 curve, which this tool can't edit yet.
 **Why:** one lever at a time. The level has been moved a real distance and the cup stayed on the same side,

@@ -17,6 +17,8 @@ export interface BeanTableRow {
   level?: number;
   /** Absent for a roast with no measured thermal dose. */
   thermalDose?: number;
+  /** The same, unrounded, for comparing roasts the way the rules do. */
+  exactThermalDose?: number;
   /** The change in thermal dose from the roast before it that was tasted, in %. Absent for the first. */
   stepPct?: number;
   /** Absent for a roast not tasted yet, or without a measured thermal dose. */
@@ -59,6 +61,7 @@ export function beanTable(history: HistoryForAdvice, context?: AdviceContext, ca
       profile: version.baseProfile && version.baseProfile !== version.profileName ? `${version.profileName} (${version.baseProfile})` : version.profileName,
       level: roast.logLevel ?? version.level,
       thermalDose: thermalDose === undefined ? undefined : roundTo(thermalDose, 2),
+      exactThermalDose: thermalDose,
       stepPct: entry && previousDose !== undefined ? round1((entry.tasted.thermalDose / previousDose - 1) * 100) : undefined,
       tasted: entry && { words: entry.tasting.taste, quality: entry.tasting.quality, reads: readsOf(entry.tasting.taste, calibration), brew: entry.tasting.brew, counted: entry.counted },
     };
@@ -93,16 +96,18 @@ function standing(rows: BeanTableRow[], levelChangesMade: number | undefined, { 
       ? `Level changes made on this profile: ${levelChangesMade} of the ${LEVEL_CHANGE_BUDGET} this tool aims to get the roast right in.`
       : `Level changes made on this profile: ${levelChangesMade}, past the ${LEVEL_CHANGE_BUDGET} this tool aims to get the roast right in.`,
   ];
-  const counted = rows.filter((r): r is BeanTableRow & { tasted: NonNullable<BeanTableRow["tasted"]>; thermalDose: number } => r.tasted?.counted === true && r.thermalDose !== undefined);
+  const counted = rows.filter((r): r is BeanTableRow & { tasted: NonNullable<BeanTableRow["tasted"]>; thermalDose: number; exactThermalDose: number } => r.tasted?.counted === true && r.thermalDose !== undefined && r.exactThermalDose !== undefined);
   if (!counted.length) return [...lines, "None of the tasted roasts is in the coffee's tasting brew yet."];
   const uncooked = counted.filter((r) => r.tasted.reads === "uncooked");
   const scorched = counted.filter((r) => r.tasted.reads === "scorched");
-  const furthestUncooked = uncooked.reduce<(typeof counted)[number] | undefined>((best, r) => (!best || r.thermalDose > best.thermalDose ? r : best), undefined);
-  const lightestScorched = scorched.reduce<(typeof counted)[number] | undefined>((best, r) => (!best || r.thermalDose < best.thermalDose ? r : best), undefined);
+  const furthestUncooked = uncooked.reduce<(typeof counted)[number] | undefined>((best, r) => (!best || r.exactThermalDose > best.exactThermalDose ? r : best), undefined);
+  const lightestScorched = scorched.reduce<(typeof counted)[number] | undefined>((best, r) => (!best || r.exactThermalDose < best.exactThermalDose ? r : best), undefined);
   const at = (r: (typeof counted)[number]) => `thermal dose ${r.thermalDose}, roast ${r.roast}${r.level === undefined ? "" : `, level ${r.level}`}`;
   if (furthestUncooked && lightestScorched) {
-    // The advice's own test: a scorched roast counts as further along than an uncooked one only beyond the noise band.
-    const apart = ((lightestScorched.thermalDose - furthestUncooked.thermalDose) * 100) / furthestUncooked.thermalDose > settings.noisePct;
+    // The advice's own test, on unrounded thermal doses: the gap is taken from the roast tasted later (the one the advice is
+    // about), and the two are apart only beyond the noise band.
+    const later = furthestUncooked.roast > lightestScorched.roast ? furthestUncooked : lightestScorched;
+    const apart = ((lightestScorched.exactThermalDose - furthestUncooked.exactThermalDose) * 100) / later.exactThermalDose > settings.noisePct;
     lines.push(
       apart
         ? `Uncooked up to ${at(furthestUncooked)}; scorched from ${at(lightestScorched)}. The roast that clears both defects lies between them.`

@@ -499,6 +499,29 @@ describe("the three level changes are used and the cup still has a defect", () =
     expect(used({ taste: ["grassy"], profile: "1500-2000m Rest", restNeeded: [3, 5], restedDays: 1 }).ruleId).toBe("tasted-too-soon");
     expect(used({ taste: ["grassy"], brew: "moka" }, { context: { tastingBrew: "pourover" } }).ruleId).toBe("tasted-in-other-brew");
   });
+  it("counts the other profile as roasted when the bean has a roast on it that was never tasted, or tasted outside the tasting brew", () => {
+    const row = (id: number, thermalDose: number, tastings: { quality: number; taste: string[]; brew: string }[], roastedAt = `2026-10-0${id}`) => ({
+      id,
+      roastedAt,
+      logLevel: 3,
+      features: { thermalDose },
+      tastings: tastings.map((t, i) => ({ id: id * 10 + i, tastedOn: `2026-10-1${id}`, ...t })),
+    });
+    const grassy = { quality: 2, taste: ["grassy"], brew: "pourover" };
+    const base: HistoryForAdvice["versions"] = [1, 2, 3, 4].map((number) => ({ number, parentNumber: number === 1 ? undefined : number - 1, profileName: "Test", roasts: [row(number, 8 + number, [grassy])] }));
+    const with5 = (roasts: ReturnType<typeof row>[]): HistoryForAdvice => ({ versions: [...base, { number: 5, parentNumber: 4, profileName: "KL Washed", roasts }] });
+    // Version 5 is on the other profile, roasted before the others here so that v4's roast is the newest tasted one.
+    const untasted = adviseFromHistory(with5([row(5, 14, [], "2026-09-01")]), { ...ALTERNATIVE, tastingBrew: "pourover" })!;
+    expect(untasted.basedOn.version).toBe(4);
+    expect(untasted.advice).toMatchObject({ kind: "ask", ruleId: "level-changes-used" });
+    expect(untasted.advice.reason).toContain("You've already roasted this bean on KL Washed");
+    // Tasted only as espresso, so left out of the comparison: still roasted.
+    const outside = adviseFromHistory(with5([row(5, 14, [{ quality: 2, taste: ["grassy"], brew: "espresso" }], "2026-09-01")]), { ...ALTERNATIVE, tastingBrew: "pourover" })!;
+    expect(outside.advice).toMatchObject({ kind: "ask", ruleId: "level-changes-used" });
+    // With no roast on it at all, the other profile is still offered.
+    expect(adviseFromHistory(with5([]), ALTERNATIVE)!.advice).toMatchObject({ kind: "switch-profile", profileName: "KL Washed" });
+  });
+
   it("is reached from a bean's history once its newest roast has three level changes behind it", () => {
     const row = (id: number, thermalDose: number) => ({ id, roastedAt: `2026-10-0${id}`, logLevel: 3, features: { thermalDose }, tastings: [{ id, tastedOn: `2026-10-0${id}`, quality: 2, taste: ["grassy"], brew: "pourover" }] });
     const history: HistoryForAdvice = {
