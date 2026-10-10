@@ -29,7 +29,7 @@ A reference cup the roaster describes (say, the farm's or the seller's) goes in 
 4. Report v1 in plain words: profile, level **and end temperature**, when the curve reaches it,
    the `why` lines, and the alternative profile.
 5. If `profile.written` is set, the bean has its own profile, `<bean name>.kpro` in
-   `profiles/out/`: the chosen stock profile renamed for the bean, curve unchanged. Tell the
+   `profiles/out/` (or `KAFFELOGIC_OUT_DIR` when it is set): the chosen stock profile renamed for the bean, curve unchanged. Tell the
    roaster to load it onto the machine, pick it, and set the level. Without it (a warning says
    the stock file is missing from `profiles/`), say which stock profile to pick and the level.
    The bean name becomes the name on the machine, so suggest a short one before `bean:add`.
@@ -119,7 +119,7 @@ and run the command it hands you if the roaster says yes.
    retaste as filter coffee, add that tasting with `taste:add` on the same roast and run
    `advise` again; nothing new is recorded until the tasting is.
 5. If the roaster wants a file for the new version, `profile:write` (`{"beanId", "version"}`,
-   optional `"name"`) writes `<bean> <level>.kpro` to `profiles/out/`: the version's profile with
+   optional `"name"`) writes `<bean> <level>.kpro` to `profiles/out/` (or `KAFFELOGIC_OUT_DIR` when it is set): the version's profile with
    its level as the level the machine offers first. Only labels change, so a roast on it still
    counts as the same profile. Remind them to check the level on the machine before roasting.
 

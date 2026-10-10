@@ -1,6 +1,6 @@
 // The dev station's pure parts: where its throwaway database and files live, and made-up roast logs for
 // it. Nothing here touches a database or the disk, so tests can import it. The station never uses the
-// app's own database (roast_copilot) or the roaster's folders (profiles/): see station.ts.
+// app's own database (roast_copilot) and writes nothing to the roaster's folders (profiles/): see station.ts.
 import { tmpdir } from "node:os";
 import pg from "pg";
 import { join, resolve } from "node:path";
