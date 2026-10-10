@@ -4,13 +4,20 @@
 // own earlier results. A change is sized in thermal dose (a percentage of the tasted roast's own
 // thermal dose); turning it into a level for the profile at hand is the adapter's job (thermalDose.ts).
 //
-// Only the clear cases are here. A tasting no rule covers gets an honest "no rule" answer, never
-// an improvised one. Every setting is a first guess to be tuned against real roasts and tastings;
+// Only the clear cases are here. Every tasting gets an answer from a rule (a test checks that), never an
+// improvised one, and a clean cup is left alone: this tool can't choose another profile or edit a curve to take
+// it further. Every setting is a first guess to be tuned against real roasts and tastings;
 // each lives in RULE_SETTINGS so the rules and tests can see it.
 
 import { daysBetween } from "./dates.js";
-import { QUALITY_ANCHORS, brewLabel, qualityMeaning } from "./intake.js";
-import { PCT_EPSILON, cleanBelowBarMessage, leverLedger, sameProfile } from "./levers.js";
+import { brewLabel, qualityMeaning } from "./intake.js";
+import { PCT_EPSILON, sameProfile } from "./levers.js";
+
+/** How many level changes the tool aims to get a roast right in. The count starts at the first level change it recommends. */
+export const LEVEL_CHANGE_BUDGET = 3;
+
+/** The roast quality the product aims for (docs/ROADMAP.md): clean and expressive. A clean cup below it is left alone too, with what would take it further. */
+const RIGHT_QUALITY = 4;
 
 export const RULE_SETTINGS = {
   /** Thermal dose change, as % of the tasted roast's thermal dose, when one chip points the way. */
@@ -26,24 +33,16 @@ export const RULE_SETTINGS = {
    * within `noisePct` of its target, so this is `stepPct` less `noisePct`.
    */
   noResponsePct: 7,
-  /**
-   * Steps of `noResponsePct` or more the level takes on one profile, in the same direction, without the
-   * roast quality improving, before the level counts as tried out (see levers.ts).
-   */
-  plateauSteps: 2,
-  /** Tasted roasts on the bean's other profile that make switching to it a fair test. */
-  profileTestRoasts: 2,
-  /** A cup of at least this roast quality, with nothing wrong, is left alone; a clean cup below it gets the lever ledger. (A level can't be called exhausted at or above it.) */
-  holdMinQuality: 4,
 } as const;
 
 /**
- * What each taste chip says about how far the roast went. Chips not listed (astringent, flat, thin)
- * are ambiguous: they can mean under-development, over-extraction or the curve's shape, so no rule
- * acts on them yet.
+ * What each taste chip says about how far the roast went: from uncooked (grassy, bready or baked, raw) to scorched (bitter,
+ * roasty, ashy). The engine goes halfway between the two when a bean has been tasted on both sides. Chips not listed
+ * (sour, astringent, flat, thin) are ambiguous: sour can come from the brew as well as from the roast, and flat and thin can
+ * mean under-development, over-extraction or the curve's shape, so no rule acts on them unless the roaster assigns them a side.
  */
 export const TASTE_CHIPS = {
-  under: ["sour", "grassy", "bready"],
+  under: ["grassy", "bready"],
   over: ["bitter", "roasty", "ashy"],
   good: ["sweet", "bright", "balanced"],
 } as const;
@@ -85,9 +84,8 @@ export const OUTCOME_IDS = [
   "over-roasted-bracketed",
   "over-roasted-contradicted",
   "level-not-helping",
-  "clean-below-bar",
+  "level-changes-used",
   "keep-as-is",
-  "no-rule",
 ] as const;
 export type OutcomeId = (typeof OUTCOME_IDS)[number];
 
@@ -140,7 +138,14 @@ export interface AdviceInput {
   context?: AdviceContext;
   /** The roaster's settings and taste-word meanings; the defaults when left out. */
   calibration?: Calibration;
+  /** How many level changes lie behind the roast tasted (its version's steps from the first). Left out when the engine is used without a bean: the count is not kept then. */
+  levelChangesMade?: number;
+  /** The profiles the bean has been roasted on, tasted or not, by the stock name the rules use. Left out when the engine is used without a bean: the roasts given are then all there is. */
+  profilesRoasted?: readonly string[];
 }
+
+/** Whether the bean has been roasted on a profile: from its whole history when the engine has it, else from the roasts given. */
+const roastedOn = ({ latest, earlier, profilesRoasted }: AdviceInput, profile: string) => (profilesRoasted ?? [latest, ...earlier].map((r) => r.profile)).includes(profile);
 
 export type Advice =
   | {
@@ -157,9 +162,7 @@ export type Advice =
   /** Keep the roast as it is. */
   | { kind: "hold"; ruleId: OutcomeId; reason: string }
   /** The evidence disagrees with itself; the roaster decides. */
-  | { kind: "ask"; ruleId: OutcomeId; reason: string }
-  /** No rule covers this tasting yet. */
-  | { kind: "none"; ruleId: OutcomeId; reason: string };
+  | { kind: "ask"; ruleId: OutcomeId; reason: string };
 
 interface Reading {
   under: string[];
@@ -197,23 +200,41 @@ interface Rule {
 }
 
 /** The level moved the roast and the cup stayed on the same side: go to another profile if there is one not yet tried, else ask. */
-function levelNotHelping(side: Side, mine: string[], latest: TastedRoast, earlier: TastedRoast[], unmoved: TastedRoast, alternative: AdviceContext["alternative"], { chips }: Calibration): Advice {
+function levelNotHelping(side: Side, mine: string[], input: AdviceInput, unmoved: TastedRoast, alternative: AdviceContext["alternative"], { chips }: Calibration): Advice {
+  const { latest } = input;
   const { move, verdict } = SIDES[side];
   const moved = pct((latest.thermalDose / unmoved.thermalDose - 1) * 100);
   const seen = `The cup tasted ${words(mine)} (${verdict}) even after the roasting went ${moved}% ${move} than an earlier roast on this profile, which tasted ${words(pick(unmoved.taste, chips[side]))} too. The level moved the roast and the cup stayed on the same side.`;
-  const tried = alternative && [latest, ...earlier].some((r) => r.profile === alternative.profileName);
+  const tried = alternative && roastedOn(input, alternative.profileName);
   if (alternative && !tried) return { kind: "switch-profile", ruleId: "level-not-helping", profileName: alternative.profileName, level: alternative.level, endTempC: alternative.endTempC, reason: seen };
   const why = alternative ? `You've already roasted this bean on ${alternative.profileName}, the other stock profile suggested for this bean.` : "No other stock profile is suggested for this bean.";
   return { kind: "ask", ruleId: "level-not-helping", reason: `${seen} ${why} The next lever would be the profile's curve, which this tool can't edit yet. Keep adjusting the level anyway, or try something else?` };
 }
 
+/**
+ * The three level changes are used and the cup still has a defect: the next change is another profile. The bean's other
+ * profile, when there is one not yet roasted, is named with its level; otherwise the roaster picks one, because this tool
+ * can't choose a profile for a bean that has none to suggest.
+ */
+function levelChangesUsed(side: Side, mine: string[], input: AdviceInput, alternative: AdviceContext["alternative"]): Advice {
+  const { verdict } = SIDES[side];
+  const seen = `The cup tasted ${words(mine)} (${verdict}) after ${LEVEL_CHANGE_BUDGET} level changes, the number this tool aims to get the roast right in. Try a different profile.`;
+  const tried = alternative && roastedOn(input, alternative.profileName);
+  if (alternative && !tried) return { kind: "switch-profile", ruleId: "level-changes-used", profileName: alternative.profileName, level: alternative.level, endTempC: alternative.endTempC, reason: seen };
+  const why = alternative ? `You've already roasted this bean on ${alternative.profileName}, the other stock profile suggested for this bean.` : "No other stock profile is suggested for this bean.";
+  return { kind: "ask", ruleId: "level-changes-used", reason: `${seen} ${why} This tool can't choose one for this bean: pick another Kaffelogic profile, say which, and I'll work out the level for the colour you are after.` };
+}
+
 /** A clear under- or over-roasted cup: step that way, or halve the gap to a result on the other side. */
 function developmentRule(side: Side): Rule["run"] {
   const { opposite, sign, move, verdict } = SIDES[side];
-  return ({ latest, earlier, context }, reading, calibration) => {
+  return (input, reading, calibration) => {
+    const { latest, earlier, context, levelChangesMade } = input;
     const { settings } = calibration;
     const mine = reading[side];
     if (!mine.length || reading[opposite].length) return undefined;
+    // The level changes this tool aims to get a roast right in are used: the next change is another profile, whatever the earlier roasts say.
+    if (levelChangesMade !== undefined && levelChangesMade >= LEVEL_CHANGE_BUDGET) return levelChangesUsed(side, mine, input, context?.alternative);
     const ruleId = verdict;
     // How far each opposite-side result sits from this roast, in % of this roast's thermal dose, counted in
     // the direction we'd move: positive means further along that way.
@@ -241,7 +262,7 @@ function developmentRule(side: Side): Rule["run"] {
     // The level has already moved this side's result a real distance, on this profile, and the cup is
     // the same: the cup did not follow the level, so another step along it has no evidence behind it either.
     const unmoved = earlier.find((e) => sideOf(e, calibration) === side && sameProfile(e, latest) && (sign * (latest.thermalDose - e.thermalDose) * 100) / e.thermalDose >= settings.noResponsePct - PCT_EPSILON);
-    if (unmoved) return levelNotHelping(side, mine, latest, earlier, unmoved, context?.alternative, calibration);
+    if (unmoved) return levelNotHelping(side, mine, input, unmoved, context?.alternative, calibration);
     const thermalDoseChangePct = sign * (mine.length >= settings.strongChipCount ? settings.strongStepPct : settings.stepPct);
     return {
       kind: "change",
@@ -314,20 +335,16 @@ export const RULES: Rule[] = [
   { id: SIDES.under.verdict, run: developmentRule("under") },
   { id: SIDES.over.verdict, run: developmentRule("over") },
   {
-    // A clean cup (no roast defect) below the bar: the level has nothing to fix, because only a defect word shows
-    // which way to move it. Say what else can change the cup, and what the roasts say about each lever (levers.ts).
-    id: "clean-below-bar",
-    run: ({ latest, earlier, context }, r, calibration) => {
-      if (r.under.length || r.over.length || latest.quality >= calibration.settings.holdMinQuality) return undefined;
-      return { kind: "ask", ruleId: "clean-below-bar", reason: cleanBelowBarMessage(leverLedger(latest, earlier, calibration, context), latest, calibration, context?.reference) };
-    },
-  },
-  {
+    // A cup with no roast defect is done for what this tool can do. Rule 2 has already sent a defect-free cup rated 1 or 2 back
+    // to the roaster, so the quality here is 3 or more. A cup that is clean but short of the best would need another profile or
+    // an edited curve, and the tool can neither choose another profile for a cup with no defect to show the way nor edit a curve.
     id: "keep-as-is",
-    run: ({ latest }, r, { settings }) =>
-      !r.under.length && !r.over.length && r.good.length && latest.quality >= settings.holdMinQuality
-        ? { kind: "hold", ruleId: "keep-as-is", reason: `The cup tasted ${words(r.good)} and the roast quality is ${latest.quality} (${qualityMeaning(latest.quality)}). Keep this roast as it is.` }
-        : undefined,
+    run: ({ latest }, r) => {
+      if (r.under.length || r.over.length) return undefined;
+      const cup = r.good.length ? `The cup tasted ${words(r.good)} and the roast quality is ${latest.quality} (${qualityMeaning(latest.quality)}).` : `Nothing in the cup is a roast defect and the roast quality is ${latest.quality} (${qualityMeaning(latest.quality)}).`;
+      const further = latest.quality < RIGHT_QUALITY ? " A better cup would need another profile or an edited curve, which this tool can't choose or make yet." : "";
+      return { kind: "hold", ruleId: "keep-as-is", reason: `${cup}${further} Keep this roast as it is.` };
+    },
   },
 ];
 
@@ -339,21 +356,15 @@ export function advise(input: AdviceInput): Advice {
     const advice = rule.run(input, reading, calibration);
     if (advice) return advice;
   }
-  const covered: readonly string[] = [...calibration.chips.under, ...calibration.chips.over, ...calibration.chips.good];
-  const uncovered = input.latest.taste.filter((c) => !covered.includes(c));
-  return {
-    kind: "none",
-    ruleId: "no-rule",
-    reason: uncovered.length
-      ? `No rule covers ${words(uncovered)} yet, and nothing else in this tasting points to a change. Ask the roaster what to test next.`
-      : "Nothing in this tasting points to a change a rule can make. Ask the roaster what to test next.",
-  };
+  throw new Error(`No rule answers this tasting: ${JSON.stringify(input.latest)}. The table has to cover every tasting.`);
 }
 
 /** The part of a bean's history the rules read (a structural subset of `beanHistory`). */
 export interface HistoryForAdvice {
   versions: {
     number: number;
+    /** The version this one changes; absent for the first version. */
+    parentNumber?: number;
     level?: number;
     profileName: string;
     /** The stock profile this version is built on, when it is. */
@@ -365,18 +376,43 @@ export interface HistoryForAdvice {
       roastedAt: unknown;
       logLevel?: number;
       features?: { thermalDose: number };
-      /** qualityRated is false for a tasting recorded before roast quality replaced the overall score and not yet rated by it. */
-      tastings: { id: number; tastedOn: string; quality: number; qualityRated?: boolean; taste: string[]; brew: string }[];
+      tastings: { id: number; tastedOn: string; quality: number; taste: string[]; brew: string }[];
     }[];
   }[];
 }
 
 export interface AdviceResult {
   /** The roast and tasting the advice answers, newest first among tasted roasts. */
-  basedOn: { version: number; roastId: number; tastingId: number; level?: number; measuredThermalDose: number };
+  basedOn: { version: number; roastId: number; tastingId: number; level?: number; measuredThermalDose: number; levelChange: number };
   advice: Advice;
   /** The earlier roasts left out of the comparison because none of their rated tastings was of the coffee's tasting brew: how many, and that brew. Absent when none were. */
   setAside?: { roasts: number; tastingBrew: string };
+}
+
+type HistoryVersion = HistoryForAdvice["versions"][number];
+/**
+ * Two versions are on the same profile when their fingerprints agree. A stock version has none and an edited copy of it has one while keeping
+ * the stock name, so one fingerprint on one side only is a different profile; names are compared only when neither version has one.
+ */
+const sameVersionProfile = (a: HistoryVersion, b: HistoryVersion) => (a.profileKey || b.profileKey ? a.profileKey === b.profileKey : (a.baseProfile ?? a.profileName) === (b.baseProfile ?? b.profileName));
+
+/**
+ * How many level changes lie behind a version on its profile: the steps back along the versions' parents while the profile stays
+ * the same. A switch to another profile starts the count again, so the first version on a profile has none behind it. A
+ * recommendation made on a version is the next level change.
+ */
+export function levelChangesTo(versions: HistoryForAdvice["versions"], number: number): number {
+  const seen = new Set<number>([number]);
+  let steps = 0;
+  let child = versions.find((v) => v.number === number);
+  while (child?.parentNumber !== undefined && !seen.has(child.parentNumber)) {
+    const parent = versions.find((v) => v.number === child!.parentNumber);
+    if (!parent || !sameVersionProfile(parent, child)) break;
+    seen.add(parent.number);
+    steps++;
+    child = parent;
+  }
+  return steps;
 }
 
 /**
@@ -387,55 +423,60 @@ export interface AdviceResult {
  * undefined when no roast with a thermal dose has been tasted.
  */
 export function adviseFromHistory(history: HistoryForAdvice, context?: AdviceContext, calibration?: Calibration): AdviceResult | undefined {
-  const tasted = history.versions
-    // A tasting recorded before roast quality replaced the overall score holds a liking, not a quality: it isn't used until rated.
-    .flatMap((version) => version.roasts.map((roast) => ({ version, roast: { ...roast, tastings: roast.tastings.filter((t) => t.qualityRated !== false) } })))
-    .filter(({ roast }) => roast.features && Number.isFinite(roast.features.thermalDose) && roast.tastings.length)
-    .sort((a, b) => new Date(a.roast.roastedAt as string).getTime() - new Date(b.roast.roastedAt as string).getTime() || a.roast.id - b.roast.id);
+  const tasted = tastedRoastsOf(history, context);
   const newest = tasted[tasted.length - 1];
   if (!newest) return undefined;
-  const lastTasting = (entry: (typeof tasted)[number]) => entry.roast.tastings[entry.roast.tastings.length - 1];
-  const countedTasting = (entry: (typeof tasted)[number]) => entry.roast.tastings.filter((t) => countsAsTasted(t.brew, context)).pop();
-  const asRoast = (entry: (typeof tasted)[number], tasting: ReturnType<typeof lastTasting>): TastedRoast => {
-    const { version, roast } = entry;
-    const profile = version.baseProfile ?? version.profileName;
-    return {
-      thermalDose: roast.features!.thermalDose,
-      taste: tasting.taste,
-      quality: tasting.quality,
-      brew: tasting.brew,
-      profile,
-      profileKey: version.profileKey,
-      restedDays: daysBetween(roast.roastedAt as string | Date, tasting.tastedOn),
-      restNeeded: context?.restNeeded?.(profile),
-      level: roast.logLevel ?? version.level,
-    };
-  };
-  const tasting = countedTasting(newest) ?? lastTasting(newest);
-  const latest = asRoast(newest, tasting);
-  const earlier = tasted.slice(0, -1).flatMap((entry) => {
-    const counted = countedTasting(entry);
-    return counted ? [asRoast(entry, counted)] : [];
-  });
+  const earlier = tasted.slice(0, -1).filter((entry) => entry.counted).map((entry) => entry.tasted);
   const setAside = tasted.length - 1 - earlier.length;
+  const levelChangesMade = levelChangesTo(history.versions, newest.version.number);
   return {
-    basedOn: { version: newest.version.number, roastId: newest.roast.id, tastingId: tasting.id, level: newest.roast.logLevel, measuredThermalDose: latest.thermalDose },
-    advice: advise({ latest, earlier, context, calibration }),
+    basedOn: { version: newest.version.number, roastId: newest.roast.id, tastingId: newest.tasting.id, level: newest.roast.logLevel, measuredThermalDose: newest.tasted.thermalDose, levelChange: levelChangesMade + 1 },
+    advice: advise({ latest: newest.tasted, earlier, context, calibration, levelChangesMade, profilesRoasted: profilesRoastedIn(history) }),
     // A roast is only set aside by a brew the context names, so the brew is there whenever there is a roast set aside.
     ...(setAside && context?.tastingBrew ? { setAside: { roasts: setAside, tastingBrew: context.tastingBrew } } : {}),
   };
 }
 
-/**
- * The ids of a bean's tastings that still hold an old overall score and wait to be rated by roast quality.
- * Only roasts with a measured thermal dose count: rating a tasting of any other roast would not change the advice.
- */
-export const unratedTastingIds = (history: HistoryForAdvice) =>
-  history.versions.flatMap((v) => v.roasts.filter((r) => r.features && Number.isFinite(r.features.thermalDose)).flatMap((r) => r.tastings.filter((t) => t.qualityRated === false).map((t) => t.id)));
+/** The profiles a bean has been roasted on, tasted or not, by the stock name the rules use. */
+function profilesRoastedIn(history: HistoryForAdvice): string[] {
+  return [...new Set(history.versions.filter((v) => v.roasts.length).map((v) => v.baseProfile ?? v.profileName))];
+}
 
-/** What to tell the roaster when there is nothing to advise on because the tastings are not rated by roast quality yet. */
-export const unratedTastingsMessage = (ids: number[]) =>
-  `${ids.length === 1 ? `Tasting ${ids[0]} was` : `Tastings ${ids.join(", ")} were`} recorded before roast quality replaced the overall score, so ${ids.length === 1 ? "it isn't" : "they aren't"} used until rated. Rate ${ids.length === 1 ? "it" : "each"} by roast quality, 1 to 5 (${Object.entries(QUALITY_ANCHORS).map(([n, meaning]) => `${n} ${meaning}`).join(", ")}), then advise again.`;
+/** A roast of a bean that has been tasted and has a measured thermal dose, as the rules read it. */
+export interface TastedEntry {
+  version: HistoryForAdvice["versions"][number];
+  roast: HistoryForAdvice["versions"][number]["roasts"][number];
+  /** The tasting the rules read for this roast: its newest in the coffee's tasting brew, else its newest. */
+  tasting: HistoryForAdvice["versions"][number]["roasts"][number]["tastings"][number];
+  /** Whether that tasting is in the coffee's tasting brew. A roast without one is left out of the comparison (but the newest still gets its answer). */
+  counted: boolean;
+  tasted: TastedRoast;
+}
+
+/** Every roast of a bean that has a tasting and a measured thermal dose, oldest first, as the rules read it. */
+export function tastedRoastsOf(history: HistoryForAdvice, context?: AdviceContext): TastedEntry[] {
+  return history.versions
+    .flatMap((version) => version.roasts.map((roast) => ({ version, roast })))
+    .filter(({ roast }) => roast.features && Number.isFinite(roast.features.thermalDose) && roast.tastings.length)
+    .sort((a, b) => new Date(a.roast.roastedAt as string).getTime() - new Date(b.roast.roastedAt as string).getTime() || a.roast.id - b.roast.id)
+    .map(({ version, roast }) => {
+      const inBrew = roast.tastings.filter((t) => countsAsTasted(t.brew, context)).pop();
+      const tasting = inBrew ?? roast.tastings[roast.tastings.length - 1];
+      const profile = version.baseProfile ?? version.profileName;
+      const tasted: TastedRoast = {
+        thermalDose: roast.features!.thermalDose,
+        taste: tasting.taste,
+        quality: tasting.quality,
+        brew: tasting.brew,
+        profile,
+        profileKey: version.profileKey,
+        restedDays: daysBetween(roast.roastedAt as string | Date, tasting.tastedOn),
+        restNeeded: context?.restNeeded?.(profile),
+        level: roast.logLevel ?? version.level,
+      };
+      return { version, roast, tasting, counted: inBrew !== undefined, tasted };
+    });
+}
 
 /** Where a level change lands on the roast's profile: both ends, with the end temperature the machine will aim for. */
 export interface LevelMove {
@@ -460,29 +501,51 @@ export interface AdviceReport {
  * level can't go finer), in which case the advice is given without an offer to record it.
  */
 export function adviceReport(beanId: number, result: AdviceResult, move: LevelMove | undefined, problem?: string): AdviceReport {
-  const report = reportFor(beanId, result, move, problem);
-  if (!result.setAside) return report;
-  const { roasts, tastingBrew } = result.setAside;
-  const note = `${roasts === 1 ? "One earlier roast was" : `${roasts} earlier roasts were`} without a rated tasting brewed as ${brewLabel(tastingBrew)}, so ${roasts === 1 ? "it is" : "they are"} left out of the comparison (roasts are tasted as ${brewLabel(tastingBrew)}).`;
-  return { ...report, say: `${report.say} ${note}` };
+  const draft = draftFor(beanId, result, move, problem);
+  // A level change is numbered only when it is offered: with no level to set (the profile isn't on hand), there is nothing to number.
+  const notes = [move && !problem ? levelChangeNote(result) : undefined, setAsideNote(result)].filter((note): note is string => note !== undefined);
+  // The notes come before the question, so the answer still ends on what the roaster is asked.
+  const say = [draft.statement, ...notes, draft.question].filter((part): part is string => part !== undefined).join(" ");
+  return { say, ...(draft.onYes ? { onYes: draft.onYes } : {}) };
 }
 
-function reportFor(beanId: number, { basedOn, advice }: AdviceResult, move: LevelMove | undefined, problem?: string): AdviceReport {
-  if (advice.kind === "hold") return { say: `${advice.reason} No new version is needed.` };
+/** An answer in parts: what the engine says, then what it asks (when it asks), and the command for a yes. */
+interface Draft {
+  statement: string;
+  question?: string;
+  onYes?: AdviceReport["onYes"];
+}
+
+/** Which of the level changes the tool aims to get a roast right in a recommendation of a level change is. A switch of profile is not a level change, and past the budget the answer is to try a different profile. */
+function levelChangeNote({ basedOn, advice }: AdviceResult): string | undefined {
+  if (advice.kind !== "change") return undefined;
+  return `This is level change ${basedOn.levelChange} of the ${LEVEL_CHANGE_BUDGET} this tool aims to get the roast right in.`;
+}
+
+function setAsideNote({ setAside }: AdviceResult): string | undefined {
+  if (!setAside) return undefined;
+  const { roasts, tastingBrew } = setAside;
+  return `${roasts === 1 ? "One earlier roast was" : `${roasts} earlier roasts were`} without a rated tasting brewed as ${brewLabel(tastingBrew)}, so ${roasts === 1 ? "it is" : "they are"} left out of the comparison (roasts are tasted as ${brewLabel(tastingBrew)}).`;
+}
+
+function draftFor(beanId: number, { basedOn, advice }: AdviceResult, move: LevelMove | undefined, problem?: string): Draft {
+  if (advice.kind === "hold") return { statement: `${advice.reason} No new version is needed.` };
   if (advice.kind === "switch-profile") {
     return {
-      say: `${advice.reason} Next, try ${advice.profileName} instead: pick it on the Nano and set level ${advice.level} (ends at ${advice.endTempC} °C). Shall I record that as the next version?`,
+      statement: `${advice.reason} Next, try ${advice.profileName} instead: pick it on the Nano and set level ${advice.level} (ends at ${advice.endTempC} °C).`,
+      question: "Shall I record that as the next version?",
       onYes: { command: "version:add", input: { beanId, parent: basedOn.version, profileName: advice.profileName, level: advice.level, reason: advice.reason } },
     };
   }
-  if (advice.kind !== "change") return { say: advice.reason };
-  if (!move || problem) return { say: `${advice.reason} ${problem ?? "That can't be turned into a level for this roast's profile."}` };
+  if (advice.kind !== "change") return { statement: advice.reason };
+  if (!move || problem) return { statement: `${advice.reason} ${problem ?? "That can't be turned into a level for this roast's profile."}` };
   const direction = move.to.level > move.from.level ? "up" : "down";
   const asked = Math.round(Math.abs(advice.thermalDoseChangePct));
   const got = move.changePct === undefined ? asked : Math.round(Math.abs(move.changePct));
   const shortfall = got === asked ? "" : ` The nearest level on this profile gives about ${got}% ${advice.thermalDoseChangePct > 0 ? "more" : "less"} roasting, not ${asked}%; levels come in 0.1 steps on an uneven scale.`;
   return {
-    say: `${advice.reason} That is level ${move.to.level} (ends at ${move.to.endTempC} °C), ${direction} from level ${move.from.level} (${move.from.endTempC} °C).${shortfall} Shall I record it as the next version?`,
+    statement: `${advice.reason} That is level ${move.to.level} (ends at ${move.to.endTempC} °C), ${direction} from level ${move.from.level} (${move.from.endTempC} °C).${shortfall}`,
+    question: "Shall I record it as the next version?",
     onYes: { command: "version:add", input: { beanId, parent: basedOn.version, level: move.to.level, reason: advice.reason } },
   };
 }

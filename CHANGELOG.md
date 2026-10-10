@@ -5,6 +5,40 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-10
+
+- 2026-10-10 - feat(rules): read the cup from uncooked to scorched, hold a clean cup, count three level changes, add the bean's table and state to try a different profile, converting stored data
+
+### Breaking
+
+- **Migration `db/009` deletes the tastings that still held an old overall score** (`quality_rated = false`, from migration 005),
+  drops the `quality_rated` and unused `want_next` columns of `tasting`, and clears the stored values of three removed settings
+  (`plateauSteps`, `profileTestRoasts`, `holdMinQuality`). Run `npm run db:migrate` after updating. `advise` no longer lists
+  `unratedTastings`.
+- **`sour` is no longer read as an under-roasted word.** The words the engine acts on are now `grassy` and `bready` (uncooked; `bready`
+  is relabelled "Bready / baked / raw") and `bitter`, `roasty` and `ashy` (scorched). Sour stays on the form and is not acted on,
+  because it can come from the brew; a roaster can assign it a side.
+- **A clean cup (roast quality 3 or more) is held as done** by `keep-as-is`. The `clean-below-bar` and `no-rule` answers and the lever ledger
+  are removed: the tool can't choose another profile for a cup with no defect to show the way, or edit a curve. `calibration` no longer
+  has those three settings.
+
+### Added
+
+- **The bean's table** (`table <bean>`, `src/core/beanTable.ts`): each roast as it comes in (version, profile, level, measured thermal dose,
+  the step from the roast before, taste words, quality, how it reads from uncooked to scorched), the level changes made, the bracket the roasts
+  make, and the clean roasts. It reads the roasts the way the advice does.
+- **The level-change count**: `advise` says "This is level change N of the 3 this tool aims to get the roast right in" before it asks to record
+  a level change. The count starts at the first level change recommended and counts the versions behind the roast tasted on its profile (a switch of profile starts the count again).
+- **`level-changes-used`**: once three level changes are behind the roast tasted and the cup still has a defect, the answer states to try a
+  different profile. It names the bean's other profile (with its level) when there is one not yet roasted; otherwise it asks the roaster to pick
+  a Kaffelogic profile, since the tool can't choose one, and `level-for` gives the level for it.
+- Every tasting gets an answer from a rule, and a test checks that for every set of up to three words at every quality.
+
+### Changed
+
+- The earlier-roast note is now put before the question the answer ends on.
+- `docs/RULES.md`, `docs/ROADMAP.md`, the README and the `/roast` skill describe the new reading, the count, the table and the rule.
+
 ## [0.2.0] - 2026-10-10
 
 - 2026-10-10 - feat(intake): ask for the roast colour on the Agtron scale and the roaster's own tasting brew, converting stored beans

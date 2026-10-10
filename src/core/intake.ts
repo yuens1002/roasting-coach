@@ -148,7 +148,7 @@ export const TASTING_FIELDS: Field[] = [
       ["balanced", "Balanced"],
       ["sour", "Sour / sharp"],
       ["grassy", "Grassy / green"],
-      ["bready", "Bready / nutty-raw"],
+      ["bready", "Bready / baked / raw"],
       ["astringent", "Dry / astringent"],
       ["flat", "Flat / dull / papery"],
       ["bitter", "Bitter"],

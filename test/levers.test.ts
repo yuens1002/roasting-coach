@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NO_OVERRIDES, applyChange, resolveCalibration } from "../src/core/calibration.js";
-import { LEVERS, LEVER_EFFECTS, leverLedger, levelLadder } from "../src/core/levers.js";
-import { type AdviceContext, DEFAULT_CALIBRATION, type TastedRoast, advise } from "../src/core/rules.js";
+import { levelLadder } from "../src/core/levers.js";
+import { DEFAULT_CALIBRATION, type TastedRoast } from "../src/core/rules.js";
 
 const roast = (thermalDose: number, quality: number, over: Partial<TastedRoast> = {}): TastedRoast => ({
   thermalDose,
@@ -14,20 +14,11 @@ const roast = (thermalDose: number, quality: number, over: Partial<TastedRoast> 
 });
 /** A ladder of roasts, each about 10% less than the one before, oldest first, with the roast qualities given. */
 const ladder = (qualities: number[], over: Partial<TastedRoast> = {}) => qualities.map((q, i) => roast(12 * 0.9 ** i, q, over));
-const lever = (name: (typeof LEVERS)[number], latest: TastedRoast, earlier: TastedRoast[], calibration = DEFAULT_CALIBRATION, context?: AdviceContext) => leverLedger(latest, earlier, calibration, context).find((l) => l.lever === name)!;
 const mine = (change: unknown) => {
   const r = applyChange(NO_OVERRIDES, change);
   if (!r.ok) throw new Error(r.errors.join("; "));
   return resolveCalibration(r.overrides);
 };
-
-describe("every lever has an effect, in the order the ledger lists them", () => {
-  it("lists level, profile and curve, each with a sentence: rest and brew change the cup, not the roast, so they are not levers", () => {
-    expect(LEVERS).toEqual(["level", "profile", "curve"]);
-    for (const l of LEVERS) expect(LEVER_EFFECTS[l].length, l).toBeGreaterThan(20);
-    expect(leverLedger(roast(10, 3), [], DEFAULT_CALIBRATION).map((l) => l.lever)).toEqual(["level", "profile", "curve"]);
-  });
-});
 
 describe("the level's steps", () => {
   it("counts each real step back from the latest roast, in the direction it went", () => {
@@ -49,9 +40,6 @@ describe("the level's steps", () => {
     // Three rungs (12, 10.8, 9.7) and then 9.75, the same level again: two steps, not none.
     const rs = [roast(12, 2), roast(10.8, 3), roast(9.7, 3), roast(9.75, 3)];
     expect(levelLadder(rs[3], rs.slice(0, 3), DEFAULT_CALIBRATION)).toMatchObject({ steps: 2, direction: "less" });
-    const l = lever("level", rs[3], rs.slice(0, 3));
-    expect(l.state).toBe("unclear");
-    expect(l.evidence).not.toContain("No step");
   });
   it("counts a move of exactly noResponsePct as a step, whichever way it went", () => {
     // 10 to 10.7 measures a hair over 7%, 10 to 9.3 a hair under, in floating point; both are 7%.
@@ -70,176 +58,5 @@ describe("the level's steps", () => {
   it("compares fingerprints when both are known, not names", () => {
     const rs = [roast(12, 3, { profileKey: "a" }), roast(10.8, 3, { profileKey: "b" }), roast(9.7, 3, { profileKey: "b" })];
     expect(levelLadder(rs[2], rs.slice(0, 2), DEFAULT_CALIBRATION).steps).toBe(1);
-  });
-});
-
-describe("the level lever", () => {
-  it("is untested before any real step", () => {
-    expect(lever("level", roast(10, 3), []).state).toBe("untested");
-  });
-  it("says 'the last step' for one step and 'the last 2 steps' for more", () => {
-    const rs = ladder([2, 3, 3]);
-    expect(lever("level", rs[2], rs.slice(0, 2)).evidence).toContain("The last step did not raise it.");
-    const more = ladder([3, 3, 3]);
-    expect(lever("level", more[2], more.slice(0, 2)).evidence).toContain("The last 2 steps did not raise it.");
-  });
-  it("counts only the steps at the end of the run: an earlier stall doesn't count once the last step raised the quality", () => {
-    // Two steps with no gain (3, 3, 2) and then a rise (3): a plain count of stalled steps says exhausted, the trailing count says moving.
-    const rs = ladder([3, 3, 2, 3]);
-    expect(lever("level", rs[3], rs.slice(0, 3)).state).toBe("moving");
-    // And the other way round: a rise early on, then two stalled steps at the end.
-    const late = ladder([2, 3, 3, 3]);
-    expect(lever("level", late[3], late.slice(0, 3)).state).toBe("exhausted");
-  });
-  it("is moving while the last step raised the quality", () => {
-    const rs = ladder([1, 2, 3]);
-    expect(lever("level", rs[2], rs.slice(0, 2)).state).toBe("moving");
-  });
-  it("is unclear after one step that did not raise the quality, exhausted after the roaster's number of them", () => {
-    const rs = ladder([2, 3, 3, 3]);
-    expect(lever("level", rs[2], rs.slice(0, 2)).state).toBe("unclear");
-    expect(lever("level", rs[3], rs.slice(0, 3)).state).toBe("exhausted");
-    expect(lever("level", rs[3], rs.slice(0, 3), mine({ settings: { plateauSteps: 3 } })).state).toBe("unclear");
-    expect(lever("level", rs[2], rs.slice(0, 2), mine({ settings: { plateauSteps: 1 } })).state).toBe("exhausted");
-  });
-  it("only looks at the steps at the end: an earlier improvement doesn't hide a stall", () => {
-    // Defect removed on the way (2 to 3), then two steps with nothing more.
-    const rs = ladder([2, 3, 3, 3]);
-    expect(lever("level", rs[3], rs.slice(0, 3)).state).toBe("exhausted");
-  });
-  it("is never exhausted by a cup at the bar", () => {
-    const rs = ladder([4, 4, 4]);
-    expect(lever("level", rs[2], rs.slice(0, 2)).state).toBe("unclear");
-    expect(lever("level", rs[2], rs.slice(0, 2), mine({ settings: { holdMinQuality: 5 } })).state).toBe("exhausted");
-  });
-  it("says the qualities and the thermal dose it saw, and warns when the tastings were on different days of rest", () => {
-    const rs = ladder([3, 3, 3]);
-    rs[2] = { ...rs[2], restedDays: 0 };
-    const l = lever("level", rs[2], rs.slice(0, 2));
-    expect(l.evidence).toBe("2 steps less roasting on this profile (thermal dose 12 to 9.7, about 19% less); the roast quality was 3, 3 and 3. The last 2 steps did not raise it.");
-    expect(l.caveat).toBe("The tastings were on different days of rest (1, 1 and 0), which can blur the comparison.");
-    expect(lever("level", ladder([3, 3, 3])[2], ladder([3, 3, 3]).slice(0, 2)).caveat).toBeUndefined();
-  });
-});
-
-describe("the profile lever", () => {
-  const alt: AdviceContext = { alternative: { profileName: "KL Washed", level: 1.2, endTempC: 217.6 } };
-  it("is unavailable with no other profile to suggest", () => {
-    expect(lever("profile", roast(10, 3), [])).toMatchObject({ state: "unavailable", evidence: "No other stock profile is suggested for this bean." });
-  });
-  it("is untested with an alternative nobody roasted, and says what to do", () => {
-    expect(lever("profile", roast(10, 3), [], DEFAULT_CALIBRATION, alt)).toMatchObject({ state: "untested", next: "Roast it on KL Washed at level 1.2 (ends at 217.6 °C); it costs a roast." });
-  });
-  it("is moving when the alternative gave a higher quality, and unclear when it did not", () => {
-    expect(lever("profile", roast(10, 2), [roast(9, 3, { profile: "KL Washed" })], DEFAULT_CALIBRATION, alt).state).toBe("moving");
-    const l = lever("profile", roast(10, 3), [roast(9, 3, { profile: "KL Washed" })], DEFAULT_CALIBRATION, alt);
-    expect(l.state).toBe("unclear");
-    expect(l.evidence).toBe("KL Washed has 1 tasted roast, best roast quality 3, against 3 on the other profile. That is too few roasts to rule it out.");
-  });
-  it("is exhausted once enough roasts on the alternative have not beaten the other profile, and not before", () => {
-    const worse = [roast(9, 3, { profile: "KL Washed" }), roast(8, 2, { profile: "KL Washed" })];
-    const l = lever("profile", roast(10, 3), worse, DEFAULT_CALIBRATION, alt);
-    expect(l).toMatchObject({ state: "exhausted", evidence: "KL Washed has 2 tasted roasts, best roast quality 3, against 3 on the other profile. KL Washed has not improved a cup yet." });
-    expect(l.next).toBeUndefined();
-    // One roast is too few, and so is two when the roaster wants three.
-    expect(lever("profile", roast(10, 3), worse.slice(0, 1), DEFAULT_CALIBRATION, alt).state).toBe("unclear");
-    expect(lever("profile", roast(10, 3), worse, mine({ settings: { profileTestRoasts: 3 } }), alt).state).toBe("unclear");
-    // The roaster can call one unbeaten roast a fair test.
-    expect(lever("profile", roast(10, 3), worse.slice(0, 1), mine({ settings: { profileTestRoasts: 1 } }), alt).state).toBe("exhausted");
-    // Better than the other profile at any point is movement, not exhaustion.
-    expect(lever("profile", roast(10, 2), [roast(9, 4, { profile: "KL Washed" }), roast(8, 3, { profile: "KL Washed" })], DEFAULT_CALIBRATION, alt).state).toBe("moving");
-  });
-  it("compares against the profile it started on once the bean has been switched to the alternative", () => {
-    const l = lever("profile", roast(10, 3, { profile: "KL Washed" }), [roast(9, 2)], DEFAULT_CALIBRATION, alt);
-    expect(l).toMatchObject({ state: "moving", evidence: "KL Washed has 1 tasted roast, best roast quality 3, against 2 on the other profile." });
-    // Only roasted on the alternative: nothing to compare with, and not called better.
-    const only = lever("profile", roast(10, 3, { profile: "KL Washed" }), [], DEFAULT_CALIBRATION, alt);
-    expect(only).toMatchObject({ state: "unclear", evidence: "KL Washed has 1 tasted roast, best roast quality 3. There is no roast on the other profile to compare it with." });
-    // However many roasts it has: with nothing to compare against, it is never exhausted.
-    const many = lever("profile", roast(10, 3, { profile: "KL Washed" }), [roast(9, 3, { profile: "KL Washed" }), roast(8, 3, { profile: "KL Washed" })], DEFAULT_CALIBRATION, alt);
-    expect(many).toMatchObject({ state: "unclear", evidence: "KL Washed has 3 tasted roasts, best roast quality 3. There is no roast on the other profile to compare it with." });
-  });
-  it("counts a renamed copy of the alternative (same curve and settings) as a trial of it, not as the other profile", () => {
-    // The copy is KL Washed under another name: same key, though its stock parent is recorded as the first profile.
-    const copy = roast(9, 3, { profile: "1500-2000m Rest", profileKey: "washed-body" });
-    const named = roast(8, 3, { profile: "KL Washed", profileKey: "washed-body" });
-    // One named roast plus one identical copy are two trials: a fair test at the default of 2.
-    const l = lever("profile", roast(10, 3), [copy, named], DEFAULT_CALIBRATION, alt);
-    expect(l.evidence).toBe("KL Washed has 2 tasted roasts, best roast quality 3, against 3 on the other profile. KL Washed has not improved a cup yet.");
-    expect(l.state).toBe("exhausted");
-    // The named roast alone is still one trial, and a copy with a different key is not the alternative.
-    expect(lever("profile", roast(10, 3), [named], DEFAULT_CALIBRATION, alt).state).toBe("unclear");
-    const edited = roast(9, 3, { profile: "1500-2000m Rest", profileKey: "edited-body" });
-    expect(lever("profile", roast(10, 3), [edited, named], DEFAULT_CALIBRATION, alt).evidence).toContain("KL Washed has 1 tasted roast");
-  });
-});
-
-describe("the curve lever", () => {
-  it("is out of reach and says how to bring a curve change back", () => {
-    expect(lever("curve", roast(10, 3), [])).toMatchObject({ state: "unavailable", evidence: "This tool can't edit a curve yet." });
-  });
-});
-
-describe("the clean-below-bar rule", () => {
-  const rs = ladder([2, 3, 3, 3]);
-  const run = (over: Partial<Parameters<typeof advise>[0]> = {}) => advise({ latest: rs[3], earlier: rs.slice(0, 3), ...over });
-  it("asks, says there is no defect for the level to fix, and lists every lever with what it changes", () => {
-    const a = run();
-    expect(a).toMatchObject({ kind: "ask", ruleId: "clean-below-bar" });
-    expect(a.reason).toContain("The cup is clean: no roast defect, so there is nothing for the level to fix. The roast quality is 3 (clean, with little character), below the bar of 4. What can raise it:");
-    for (const lever of ["level (exhausted)", "profile (unavailable)", "curve (unavailable)"]) expect(a.reason, lever).toContain(`- ${lever}:`);
-    expect(a.reason).toContain("The last 2 steps did not raise it.");
-  });
-  it("lists only levers that change the roast: rest and brew are conditions of the tasting, not levers", () => {
-    const a = run();
-    expect(a.reason).not.toMatch(/- (rest|brew) \(/);
-    expect(a.reason).not.toContain("exaggerates");
-  });
-  it("fires on a first roast too, where the level has not been tried either way", () => {
-    const a = advise({ latest: roast(10, 3), earlier: [] });
-    expect(a).toMatchObject({ kind: "ask", ruleId: "clean-below-bar" });
-    expect(a.reason).toContain("- level (untested):");
-    expect(a.reason).toContain("Still to try before the coffee can be named as the limit: level.");
-  });
-  it("names the levers still to try before naming the coffee as the limit", () => {
-    const alternative = { profileName: "KL Washed", level: 1.2, endTempC: 217.6 };
-    expect(run({ context: { alternative } }).reason).toContain("Still to try before the coffee can be named as the limit: profile.");
-    expect(advise({ latest: roast(10, 3), earlier: [], context: { alternative } }).reason).toContain("Still to try before the coffee can be named as the limit: level and profile.");
-  });
-  it("names the coffee or the curve only when every lever the tool can reach has been tried", () => {
-    const a = run();
-    expect(a.reason).toContain("Everything this tool can move has had a fair test, the level in the direction it was tried. What is left is the curve, which the tool can't edit yet, or the coffee itself");
-    expect(a.reason).not.toContain("Still to try before the coffee can be named");
-  });
-  it("can reach the 'curve or the coffee' verdict with another profile on offer, once that profile has had a fair test", () => {
-    const alternative = { profileName: "KL Washed", level: 1.2, endTempC: 217.6 };
-    const onAlt = [roast(9, 3, { profile: "KL Washed" }), roast(8.5, 3, { profile: "KL Washed" })];
-    const a = run({ earlier: [...rs.slice(0, 3), ...onAlt], context: { alternative } });
-    expect(a.reason).toContain("- profile (exhausted):");
-    expect(a.reason).toContain("Everything this tool can move has had a fair test");
-    expect(a.reason).not.toContain("Still to try before the coffee can be named");
-  });
-  it("quotes the roaster's reference when there is one, and says nothing about one when there isn't", () => {
-    expect(run({ context: { reference: "Lively and fruit-forward." } }).reason).toContain('Your reference for this coffee is "Lively and fruit-forward". Compare the cup against it.');
-    expect(run().reason).not.toContain("reference");
-    expect(run({ context: { reference: "   " } }).reason).not.toContain("reference");
-  });
-  it("offers the other profile when there is one", () => {
-    const a = run({ context: { alternative: { profileName: "KL Washed", level: 1.2, endTempC: 217.6 } } });
-    expect(a.reason).toContain("- profile (untested):");
-    expect(a.reason).toContain("Roast it on KL Washed at level 1.2 (ends at 217.6 °C); it costs a roast.");
-  });
-  it("uses the roaster's bar and their number of steps", () => {
-    expect(run({ calibration: mine({ settings: { plateauSteps: 3 } }) }).reason).toContain("- level (unclear):");
-    expect(run({ calibration: mine({ settings: { holdMinQuality: 3 } }) }).ruleId).not.toBe("clean-below-bar");
-  });
-  it("leaves a cup with a roast defect to the rules for that side", () => {
-    const sour = ladder([2, 2, 2, 2], { taste: ["sour"] });
-    expect(advise({ latest: sour[3], earlier: sour.slice(0, 3) }).ruleId).not.toBe("clean-below-bar");
-  });
-  it("leaves a good cup to keep-as-is, and a cup at the bar with no good word to no-rule", () => {
-    const good = ladder([4, 4, 4], { taste: ["sweet", "balanced"] });
-    expect(advise({ latest: good[2], earlier: good.slice(0, 2) }).ruleId).toBe("keep-as-is");
-    expect(advise({ latest: roast(10, 4), earlier: [] }).ruleId).toBe("no-rule");
   });
 });

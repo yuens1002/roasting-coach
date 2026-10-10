@@ -20,19 +20,23 @@ Two things are kept apart (decided 2026-10-08):
 - **How much the roaster likes the cup** is not a goal. It is not asked and not used. A flat cup with no
   roast defect is a 3 however little the roaster likes it.
 
-Concretely: get a bean's roast right in **no more than three roasts**, by telling the roaster which lever to
-push each time. "Right" is a roast quality of **4 or better**. The levers are the level, the profile, and
-what sits outside the roast (the brew, the days of rest). Still open: whether the count starts at the
-bean's first roast or at its first tasted one, and how to count a roast that is only a step along a
-deliberate ladder.
+Concretely (decided 2026-10-10): get a bean's roast right in **no more than three level changes**, by telling the
+roaster which way to go each time. The count starts at the first level change the tool recommends, and counts the
+versions behind the roast tasted on its profile (each is one change, whoever chose it; a switch of profile starts the count again). "Right", for what is
+built, is a **clean cup, roast quality 3 or better**: the tool can't choose another profile for a cup that shows no
+defect to point the way, and it can't edit a curve or make a new profile yet. A quality of **4 or better** stays the
+aim for when it can. The levers are the level, then the profile and the curve. When three level changes are used and the
+cup still has a defect, the answer states to try a different profile (`level-changes-used`): it names the bean's other
+profile when there is one, and otherwise asks the roaster to pick one, because the tool can't choose a profile for a bean
+that has none to suggest. The bean's own table (`table`) is built as the roasts come in and shows where it stands. Still open:
+choosing a profile deterministically for a bean with no alternative; carrying what one bean taught (the level that worked,
+the step response) to the next.
 
-Where it stands: the rules name the level, or a switch to the bean's other profile, for cups with a roast
-defect. They hold (a cup tasted too soon, a clean cup of good roast quality that tasted good), ask (mixed or
-contradictory evidence, or a quality that disagrees with the words), and, for a clean cup below the bar,
-list every lever that can raise the quality with what it changes and what the roasts say about it. The
-first real ladder (a bean roasted at four levels, 3.0 down to 2.1) went from ashy to flat and monotone, not
-baked and not under-developed: a clean cup of little character, which is a 3. Getting it to a 4 is a
-question for the levers beyond the level, and for the coffee itself.
+Where it stands: the rules bracket a bean between uncooked (grassy, bready) and scorched (bitter, roasty, ashy) and go
+halfway, name the level, or a switch to the bean's other profile, for cups with a roast defect. They hold (a cup
+tasted too soon, a clean cup), and ask (mixed or contradictory evidence, or a quality that disagrees with the words).
+The first real ladder (a bean roasted at four levels, 3.0 down to 2.1) went from ashy to flat and monotone, not
+baked and not under-developed: a clean cup of little character, which is a 3, and done for now.
 
 ## Design direction: roast quality, not preference
 
@@ -79,9 +83,9 @@ tool yet and the author's own roasts and profiles are disposable, so when the sc
 converts the stored rows (a default, a derivation, or a drop) and the code has no case for the old shape: no nullable
 column kept for old rows, no fallback branch, no "unused, kept so answers are not lost". A change that breaks the stored
 data, a command or a form is a breaking change and is versioned as one: while the version is 0.x, a minor bump
-(0.2.0), listed under "Breaking" in `CHANGELOG.md`. Migration 008 is the first. Older tolerance still in the code and
-to convert the same way: the unrated tastings (`quality_rated`, migration 005) with their skip logic in the rules, the
-CLI and the skill.
+(0.2.0), listed under "Breaking" in `CHANGELOG.md`. Migration 008 is the first; migration 009 (0.3.0) deleted the tastings that
+still held an old overall score (`quality_rated = false`, migration 005) with their skip logic in the rules, the CLI and the
+skill, and dropped the unused `want_next` column.
 
 **Decided (2026-10-09): roasting is not aimed at a brew method.** The coaching is for the best result the
 bean's own properties allow (species, process, altitude, density, moisture, age), judged by roast quality. The intake no longer
@@ -118,7 +122,7 @@ control in real logs, and how closely the machine follows an edited curve (real 
 their curve's prediction).
 
 Measurement (thermal dose, level to end temperature, rest days) and the basic reading of a cup (ashy and
-bitter point to too much roasting, sour and grassy to too little) are shared. What a roaster may
+bitter point to too much roasting, grassy and bready to too little; sour is not read as a roast defect, because it can come from the brew) are shared. What a roaster may
 personalise is how they **perceive and name** a cup (what their taste words mean: one roaster's "flat" is
 monotone, not baked or under-developed) and the **size of the method** (step sizes, how many steps count as
 a fair try), kept in their own database with defaults shipped in the repo. Not personal, and not built:
@@ -127,32 +131,30 @@ others").
 
 Built (one lever at a time): the rule settings and the meaning of each taste word can be overridden per
 roaster (`calibration`, `calibration:set`; stored in `roaster_setting` and `roaster_taste_word`; defaults
-stay in `rules.ts`; the rules take them through `Calibration`). `holdMinQuality` is the roast quality that
-counts as good. Still to do: learning a roaster's own step size from their tastings instead of asking for
+stay in `rules.ts`; the rules take them through `Calibration`). Still to do: learning a roaster's own step size from their tastings instead of asking for
 it; profile facts (rest days, alternatives) that the roaster can correct.
 
 **Changed on 2026-10-08:** the tasting's 1 to 5 score was an overall liking; it is now the roast quality
 (column `quality`, migration 005), and "next time I want" is no longer asked or used (its column is kept
 so earlier answers aren't lost). Rules removed: `wish-against-taste`, `asked-for-change`. Rules added:
-`quality-vs-words` (the quality has to agree with the words) and `clean-below-bar`. Tastings recorded
-before the change held liking scores, so migration 005 marks them unrated (`quality_rated`) and the
-advice skips them until they are rated by the new anchors (`taste:update` with a `quality`).
+`quality-vs-words` (the quality has to agree with the words) and `clean-below-bar` (replaced on 2026-10-10: a clean cup is held). Tastings recorded
+before the change held liking scores; migration 005 marked them unrated and migration 009 deleted them.
 
 **Decided: the reference cup is optional.** It says what the coffee can be. It can be unknown, when the
 producer doesn't specify the coffee. When the supplier or producer gives a description, that description is
 the reference; it is the bean's `sellerNotes`, so no new storage is needed. The tool must give useful advice
 with no reference at all, and must never treat a missing one as a sign the bean is poor.
 
-**Built: the lever ledger** (`src/core/levers.ts`, rule `clean-below-bar`). For a clean cup below the bar
-it lists the levers (level, profile, curve), each moving, exhausted, unclear, untested or
-unavailable, every state read from recorded roasts and tastings, with what each lever changes
-(`docs/RULES.md` rule 7). The level is exhausted when the last `plateauSteps` (2) real steps the same way on
-one profile did not raise the quality. The answer says "what is left is the curve, or the coffee itself" only
-when the level and the profile are both exhausted or unavailable (the profile is exhausted after
-`profileTestRoasts` (2) tasted roasts on the alternative that did not beat the other profile); until then
-it says which levers are still to try. A reference cup, when there is one, is quoted so the coffee
-isn't written off. The worked example in `docs/RULES.md` rule 7 is a ladder that starts ashy and then goes
-flat and clean: qualities 2, 3, 3, 3. The level took the defect out and then stopped adding anything.
+**Decided (2026-10-10): sour is not a roast defect; a clean cup is done; three level changes.** The user's cup
+reading is a bracket from uncooked (grassy, bready, baked or raw) to scorched (bitter, roasty, ashy), and the engine
+goes halfway between the two sides when a bean has been tasted on both. Sour moved out of the under-roasted words
+(it stays on the form, not acted on, and a roaster can assign it a side). A clean cup (roast quality 3 or more, no
+under or over word) is held as done: the lever ledger, the `clean-below-bar` rule, the `no-rule` answer and the settings
+`plateauSteps`, `profileTestRoasts` and `holdMinQuality` were removed (migration 009 clears the stored values), because
+a ledger of levers the tool cannot move helps nobody. They return with profile choice and curve edits. Every tasting now
+gets an answer from a rule, and a test says so. Built after it (same day): the bean's table (`src/core/beanTable.ts`,
+`table <bean>`), and the rule `level-changes-used`, which states to try a different profile once three level changes are
+behind the roast tasted on its profile and the cup still has a defect. A switch of profile starts the count again on that profile.
 
 ### Levers and ideas considered
 
@@ -160,20 +162,20 @@ What each change does, and where it stands. The reason is there when it was set 
 
 | Considered | What it would change | Status |
 |---|---|---|
-| Level (thermal dose step) | Where the roast stops: more or less of the chemistry, by a measured amount | Built (rules 5, 6; a lever in 7) |
-| Rest (days before tasting) | How the roast has settled, not the roast | **Dropped as a lever (2026-10-09):** the rest guard (rule 4) stays; the ledger no longer tests it |
+| Level (thermal dose step) | Where the roast stops: more or less of the chemistry, by a measured amount | Built (rules 5, 6) |
+| Rest (days before tasting) | How the roast has settled, not the roast | **Dropped as a lever (2026-10-09):** the rest guard (rule 4) stays |
 | Brew method | How much of the roast reaches the cup, not the roast | **Dropped as a lever (2026-10-09):** every tasting of a coffee is of one brew, the roaster's own (rule 1) |
-| Another stock profile | The curve's shape | Built (`level-not-helping`, ledger); only washed and natural beans (which start on KL Washed or KL Natural) have an alternative, so the profile lever is unavailable for the rest |
-| Editing the curve, fan or zones | The curve's shape, tuned to the bean | Not built (see Next, 3); the ledger lists it as unavailable |
+| Another stock profile | The curve's shape | Built as a switch (`level-not-helping`), only after a defect shows the level is not the lever; only washed and natural beans (which start on KL Washed or KL Natural) have an alternative. Not built: choosing another profile for a clean cup, which has no defect to point the way |
+| Editing the curve, fan or zones | The curve's shape, tuned to the bean | Not built (see Next, 3) |
 | Reference cup | What the coffee can be; stops it being written off | Built as the bean's `sellerNotes`, optional |
-| Roaster's own words and numbers | Taste-word meanings, step sizes, the quality bar, plateau and test sizes | Built (`calibration`) |
+| Roaster's own words and numbers | Taste-word meanings, step sizes, the noise band | Built (`calibration`) |
 | Roast quality, anchored to defects | A criterion that is about the roast, not the roaster's liking | Built (`quality`, rule 2 checks it against the words) |
-| Liking and "next time I want" | What the roaster prefers | **Dropped:** not a goal of the tool. Data kept in `want_next`, unused |
+| Liking and "next time I want" | What the roaster prefers | **Dropped:** not a goal of the tool. The `want_next` column was dropped by migration 009 |
 | Size a step by how bad the cup was | Bigger first step for quality 1 than for 2 | Not built, on purpose: one bean is too little to set the sizes, and the ladder showed the level wasn't the lever. Revisit with a second bean; a personal setting when built |
-| A rule for flat, monotone cups | Name what a flat cup means (baked, under-developed, bean) | Not built as a rule: `clean-below-bar` lists the levers; the word `flat` stays unmapped until a tasting shows what moves it |
-| Probe for the edge of the clean zone | Find where sourness or ashiness starts, to centre the roast between them | Mentioned in the level lever; a step costs a roast. Not built as a rule |
+| A rule for flat, monotone cups | Name what a flat cup means (baked, under-developed, bean) | Not built as a rule: a clean cup is held (`keep-as-is`); the word `flat` stays unmapped until a tasting shows what moves it |
+| Probe for the edge of the clean zone | Find where sourness or ashiness starts, to centre the roast between them | A step costs a roast. Not built as a rule |
 | Learn a roaster's own step size | Shortest path to the right roast per person | Not built: needs several beans |
-| Fix the count of "three roasts" | Where the count starts, how a deliberate ladder counts | Open question |
+| Fix the count of "three roasts" | Where the count starts, how a deliberate ladder counts | **Decided (2026-10-10):** three level changes, counted from the first level change recommended; each version behind the roast tasted is one. Built: `advise` says which one it is |
 
 ## Working today
 
@@ -202,16 +204,15 @@ What each change does, and where it stands. The reason is there when it was set 
   fails if it and the code disagree, so a roaster can audit what runs.
 - **First rules** (`src/core/rules.ts`, `advise <beanId>`): the clear cases of a tasting, as an
   ordered rule table with its settings in one place (`RULE_SETTINGS`, first guesses to tune) and
-  a test per rule. Sour, grassy or bready chips mean more roasting; bitter, roasty or ashy mean
+  a test per rule. Grassy or bready chips mean more roasting; bitter, roasty or ashy mean
   less: a 10% step in thermal dose, 15% when two chips agree, halfway to the nearest opposite
   result when the bean already has one (so it stops bouncing), then turned into a level for the
-  roast's profile. It asks instead of guessing when the evidence disagrees (sour and bitter
+  roast's profile. It asks instead of guessing when the evidence disagrees (grassy and bitter
   together, a roast quality that contradicts the words, an earlier roast that contradicts this
-  one), holds a clean cup of good roast quality, lists what else can raise a clean cup below the
-  bar, holds a sour cup tasted before its profile's rest is over (the Rest profiles assume
+  one), holds a clean cup (a quality of 3 or more) as done, holds an uncooked cup tasted before its profile's rest is over (the Rest profiles assume
   3 to 5 days; RTD, ready to drink, ones none), switches to the bean's alternative profile when more
-  roasting left the cup on the same side (the level isn't what's wrong; not one that already has a tasted roast), asks for a retaste in the coffee's tasting brew when a roast was tasted another way, and says
-  "no rule" for anything else rather than improvising. The engine returns the finished answer: `say`,
+  roasting left the cup on the same side (the level isn't what's wrong; not one the bean has been roasted on), asks for a retaste in the coffee's tasting brew when a roast was tasted another way, and says which of the three level changes a
+  recommendation is. The engine returns the finished answer: `say`,
   the whole reply in plain words, and `onYes`, the exact `version:add` command for a yes. The
   `/roast` skill only relays `say` and runs `onYes`; it interprets nothing.
 - **Per-roaster settings and taste words** (`src/core/calibration.ts`): the `RULE_SETTINGS`

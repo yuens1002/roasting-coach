@@ -6,19 +6,21 @@ Kaffelogic Nano 7; other roasters (the Kaleido M1 next) through their own adapte
 
 ## The goal
 
-Get a bean's roast right in **no more than three roasts**, by telling the roaster which lever to
-push each time. "Right" is a **roast quality of 4 or better**.
+Get a bean's roast right in **no more than three level changes**, by telling the roaster which way to
+go each time. "Right", for what is built, is a **clean cup, roast quality 3 or better**; a 4 or better is the aim
+once the tool can choose another profile or edit a curve.
 
 Roast quality is how well the roast came out, judged by roast defects. It is not how much you like
 the cup:
 
-- **1:** a roast defect dominates the cup (sour or grassy from under-roasting; bitter or ashy from
-  over-roasting).
+- **1:** a roast defect dominates the cup (grassy or bready from under-roasting, uncooked; bitter, roasty or
+  ashy from over-roasting, scorched).
 - **3:** clean, with little character.
 - **4:** clean and expressive.
 
 The full five-point scale is in [docs/RULES.md](docs/RULES.md), section 3. A flat cup with no roast
-defect is a 3 however little you like it, and getting it to a 4 is what the other levers are for.
+defect is a 3 however little you like it. The tool treats a clean cup as done: it can't choose another profile for a
+cup with no defect to point the way, and it can't edit a curve yet.
 
 Liking is deliberately not asked and not used. Two roasters can disagree about whether they like a
 cup, but they should agree on whether the roast has a defect, so that is what the tool coaches on.
@@ -39,7 +41,7 @@ hard.
   temperature over time. It doesn't say what happens to the roast, or to the flavour in the cup, if
   you move a point on it. Without that link, changing a profile is guesswork, and it's easy to fall
   back on only touching the level.
-- **The level is not the only lever.** A defect word (sour, ashy) tells you which way to move the
+- **The level is not the only lever.** A defect word (grassy, ashy) tells you which way to move the
   level. Once a cup has no roast defect left, nothing tells you which way to go, so another step is
   only a probe. What can still change the roast is the profile and the curve (rest and brew change the
   cup, not the roast, so every tasting of a coffee is of the one brew its roaster chose), and it's easy to keep pushing the level because
@@ -67,11 +69,11 @@ make that experiment reliable if it:
 
 1. **Turns what you tasted into the next thing to change, and says what it will do.** For a cup with
    a roast defect, that is usually a change in roasting, in plain words and before you roast. It
-   holds or asks instead when the roast may not be the cause: a sour cup tasted before its profile's
-   rest is over, a tasting that was not of the coffee's chosen brew, sour and bitter together, a roast quality that disagrees with
-   the words, or earlier roasts that contradict this one. For a clean cup short of the bar, it lists
-   every lever that changes the roast (level, profile, curve), what each one changes, and what your own
-   roasts say about it. Every tasting of a coffee is of the brew its roaster chose (their own usual one), so no cup is
+   holds or asks instead when the roast may not be the cause: an uncooked cup tasted before its profile's
+   rest is over, a tasting that was not of the coffee's chosen brew, uncooked and scorched flavours together, a roast quality that disagrees with
+   the words, or earlier roasts that contradict this one. A clean cup is held as done. It goes halfway between an
+   uncooked and a scorched roast of the same bean, and says which of the three level changes each recommendation is. After the third, with a defect left, it
+   states to try a different profile. `table` shows the bean's roasts as they come in, and where it stands. Every tasting of a coffee is of the brew its roaster chose (their own usual one), so no cup is
    a different kind of brew from the others.
 2. **Gives deterministic, explained advice.** The same evidence always leads to the same
    suggestion, from tested rules. A model never reads raw curves and never judges the cup. Every
@@ -121,7 +123,7 @@ relays the engine's answer. The session flow is in
 
 - `src/core/` machine-independent: the `RoastLog` model, feature extraction (phases,
   development, rate of rise, thermal dose, data sanity checks), the form definitions and the
-  roast-quality scale, the deterministic rule table (`rules.ts`), the lever ledger (`levers.ts`)
+  roast-quality scale, the deterministic rule table (`rules.ts`), the level-step ladder (`levers.ts`)
   and the per-roaster settings (`calibration.ts`).
 - `src/adapters/kaffelogic/` reads `.kpro` and `.klog` files, maps them onto `RoastLog`, holds the
   stock-profile table, rebuilds and writes profiles, and computes a profile's thermal dose at each level.
@@ -156,9 +158,9 @@ psql postgres://roast:roast@localhost:54320/roast_copilot
 Using a Postgres you already run instead? Copy `.env.example` to `.env` and point
 `DATABASE_URL` at it. `npm run db:seed` regenerates the seed after changing the TypeScript table.
 
-Upgrading from 0.1.5 or earlier: migration 005 renames the tasting's `score` to `quality` and marks
-every existing tasting unrated, because those scores were an overall liking. The advice skips an
-unrated tasting until you rate it by the new scale (see [CHANGELOG.md](CHANGELOG.md)).
+Updating: run `npm run db:migrate`. A release that changes the stored data converts it, and one that breaks it is
+a new minor version while the tool is in alpha (see [CHANGELOG.md](CHANGELOG.md), "Breaking"; for example, migration 009
+deletes the tastings that held an old overall score).
 
 ## Your Kaffelogic files
 

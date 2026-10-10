@@ -182,7 +182,7 @@ const SCENARIO: Step[] = [
   },
   {
     does: "tastes it as an espresso shot, not the pour over chosen for this coffee: recorded, as the roaster's word",
-    run: (s) => ({ command: "taste:add", input: { beanId: s.beanId, answers: { tastedOn: "2026-10-05", brew: "espresso", quality: 2, taste: ["sour", "grassy"] } } }),
+    run: (s) => ({ command: "taste:add", input: { beanId: s.beanId, answers: { tastedOn: "2026-10-05", brew: "espresso", quality: 2, taste: ["grassy", "bready"] } } }),
     check: (_out, ok) => expectEqual("taste:add succeeded", ok, true),
   },
   {
@@ -196,8 +196,8 @@ const SCENARIO: Step[] = [
     },
   },
   {
-    does: "tastes it again as the chosen pour over, leaving the brew out: sour and grassy, roast quality 2",
-    run: (s) => ({ command: "taste:add", input: { beanId: s.beanId, answers: { tastedOn: "2026-10-05", quality: 2, taste: ["sour", "grassy"] } } }),
+    does: "tastes it again as the chosen pour over, leaving the brew out: grassy and bready, roast quality 2",
+    run: (s) => ({ command: "taste:add", input: { beanId: s.beanId, answers: { tastedOn: "2026-10-05", quality: 2, taste: ["grassy", "bready"] } } }),
     check: (_out, ok) => expectEqual("taste:add succeeded", ok, true),
   },
   {
@@ -207,6 +207,7 @@ const SCENARIO: Step[] = [
       expectEqual("advise succeeded", ok, true);
       expectRule(out, "under-roasted");
       expectIncludes("say", out.say, "Roast about 15% more.");
+      expectIncludes("say", out.say, "This is level change 1 of the 3 this tool aims to get the roast right in.");
       if (!out.onYes) throw new Error("a change has to carry an onYes");
       state.onYes = out.onYes as State["onYes"];
     },
@@ -235,11 +236,12 @@ const SCENARIO: Step[] = [
     check: (_out, ok) => expectEqual("taste:add succeeded", ok, true),
   },
   {
-    does: "asks again: one roast tasted sour, the next bitter, so the answer goes halfway between them",
+    does: "asks again: one roast tasted grassy, the next bitter, so the answer goes halfway between them",
     run: (s) => ({ command: "advise", input: String(s.beanId) }),
     check: (out, ok, state) => {
       expectEqual("advise succeeded", ok, true);
       expectRule(out, "over-roasted-bracketed");
+      expectIncludes("say", out.say, "This is level change 2 of the 3 this tool aims to get the roast right in.");
       if (!out.onYes) throw new Error("a change has to carry an onYes");
       state.onYes = out.onYes as State["onYes"];
     },
@@ -276,6 +278,17 @@ const SCENARIO: Step[] = [
     },
   },
   {
+    does: "asks for the bean's table: its three roasts from uncooked to clean, and where it stands",
+    run: (s) => ({ command: "table", input: String(s.beanId) }),
+    check: (out, ok) => {
+      expectEqual("table succeeded", ok, true);
+      expectEqual("level changes made", out.levelChangesMade, 2);
+      expectIncludes("table", out.say, "| Roast | Version | Profile | Level | Thermal dose | Step | Tasted | Quality | Reads as |");
+      expectIncludes("bracket", out.say, "The roast that clears both defects lies between them.");
+      expectIncludes("clean", out.say, "Clean: roast 3.");
+    },
+  },
+  {
     does: "describes a second bean (Robusta) and roasts it",
     run: () => ({ command: "bean:add", input: { name: "Station flat", species: "robusta", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" } }),
     check: (out, ok, state) => {
@@ -296,13 +309,13 @@ const SCENARIO: Step[] = [
     check: (_out, ok) => expectEqual("taste:add succeeded", ok, true),
   },
   {
-    does: "asks what to change: nothing for the level to fix, so the answer lists the levers that change the roast",
+    does: "asks what to change: a clean cup is done for what the tool can do, so it is left alone and the answer says what would take it further",
     run: (s) => ({ command: "advise", input: String(s.flatBeanId) }),
     check: (out, ok) => {
       expectEqual("advise succeeded", ok, true);
-      expectRule(out, "clean-below-bar");
-      for (const lever of ["- level (", "- profile (", "- curve ("]) expectIncludes("lever ledger", out.say, lever);
-      if (/- (rest|brew) \(/.test(String(out.say))) throw new Error("rest and brew are not levers");
+      expectRule(out, "keep-as-is");
+      expectIncludes("say", out.say, "which this tool can't choose or make yet");
+      if (out.onYes) throw new Error("a hold must not carry an onYes");
     },
   },
 ];
