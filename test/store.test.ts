@@ -1,12 +1,13 @@
-import type { PGlite } from "@electric-sql/pglite";
+import { PGlite } from "@electric-sql/pglite";
+import { readdirSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { INTAKE_FIELDS, TASTING_FIELDS } from "../src/core/intake.js";
 import { checkAnswers } from "../src/core/validate.js";
-import { type Db, InputError, addBean, addRoast, addTasting, addVersion, beanHistory, listBeans, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
-import { migratedDb } from "./pg.js";
+import { type Db, InputError, addBean, addRoast, addTasting, addVersion, beanHistory, listBeans, loadColourReadings, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
+import { DB_DIR, migratedDb, readSql } from "./pg.js";
 import { PROFILE, syntheticLog } from "./syntheticLog.js";
 
-const GUJI = { name: "Ethiopia Guji", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", altitudeM: 1950, sellerNotes: "peach, jasmine" };
+const GUJI = { name: "Ethiopia Guji", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 1950, sellerNotes: "peach, jasmine" };
 
 describe("checkAnswers", () => {
   it("accepts a complete intake and keeps only answered fields", () => {
@@ -74,31 +75,145 @@ describe("store", () => {
     expect(r.version.changeReason).toMatch(/^Starting profile\. Grown at 1950 m/);
     // A bean with an unknown process has no other profile to suggest.
     expect(r.alternative).toBeUndefined();
-    expect(r.why).toContain("It starts at the level the profile's own file recommends.");
+    expect(r.why.join(" ")).toContain("You are shooting for Agtron 55 (medium)");
   });
 
-  it("starts a washed bean on KL Washed at the profile's own recommended level, with the altitude profile as the alternative", async () => {
+  it("starts a washed bean on KL Washed at the level its file gives for the roast shot for, with the altitude profile as the alternative", async () => {
     // A database of its own: the tests around this one count the beans in the shared one.
     const own = await migratedDb();
-    const r = await addBean(own, { ...GUJI, name: "Washed start", process: "washed", drinkWhen: "rest" });
-    expect(r.version).toMatchObject({ number: 1, profileName: "KL Washed", level: 0.8, endTempC: 214.4 });
-    expect(r.version.changeReason).toContain("KL Washed is written for washed coffees.");
-    expect(r.version.changeReason).toContain("It starts at the level the profile's own file recommends.");
-    expect(r.alternative).toBe("1500-2000m Rest");
+    const washed = { ...GUJI, process: "washed", drinkWhen: "rest" };
+    const medium = await addBean(own, { ...washed, name: "Washed medium", agtronTarget: 55 });
+    expect(medium.version).toMatchObject({ number: 1, profileName: "KL Washed", level: 1.2, endTempC: 217.6 });
+    expect(medium.version.changeReason).toContain("KL Washed is written for washed coffees.");
+    expect(medium.version.changeReason).toContain("You are shooting for Agtron 55 (medium)");
+    expect(medium.alternative).toBe("1500-2000m Rest");
+    const light = await addBean(own, { ...washed, name: "Washed light", agtronTarget: 85 });
+    expect(light.version).toMatchObject({ profileName: "KL Washed", level: 0.8, endTempC: 214.4 });
+    // KL Washed names no level as dark as Agtron 35, so that roast starts on the altitude profile, which does.
+    const dark = await addBean(own, { ...washed, name: "Washed dark", agtronTarget: 35 });
+    expect(dark.version).toMatchObject({ profileName: "1500-2000m Rest", level: 4.8, endTempC: 227.3 });
+    expect(dark.version.changeReason).toContain("KL Washed is written for washed coffees, but its file names no level as dark as Agtron 35, so this uses 1500-2000m Rest");
+    expect(dark.alternative).toBeUndefined();
   });
 
-  it("lets a tasting recorded in a brew the form no longer offers be re-rated, but refuses naming that brew again", async () => {
-    // A database of its own, and a row written the way an earlier version of the form allowed (espresso).
+  it("stores the roast shot for and the tasting brew, and fills a tasting's brew in from the latter when it is left out", async () => {
     const own = await migratedDb();
-    const { beanId } = await addBean(own, { ...GUJI, name: "Legacy tasting" });
-    const { roastId } = await addRoast(own, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
-    const inserted = await own.query<{ id: number }>("insert into tasting (roast_id, tasted_on, brew, quality, quality_rated, taste) values ($1, '2026-03-12', 'espresso', 3, false, '{flat}') returning id", [roastId]);
-    const tastingId = Number(inserted.rows[0].id);
-    const row = await updateTasting(own, { tastingId, answers: { quality: 4 } });
-    expect(row).toMatchObject({ brew: "espresso", quality: 4, quality_rated: true });
-    // The stored brew stays, and so does the refusal of espresso for a new answer.
-    await expect(updateTasting(own, { tastingId, answers: { brew: "espresso" } })).rejects.toMatchObject({ errors: [expect.stringContaining("isn't an option")] });
-    expect(await updateTasting(own, { tastingId, answers: { brew: "pourover" } })).toMatchObject({ brew: "pourover" });
+    const { beanId } = await addBean(own, { ...GUJI, name: "Own brew", tastingBrew: "espresso" });
+    const stored = await own.query<{ agtron_target: string; tasting_brew: string }>("select agtron_target, tasting_brew from bean where id = $1", [beanId]);
+    expect(stored.rows[0]).toEqual({ agtron_target: 55, tasting_brew: "espresso" });
+    await addRoast(own, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
+    const left = await addTasting(own, { beanId, answers: { tastedOn: "2026-03-12", quality: 3, taste: ["flat"] } });
+    const named = await addTasting(own, { beanId, answers: { tastedOn: "2026-03-13", brew: "pourover", quality: 3, taste: ["flat"] } });
+    const brews = await own.query<{ id: number; brew: string }>("select id, brew from tasting order by id");
+    expect(brews.rows.map((r) => [Number(r.id), r.brew])).toEqual([[left.tastingId, "espresso"], [named.tastingId, "pourover"]]);
+  });
+
+  /** A roast on a bean's first version with a colour reading and, when given, the log's measured end temperature. */
+  async function roastWithReading(own: PGlite, versionId: number, roastedAt: string, colour: number | null, dropTemp?: number) {
+    // Features are only stored with the log they were computed from.
+    const log = dropTemp === undefined ? [null, null, null] : ["kaffelogic-klog", "log", JSON.stringify({ dropTemp })];
+    await own.query("insert into roast (version_id, roasted_at, green_g, roasted_g, colour, log_format, log_file, features) values ($1, $2, 120, 102, $3, $4, $5, $6)", [versionId, roastedAt, colour, ...log]);
+  }
+  async function firstVersion(own: PGlite, name: string, extra: Record<string, unknown> = {}) {
+    const { beanId } = await addBean(own, { ...GUJI, name, ...extra });
+    return Number((await own.query<{ id: number }>("select id from profile_version where bean_id = $1", [beanId])).rows[0].id);
+  }
+
+  it("reads the roaster's colour readings with the bean temperature each roast measured at its end, and only for roasts with a log and a reading on a stock profile", async () => {
+    const own = await migratedDb();
+    const versionId = await firstVersion(own, "Read");
+    await roastWithReading(own, versionId, "2026-03-10", 58.4, 222.1);
+    await roastWithReading(own, versionId, "2026-03-11", null, 223);
+    await roastWithReading(own, versionId, "2026-03-12", 40, undefined);
+    await roastWithReading(own, versionId, "2026-03-14", 44.2, 227.3);
+    expect(await loadColourReadings(own)).toEqual([
+      { profile: "1500-2000m Rest", endTempC: 222.1, agtron: 58.4 },
+      { profile: "1500-2000m Rest", endTempC: 227.3, agtron: 44.2 },
+    ]);
+  });
+
+  it("leaves out a version that is not built on a stock profile", async () => {
+    const own = await migratedDb();
+    const versionId = await firstVersion(own, "Own profile");
+    await own.query("update profile_version set stock_profile_id = null where id = $1", [versionId]);
+    await roastWithReading(own, versionId, "2026-03-10", 58.4, 222.1);
+    expect(await loadColourReadings(own)).toEqual([]);
+  });
+
+  it("starts a new bean from the line through the roaster's own readings once they give one", async () => {
+    const own = await migratedDb();
+    const versionId = await firstVersion(own, "Reads first");
+    // Measured ends of 222.4 and 227.3 °C read Agtron 60 and 40: the line gives Agtron 50 at 224.85 °C, level 4.3.
+    await roastWithReading(own, versionId, "2026-03-10", 60, 222.4);
+    await roastWithReading(own, versionId, "2026-03-12", 40, 227.3);
+    const next = await addBean(own, { ...GUJI, name: "Reads second", agtronTarget: 50 });
+    expect(next.version.profileName).toBe("1500-2000m Rest");
+    expect(next.version.level).toBeCloseTo(4.3, 1);
+    expect(next.version.changeReason).toContain("Your 2 colour readings on this profile place that at this level.");
+  });
+
+  it("takes the colour reading as an Agtron number and the target as a whole one", async () => {
+    const own = await migratedDb();
+    await expect(addBean(own, { ...GUJI, name: "Fraction", agtronTarget: 62.5 })).rejects.toMatchObject({ errors: ["Roast you are shooting for must be a whole number; got 62.5 Agtron."] });
+    await expect(addBean(own, { ...GUJI, name: "Altitude fraction", altitudeM: 1950.5 })).rejects.toBeInstanceOf(InputError);
+    const { beanId } = await addBean(own, { ...GUJI, name: "Whole" });
+    await addRoast(own, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102, colour: 62.5 } });
+    await expect(addRoast(own, { beanId, roastedAt: "2026-03-11", answers: { greenG: 120, roastedG: 102, colour: 120 } })).rejects.toBeInstanceOf(InputError);
+  });
+
+  it("refuses a tasting for a bean that does not exist, and treats a brew of null like a brew left out", async () => {
+    const own = await migratedDb();
+    await expect(addTasting(own, { beanId: 99, answers: { tastedOn: "2026-03-12", quality: 3, taste: ["flat"] } })).rejects.toMatchObject({ errors: ["Bean 99 doesn't exist."] });
+    const { beanId } = await addBean(own, { ...GUJI, name: "Null brew", tastingBrew: "moka" });
+    await addRoast(own, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
+    const { tastingId } = await addTasting(own, { beanId, answers: { tastedOn: "2026-03-12", brew: null, quality: 3, taste: ["flat"] } as never });
+    expect((await own.query<{ brew: string }>("select brew from tasting where id = $1", [tastingId])).rows[0].brew).toBe("moka");
+  });
+
+  it("requires both answers of a new bean, and lets the roaster restate them at any time", async () => {
+    const own = await migratedDb();
+    const { agtronTarget, tastingBrew, ...incomplete } = GUJI;
+    await expect(addBean(own, { ...incomplete, name: "No answers" })).rejects.toMatchObject({ errors: expect.arrayContaining([expect.stringContaining("is required")]) });
+    const { beanId } = await addBean(own, { ...GUJI, name: "Restated" });
+    expect(await updateBean(own, { beanId, answers: { tastingBrew: "moka", agtronTarget: 35 } })).toMatchObject({ tasting_brew: "moka", agtron_target: 35 });
+    await expect(updateBean(own, { beanId, answers: { tastingBrew: "kettle" } })).rejects.toMatchObject({ errors: [expect.stringContaining("isn't an option")] });
+    await expect(updateBean(own, { beanId, answers: { agtronTarget: 20 } })).rejects.toBeInstanceOf(InputError);
+  });
+
+  it("converts the beans stored before migration 008, rather than tolerating them: Agtron 55, their newest tasting's brew (pour over with none), no old goal", async () => {
+    const old = new PGlite();
+    const files = readdirSync(DB_DIR).filter((f) => f.endsWith(".sql")).sort();
+    for (const file of files.filter((f) => f < "008")) await old.exec(readSql(file));
+    const bean = async (name: string) => Number((await old.query<{ id: number }>("insert into bean (name, species, decaf, process, goal, drink_when) values ($1, 'arabica', false, 'washed', 'filter', 'soon') returning id", [name])).rows[0].id);
+    const tasted = await bean("Tasted");
+    const untasted = await bean("Untasted");
+    const tiedBean = await bean("Tied");
+    const version = Number((await old.query<{ id: number }>("insert into profile_version (bean_id, number, machine_id, profile_name, level, end_temp_c) values ($1, 1, 'kaffelogic-nano7', 'KL Washed', 0.8, 214.4) returning id", [tasted])).rows[0].id);
+    const roast = Number((await old.query<{ id: number }>("insert into roast (version_id, roasted_at, green_g, roasted_g, colour) values ($1, '2026-03-01', 120, 102, 130) returning id", [version])).rows[0].id);
+    // The older tasting is espresso and the newer one a moka pot: the newer one's brew is the bean's.
+    for (const [day, brew] of [["2026-03-04", "espresso"], ["2026-03-06", "moka"]]) {
+      await old.query("insert into tasting (roast_id, tasted_on, brew, quality, quality_rated, taste) values ($1, $2, $3, 3, true, '{flat}')", [roast, day, brew]);
+    }
+    // A bean tasted on its second version only, twice on the same day: the later tasting (the higher id) wins.
+    await old.query("insert into profile_version (bean_id, number, machine_id, profile_name, level, end_temp_c) values ($1, 1, 'kaffelogic-nano7', 'KL Washed', 0.8, 214.4)", [tiedBean]);
+    const second = Number((await old.query<{ id: number }>("insert into profile_version (bean_id, number, machine_id, profile_name, level, end_temp_c) values ($1, 2, 'kaffelogic-nano7', 'KL Washed', 0.9, 215.4) returning id", [tiedBean])).rows[0].id);
+    const secondRoast = Number((await old.query<{ id: number }>("insert into roast (version_id, roasted_at, green_g, roasted_g, colour) values ($1, '2026-03-02', 120, 102, 60) returning id", [second])).rows[0].id);
+    for (const brew of ["aeropress", "immersion"]) {
+      await old.query("insert into tasting (roast_id, tasted_on, brew, quality, quality_rated, taste) values ($1, '2026-03-08', $2, 3, true, '{flat}')", [secondRoast, brew]);
+    }
+    await old.exec(readSql(files.find((f) => f.startsWith("008_"))!));
+    const rows = await old.query<Record<string, unknown>>("select name, agtron_target, tasting_brew from bean order by id");
+    expect(rows.rows).toEqual([
+      { name: "Tasted", agtron_target: 55, tasting_brew: "moka" },
+      { name: "Untasted", agtron_target: 55, tasting_brew: "pourover" },
+      { name: "Tied", agtron_target: 55, tasting_brew: "immersion" },
+    ]);
+    // The roast form's colour is an Agtron reading now: one outside 25 to 95 is cleared, one inside is kept.
+    const colours = await old.query<{ colour: string | null }>("select colour from roast order by id");
+    expect(colours.rows.map((r) => (r.colour === null ? null : Number(r.colour)))).toEqual([null, 60]);
+    const columns = await old.query<{ column_name: string; is_nullable: string }>("select column_name, is_nullable from information_schema.columns where table_name = 'bean'");
+    expect(columns.rows.find((c) => c.column_name === "goal")).toBeUndefined();
+    expect(columns.rows.filter((c) => ["agtron_target", "tasting_brew"].includes(c.column_name)).map((c) => c.is_nullable)).toEqual(["NO", "NO"]);
   });
 
   it("does not ask how the bean will be brewed: a brewing goal is refused as not a field", async () => {
@@ -481,7 +596,7 @@ describe("store", () => {
 describe("profile keys across a chain of near-identical copies", () => {
   it("joins two groups that a later copy bridges, so the level ladder doesn't split", async () => {
     const db = await migratedDb();
-    const { beanId } = await addBean(db, { name: "Kenya chain", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", altitudeM: 1950 });
+    const { beanId } = await addBean(db, { name: "Kenya chain", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 1950 });
     // 204.1044 and 204.1056 round to different 5-figure keys and are further apart than the 6-figure tolerance;
     // 204.105 is within the tolerance of both, so it bridges them.
     const withFirstLevel = (value: string) => PROFILE.replace("profile_short_name:Test line", "profile_short_name:Kenya chain").replace("roast_levels:204,", `roast_levels:${value},`);
@@ -499,7 +614,7 @@ describe("profile keys across a chain of near-identical copies", () => {
 describe("profile keys keep distinct profiles apart", () => {
   it("gives two profiles that round to the same key different keys when they are further apart than the tolerance", async () => {
     const db = await migratedDb();
-    const { beanId } = await addBean(db, { name: "Kenya apart", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", altitudeM: 1950 });
+    const { beanId } = await addBean(db, { name: "Kenya apart", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 1950 });
     // 204.1001 and 204.1049 both round to 204.1 at five figures but are 0.0048 apart, well over the 6-figure tolerance.
     const withFirstLevel = (value: string) => PROFILE.replace("profile_short_name:Test line", "profile_short_name:Kenya apart").replace("roast_levels:204,", `roast_levels:${value},`);
     await addVersion(db, { beanId, profileName: "Kenya apart", level: 3.6, reason: "Profile one.", profileFile: withFirstLevel("204.1001") });

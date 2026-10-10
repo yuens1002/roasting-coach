@@ -5,6 +5,38 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-10
+
+- 2026-10-10 - feat(intake): ask for the roast colour on the Agtron scale and the roaster's own tasting brew, converting stored beans
+
+### Breaking
+
+- **Migration `db/008` converts the stored beans.** Every bean gets `agtron_target` (55, medium, until the roaster restates it) and
+  `tasting_brew` (the brew of its newest tasting, pour over without one), both required from then on, and the `goal` column ("Brewing for")
+  is dropped. Run `npm run db:migrate` after updating. Nothing in the code tolerates a bean without them.
+- **`bean:add` requires two new answers:** `agtronTarget` (25 to 95) and `tastingBrew` (pour over, French press / immersion, AeroPress,
+  espresso, moka pot or other).
+- The roast form's `colour` is an Agtron reading, 25 to 95 (it was a reading on a scale named in the notes, 0 to 150); the migration clears a stored one outside that. A reading tunes a bean's first level only when its roast has a recorded log, which gives the bean temperature the roast ended at.
+- `agtronTarget`, `altitudeM` and `densityGL` must be whole numbers (a fraction was a raw database error).
+
+### Added
+
+- **Roast colour on the SCA / Agtron scale** (95 very light to 25 extremely dark; `src/core/roastColour.ts`) picks a new bean's first level.
+  Kaffelogic publishes no level-to-Agtron table, so the placement is an approximation from the profile's labelled levels (taken as Agtron
+  65, 55 and 45) until the roaster has two colour readings on that profile at end temperatures 3 °C or more apart; then it is read off the
+  line through their readings. The answer says which. The defects in the cup decide every step after the first roast.
+- **One tasting brew per coffee, the roaster's own** (any of six). A tasting without a brew is recorded in it; a tasting in another brew gets
+  the `tasted-in-other-brew` request; earlier roasts with none in the chosen brew are left out, and the answer names the brew.
+- **`level-for`**: the level to try for an Agtron colour on a stock profile, when the roaster restates the colour they are after. It records
+  nothing.
+- **The rulebook's step table** gives the range of levels a 10% or 15% step moves across the levels a bean can start at, instead of one row at
+  the profile's recommended level.
+
+### Changed
+
+- The cupping protocol is the roaster's own brew, not filter coffee only; filter is the suggestion for a roaster with none.
+- `docs/ROADMAP.md` records the decision that database changes convert and do not tolerate, and that breaking changes are versioned.
+
 ## [0.1.13] - 2026-10-09
 
 - 2026-10-09 - feat(station): start claude on the station with one command, as a new user would find it

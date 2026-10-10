@@ -14,6 +14,7 @@
 //   npx tsx scripts/roast.ts bean:update  '{"beanId": 1, "answers": {"sellerNotes": "..."}}'   (merged over the stored answers; null clears)
 //   npx tsx scripts/roast.ts taste:update '{"tastingId": 2, "answers": {"quality": 3, "taste": ["flat"]}}'
 //   npx tsx scripts/roast.ts thermal-dose '{"profile": "Robusta", "level": 3, "change": -15}'   (level for a thermal dose change, in %)
+//   npx tsx scripts/roast.ts level-for '{"profile": "Robusta", "agtron": 65}'   (the level to try for an Agtron colour; records nothing)
 //   npx tsx scripts/roast.ts advise 1   (the rule table's advice for the newest tasted roast, as a level when it is a change)
 //   npx tsx scripts/roast.ts calibration   (this roaster's settings and taste-word meanings, with the defaults)
 //   npx tsx scripts/roast.ts calibration:set '{"settings": {"stepPct": 8}, "words": {"flat": "under", "sour": null}}'   (null: back to the default)
@@ -27,15 +28,16 @@
 // profile as is. Later level changes keep using the same profile.
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { parseHeader, parseKpro, splitLines } from "../src/adapters/kaffelogic/parse.js";
+import { parseHeader, parseKpro, splitLines, timeCurveReaches } from "../src/adapters/kaffelogic/parse.js";
 import { kaffelogicAdviceContext } from "../src/adapters/kaffelogic/adviceContext.js";
+import { placeColour, placementSay } from "../src/adapters/kaffelogic/startingProfiles.js";
 import { type LevelThermalDose, formatMinutesSeconds, levelAfterChange, profileThermalDoseAtLevel } from "../src/adapters/kaffelogic/thermalDose.js";
-import { findBaseProfile, formatKpro, profileFromKpro, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
+import { type ProfileLines, findBaseProfile, formatKpro, profileFromKpro, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
 import { describeCalibration, personalChanges, resolveCalibration } from "../src/core/calibration.js";
 import { INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../src/core/intake.js";
 import { type LevelMove, adviceReport, adviseFromHistory, unratedTastingIds, unratedTastingsMessage } from "../src/core/rules.js";
 import { checkShape } from "../src/core/validate.js";
-import { type Db, InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, changeCalibration, intakeFromBeanRow, listBeans, loadOverrides, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
+import { type Db, InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, changeCalibration, intakeFromBeanRow, listBeans, loadColourReadings, loadOverrides, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
 import { asDb, connect } from "./db.js";
 import { KAFFELOGIC_DIR, KAFFELOGIC_OUT_DIR, loadLibrary, outPath } from "./library.js";
 
@@ -61,6 +63,12 @@ function beanIdArg(): number {
 }
 
 const print = (v: unknown) => console.log(JSON.stringify(v, null, 2));
+
+/** When a profile's curve reaches an end temperature, m:ss: a level worked out from an Agtron colour is not in the table of stock levels, so it is read off the profile's own curve. */
+function curveReachesAt(lines: ProfileLines, endTempC: number): string | undefined {
+  const seconds = timeCurveReaches(parseKpro(formatKpro(lines)).roastCurve, endTempC);
+  return seconds === undefined ? undefined : formatMinutesSeconds(seconds);
+}
 
 const levelShape = (d: LevelThermalDose) => ({ level: d.level, endTempC: Math.round(d.endTemp * 10) / 10, endsAt: formatMinutesSeconds(d.endsAt), thermalDose: Math.round(d.thermalDose * 100) / 100 });
 
@@ -115,6 +123,7 @@ async function run() {
         const library = loadLibrary();
         let file = undefined as { path: string; text: string; builtFrom: string } | undefined;
         const warnings: string[] = [];
+        let endsAtFromFile: string | undefined;
         const input = json();
         // The profile file is written before the database insert, never over an existing file, and
         // removed again if the insert then fails: the database never claims a file that isn't there.
@@ -125,6 +134,7 @@ async function run() {
               warnings.push(`No copy of "${start.stockName}" in ${KAFFELOGIC_DIR} (its .kpro, or a log roasted on it), so no profile file was written. Use the stock profile on the Nano.`);
               return undefined;
             }
+            endsAtFromFile = curveReachesAt(base.lines, start.endTempC);
             const profileName = start.beanName;
             const description = [
               `${profileName}: ${start.stockName} for this bean, written by roasting-coach. Curve and settings are unchanged.`,
@@ -142,11 +152,34 @@ async function run() {
             file = { path, text, builtFrom: base.path };
             return { profileName, profileFile: text };
           });
-          return { ...result, profile: file ? { written: file.path, builtFrom: file.builtFrom } : undefined, warnings };
+          return { ...result, endsAt: endsAtFromFile, profile: file ? { written: file.path, builtFrom: file.builtFrom } : undefined, warnings };
         } catch (e) {
           if (file) rmSync(file.path, { force: true });
           throw e;
         }
+      }
+      case "level-for": {
+        // The level to try for an Agtron colour on a stock profile, using this roaster's colour readings where they give a line. Records nothing:
+        // the roaster says yes, and version:add records it with their own words as the reason.
+        const input = json();
+        const shapeErrors = checkShape(input, { profile: { type: "string", required: true }, agtron: { type: "number", required: true } });
+        if (shapeErrors.length) throw new InputError(shapeErrors);
+        const { profile: name, agtron } = input as { profile: string; agtron: number };
+        const placed = placeColour(name, agtron, await loadColourReadings(db));
+        if (!placed.ok) throw new InputError([placed.problem]);
+        const base = findBaseProfile(loadLibrary(), { name: placed.profile.name });
+        const endsAt = base ? curveReachesAt(base.lines, placed.level.endTemp) : undefined;
+        const { level, endTemp, colour } = placed.level;
+        return {
+          profile: placed.profile.name,
+          agtron,
+          level,
+          endTempC: endTemp,
+          endsAt,
+          basis: colour.basis,
+          readings: colour.readings,
+          say: placementSay(placed, endsAt),
+        };
       }
       case "version:add":
         return await addVersion(db, json() as unknown as NewVersion);
@@ -172,7 +205,7 @@ async function run() {
         const history = await beanHistory(db, beanId);
         // The roaster's own settings and taste-word meanings, where they've set any; `personal` lists them so the answer can be audited.
         const overrides = await loadOverrides(db);
-        const result = adviseFromHistory(history, kaffelogicAdviceContext(intakeFromBeanRow(history.bean)), resolveCalibration(overrides));
+        const result = adviseFromHistory(history, kaffelogicAdviceContext(intakeFromBeanRow(history.bean), await loadColourReadings(db)), resolveCalibration(overrides));
         // Tastings recorded before roast quality replaced the overall score are left out until rated; say which.
         const unratedTastings = unratedTastingIds(history);
         if (!result) {
@@ -238,7 +271,7 @@ async function run() {
       case "bean:remove":
         return await removeBean(db, beanIdArg());
       default:
-        throw new InputError([`Unknown command "${command}". Commands: fields, library, thermal-dose, advise, calibration, calibration:set, beans, profile:write, bean:add, bean:update, bean:remove, version:add, roast:add, taste:add, taste:update, history, features:refresh.`]);
+        throw new InputError([`Unknown command "${command}". Commands: fields, library, thermal-dose, level-for, advise, calibration, calibration:set, beans, profile:write, bean:add, bean:update, bean:remove, version:add, roast:add, taste:add, taste:update, history, features:refresh.`]);
     }
   } finally {
     await client.end();

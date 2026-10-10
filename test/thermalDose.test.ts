@@ -95,7 +95,7 @@ describe("a profile's thermal dose at a level", () => {
 describe("stored roasts", () => {
   it("get the thermal dose when their features are recomputed from the stored log", async () => {
     const db = await migratedDb();
-    const { beanId } = await addBean(db, { name: "Old", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon" });
+    const { beanId } = await addBean(db, { name: "Old", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" });
     const { roastId } = await addRoast(db, { beanId, klog: syntheticLog({ roast_end: 600 }), answers: { greenG: 120, roastedG: 102 } });
     // A roast recorded before thermalDose existed.
     await db.query("update roast set features = features - 'thermalDose' where id = $1", [roastId]);

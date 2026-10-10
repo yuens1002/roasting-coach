@@ -23,11 +23,24 @@ A reference cup the roaster describes (say, the farm's or the seller's) goes in 
 
 1. The roaster describes the bean in free text. Map what they said onto the intake fields.
 2. Only ask about **required** fields they didn't cover (species, decaf, processing, when they'll
-   drink it). Don't ask how they will brew it: that doesn't change the roast. Don't guess these. Optional fields: fill only what was said.
+   drink it, the roast they are shooting for, the brew they taste with). Don't guess these. Optional fields: fill only what was said.
    Bag altitude ranges: use the middle.
+   - **The roast they are shooting for** is a colour on the SCA / Agtron scale (95 very light, 85 light, 75
+     moderately light, 65 light-medium, 55 medium, 45 medium-dark, 35 dark, 25 extremely dark; `roast.ts fields
+     intake` lists them). Take a word as its number and show the number; a roaster with a colour meter can give any
+     number from 25 to 95. It only picks the first level to try; after that the defects in the cup decide each step.
+     It is a colour, not a brew method, and no brew is a roast target. Say in plain words that the first level is an
+     approximation until their own colour readings on that profile tune it (`why` says which it is).
+   - **The brew they taste with** is their own usual brew, whatever it is (pour over, French press / immersion,
+     AeroPress, espresso, moka pot or other). Ask them to stay on it for every tasting of this coffee, so a
+     difference in the cup is a difference in the roast. If they have no usual brew, suggest a filter brew:
+     it is the easiest to make the same way each time with inexpensive equipment. Don't steer a roaster off
+     their own brew.
 3. Show the mapped answers in one short list, then `bean:add`.
-4. Report v1 in plain words: profile, level **and end temperature**, when the curve reaches it,
-   the `why` lines, and the alternative profile.
+4. Report v1 in plain words: profile, level **and end temperature**, when the curve reaches it (`endsAt`, present when
+   the stock profile's file is on hand),
+   the `why` lines, and the alternative profile. Ask for an Agtron reading of each roast if they have a colour
+   meter: with two readings at ends at least 3 °C apart on a profile, the tool places later beans on that line.
 5. If `profile.written` is set, the bean has its own profile, `<bean name>.kpro` in
    `profiles/out/` (or `KAFFELOGIC_OUT_DIR` when it is set): the chosen stock profile renamed for the bean, curve unchanged. Tell the
    roaster to load it onto the machine, pick it, and set the level. Without it (a warning says
@@ -51,18 +64,18 @@ A reference cup the roaster describes (say, the farm's or the seller's) goes in 
 
 ## 3. Tasting
 
-Use `taste:add` with `beanId` (and `roastId` if not the newest roast). Ask for date, brew method,
-roast quality (1-5) and taste chips (required); notes are optional. Translate the roaster's words
+Use `taste:add` with `beanId` (and `roastId` if not the newest roast). Ask for date,
+roast quality (1-5) and taste chips (required); notes are optional. Leave the brew out: it is recorded as the
+brew chosen for this coffee at intake. Name a brew only when the roaster says this tasting was another one. Translate the roaster's words
 into chips and **confirm the chips** before `taste:add`; don't silently interpret.
 
-The cupping protocol is filter coffee only: pour over, French press / immersion or AeroPress, whatever
-the bean is brewed for at home, so no cup is a different kind of brew from the others. Filter is a
-baseline chosen because it is accessible (any roaster can make it with inexpensive equipment); it is not a
-roast target, and the roast is never aimed at a brew method. The form
-offers only those brews. If the roaster tasted it another way (an espresso shot), tell them the tasting
-has to be of filter coffee to be compared; don't record it as another brew. `advise` asks for a
-retaste as filter coffee when every tasting of the roast it is advising on was another brew (an older
-recording, such as an espresso shot).
+The cupping protocol: every tasting of a coffee is of the one brew its roaster chose at intake, so no cup is a
+different kind of brew from the others. The brew is the roaster's own; the roast is never aimed at it. If the
+roaster tasted a roast another way, record it as they say (the form offers every brew) and run `advise`: it asks
+for a retaste in the chosen brew when the roast has no tasting in it, and `say` states which brew. If the roaster
+says the brew they use has changed, record it with `bean:update` (`{"beanId", "answers": {"tastingBrew": "..."}}`)
+and run `advise` again. The same goes for the roast colour they are shooting for (`agtronTarget`), which they can
+restate at any time.
 
 The quality is how well the roast came out, judged by defects, **not whether the roaster likes the
 cup** (the tool doesn't ask that and doesn't use it). Offer the scale in these words (`roast.ts fields
@@ -113,10 +126,17 @@ and run the command it hands you if the roaster says yes.
    A wrong or missing chip is fixed with `taste:update` and `advise` is run again. A change they
    choose themselves is theirs, not the engine's: size it with `thermal-dose`
    (`thermal-dose '{"profile": "...", "level": 3, "change": -15}'`, change in %), record it with
-   `version:add` and their own words as the `reason`, and say it was their choice. A switch to the
+   `version:add` and their own words as the `reason`, and say it was their choice. If they restate the
+   roast colour they are after ("I want it lighter now, Agtron 75"), record the new colour with `bean:update`
+   (`{"beanId", "answers": {"agtronTarget": 75}}`), then ask `level-for`
+   (`level-for '{"profile": "<the stock profile the bean's profile is built on>", "agtron": 75}'`; `history` shows it as
+   the version's base profile) and say its `say` as written. It records nothing. If they say yes, record the level
+   with `version:add` and their own words as the `reason`. A new colour does not change what `advise` says: the
+   defects in the cup decide the steps, and their perception of them, sour to bitter, is theirs and can change from
+   roast to roast. A switch to the
    other profile they choose (the ledger names it, with a level) is recorded the same way with
    `"profileName"` and the level the ledger gave, and it costs a roast. When `say` asks for a
-   retaste as filter coffee, add that tasting with `taste:add` on the same roast and run
+   retaste in the coffee's tasting brew, add that tasting with `taste:add` on the same roast and run
    `advise` again; nothing new is recorded until the tasting is.
 5. If the roaster wants a file for the new version, `profile:write` (`{"beanId", "version"}`,
    optional `"name"`) writes `<bean> <level>.kpro` to `profiles/out/` (or `KAFFELOGIC_OUT_DIR` when it is set): the version's profile with

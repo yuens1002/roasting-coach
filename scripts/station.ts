@@ -128,8 +128,8 @@ const weights = { greenG: 120, roastedG: 102 };
 
 const SCENARIO: Step[] = [
   {
-    does: "describes a new washed bean (no question about how it will be brewed)",
-    run: () => ({ command: "bean:add", input: { name: "Station washed", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", altitudeM: 1900 } }),
+    does: "describes a new washed bean to roast light (Agtron 85) and taste as pour over",
+    run: () => ({ command: "bean:add", input: { name: "Station washed", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 85, tastingBrew: "pourover", altitudeM: 1900 } }),
     check: (out, ok, state) => {
       expectEqual("bean:add succeeded", ok, true);
       expectEqual("starting profile", at(out, "version.profileName"), "KL Washed");
@@ -138,8 +138,35 @@ const SCENARIO: Step[] = [
     },
   },
   {
+    does: "describes a washed bean to roast dark (Agtron 35): KL Washed names no level as dark as Agtron 35, so it starts on the altitude profile",
+    run: () => ({ command: "bean:add", input: { name: "Station dark", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 35, tastingBrew: "pourover", altitudeM: 1900 } }),
+    check: (out, ok) => {
+      expectEqual("bean:add succeeded", ok, true);
+      expectEqual("starting profile", at(out, "version.profileName"), "1500-2000m RTD");
+      expectEqual("starting level", at(out, "version.level"), 5.9);
+    },
+  },
+  {
+    does: "restates the colour it is after, Agtron 65, and asks for a level to try on KL Washed: it gets a level and an offer, and nothing is recorded",
+    run: () => ({ command: "level-for", input: { profile: "KL Washed", agtron: 65 } }),
+    check: (out, ok) => {
+      expectEqual("level-for succeeded", ok, true);
+      expectEqual("level", out.level, 1.0);
+      expectEqual("basis", out.basis, "approximation");
+      expectIncludes("say", out.say, "Shall I record that as the next version, with your own words as the reason?");
+    },
+  },
+  {
+    does: "asks for a level on KL Washed for Agtron 35: it names no level that dark, so the answer says to start on an altitude profile",
+    run: () => ({ command: "level-for", input: { profile: "KL Washed", agtron: 35 } }),
+    check: (out, ok) => {
+      expectEqual("level-for refused", ok, false);
+      expectIncludes("refusal", JSON.stringify(out.errors), "names no level as dark as Agtron 35");
+    },
+  },
+  {
     does: "is refused when a brewing goal is given: the roast is not aimed at a brew method",
-    run: () => ({ command: "bean:add", input: { name: "Goal given", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", goal: "espresso" } }),
+    run: () => ({ command: "bean:add", input: { name: "Goal given", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 85, tastingBrew: "pourover", goal: "espresso" } }),
     check: (out, ok) => {
       expectEqual("bean:add refused", ok, false);
       expectIncludes("refusal", JSON.stringify(out.errors), '\\"goal\\" is not a field');
@@ -154,16 +181,23 @@ const SCENARIO: Step[] = [
     },
   },
   {
-    does: "is refused when the tasting is an espresso shot: tastings are of filter coffee",
+    does: "tastes it as an espresso shot, not the pour over chosen for this coffee: recorded, as the roaster's word",
     run: (s) => ({ command: "taste:add", input: { beanId: s.beanId, answers: { tastedOn: "2026-10-05", brew: "espresso", quality: 2, taste: ["sour", "grassy"] } } }),
+    check: (_out, ok) => expectEqual("taste:add succeeded", ok, true),
+  },
+  {
+    does: "asks what to change: the only tasting is in another brew, so the answer asks for a retaste in the chosen one",
+    run: (s) => ({ command: "advise", input: String(s.beanId) }),
     check: (out, ok) => {
-      expectEqual("taste:add refused", ok, false);
-      expectIncludes("refusal", JSON.stringify(out.errors), "isn't an option");
+      expectEqual("advise succeeded", ok, true);
+      expectRule(out, "tasted-in-other-brew");
+      expectIncludes("say", out.say, "Roasts of this coffee are tasted as pour over");
+      if (out.onYes) throw new Error("a question must not carry an onYes");
     },
   },
   {
-    does: "tastes it four days later as a pour over: sour and grassy, roast quality 2",
-    run: (s) => ({ command: "taste:add", input: { beanId: s.beanId, answers: { tastedOn: "2026-10-05", brew: "pourover", quality: 2, taste: ["sour", "grassy"] } } }),
+    does: "tastes it again as the chosen pour over, leaving the brew out: sour and grassy, roast quality 2",
+    run: (s) => ({ command: "taste:add", input: { beanId: s.beanId, answers: { tastedOn: "2026-10-05", quality: 2, taste: ["sour", "grassy"] } } }),
     check: (_out, ok) => expectEqual("taste:add succeeded", ok, true),
   },
   {
@@ -196,8 +230,8 @@ const SCENARIO: Step[] = [
     },
   },
   {
-    does: "tastes v2 as an immersion brew: bitter and ashy, roast quality 2",
-    run: (s) => ({ command: "taste:add", input: { beanId: s.beanId, answers: { tastedOn: "2026-10-12", brew: "immersion", quality: 2, taste: ["bitter", "ashy"] } } }),
+    does: "tastes v2 as a pour over: bitter and ashy, roast quality 2",
+    run: (s) => ({ command: "taste:add", input: { beanId: s.beanId, answers: { tastedOn: "2026-10-12", brew: "pourover", quality: 2, taste: ["bitter", "ashy"] } } }),
     check: (_out, ok) => expectEqual("taste:add succeeded", ok, true),
   },
   {
@@ -228,8 +262,8 @@ const SCENARIO: Step[] = [
     },
   },
   {
-    does: "tastes v3 as an AeroPress: sweet and balanced, roast quality 4",
-    run: (s) => ({ command: "taste:add", input: { beanId: s.beanId, answers: { tastedOn: "2026-10-19", brew: "aeropress", quality: 4, taste: ["sweet", "balanced"] } } }),
+    does: "tastes v3 as a pour over: sweet and balanced, roast quality 4",
+    run: (s) => ({ command: "taste:add", input: { beanId: s.beanId, answers: { tastedOn: "2026-10-19", brew: "pourover", quality: 4, taste: ["sweet", "balanced"] } } }),
     check: (_out, ok) => expectEqual("taste:add succeeded", ok, true),
   },
   {
@@ -243,10 +277,11 @@ const SCENARIO: Step[] = [
   },
   {
     does: "describes a second bean (Robusta) and roasts it",
-    run: () => ({ command: "bean:add", input: { name: "Station flat", species: "robusta", decaf: false, process: "unknown", drinkWhen: "soon" } }),
+    run: () => ({ command: "bean:add", input: { name: "Station flat", species: "robusta", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" } }),
     check: (out, ok, state) => {
       expectEqual("bean:add succeeded", ok, true);
       expectEqual("starting profile", at(out, "version.profileName"), "Robusta");
+      expectEqual("starting level", at(out, "version.level"), 3.0);
       state.flatBeanId = Number(out.beanId);
     },
   },
@@ -352,10 +387,10 @@ async function start(): Promise<void> {
 
 /** What a fresh session has to do for the build to count as working; no script can check these, so the session is read by a person. */
 const WATCH_FOR = [
-  "It asks only for the required intake fields it was not told, and never asks how the coffee will be brewed.",
+  "It asks only for the required intake fields it was not told, including the roast the roaster is shooting for (light, medium or dark) and the brew they will taste every roast of this coffee with, and it never offers a brew as a roast target.",
   "It shows the mapped answers before it runs bean:add, and it reports the starting profile, level and end temperature in plain words.",
   "It relays the engine's `say` exactly as written, and runs the `onYes` command exactly as given, only after a yes.",
-  "If it is told a tasting was an espresso shot, it says tastings are of filter coffee and does not record another brew.",
+  "It takes the roaster's own usual brew as the tasting brew, whatever it is, and points a roaster with none to a filter brew. If a tasting is in another brew, it relays the engine's request to retaste in the chosen one.",
   "It never writes SQL by hand and never invents a reason for a new version.",
 ];
 

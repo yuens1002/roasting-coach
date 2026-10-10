@@ -29,7 +29,7 @@ async function accepts(table: string, row: Row): Promise<boolean> {
   }
 }
 
-const bean = (over: Row = {}): Row => ({ name: "Guji", species: "arabica", decaf: false, process: "washed", goal: "filter", drink_when: "rest", ...over });
+const bean = (over: Row = {}): Row => ({ name: "Guji", species: "arabica", decaf: false, process: "washed", drink_when: "rest", agtron_target: 55, tasting_brew: "pourover", ...over });
 const version = (beanId: number, over: Row = {}): Row => ({
   bean_id: beanId,
   number: 1,

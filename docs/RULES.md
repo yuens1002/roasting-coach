@@ -23,18 +23,18 @@ beside it; a separate test scans every line of this page outside the worked exam
 ## 1. What the engine looks at
 
 For the roast just tasted (the most recent roast that has a tasting and a measured thermal dose,
-using its newest tasting of filter coffee; a newer roast without a measured thermal dose
+using its newest tasting in the coffee's tasting brew (rule 1); a newer roast without a measured thermal dose
 is skipped):
 
 - **The cup:** the taste words, the roast quality (1-5, section 3), how it was brewed, and the
   date it was tasted. How much the roaster likes the cup is not asked and not used: the tool coaches
-  the roast, judged by its defects, not a taste. Every tasting is of filter coffee (rule 1), because
-  brew and rest change the cup, not the roast.
+  the roast, judged by its defects, not a taste. Every tasting of a coffee is of the one brew its roaster chose
+  at intake (rule 1), because brew and rest change the cup, not the roast.
 - **The roast:** its thermal dose measured from the temperature log (see section 2), the profile
   it ran on, and the calendar days between roasting and tasting.
-- **The bean's own history:** every other roast of the same bean that has a tasting of filter coffee,
-  each judged by its newest tasting of it. Only roasts with a measured thermal dose count. The answer
-  says how many earlier roasts were left out for having no tasting of filter coffee.
+- **The bean's own history:** every other roast of the same bean that has a tasting in the coffee's
+  tasting brew, each judged by its newest tasting in it. Only roasts with a measured thermal dose count. The answer
+  says how many earlier roasts were left out for having no tasting in that brew.
 - **Facts about the machine's profiles:** which stock profiles must rest before they are judged,
   and which other profile is suggested for this bean.
 
@@ -109,7 +109,7 @@ A flat, thin or monotone cup with no roast defect is a 3, however little you lik
 cup to a 4 is what the levers in rule 7 (level, profile, curve) are for.
 
 ⚠ **Check this:** `bitter` can also be over-extraction, and `sour` can be under-extraction, so a cup
-can be misread by the brew rather than the roast. Every tasting is of filter coffee (rule 1), so no roast
+can be misread by the brew rather than the roast. Every tasting of a coffee is of one brew (rule 1), so no roast
 is tasted as another kind of brew, but the rules do not know your recipe or grind (section 7).
 `bready` and `grassy` are treated as equal in weight to `sour`. `bready` can
 also come from a baked or stalled roast, which is a curve problem that more roasting does not fix.
@@ -163,7 +163,7 @@ listed here:
 
 | Order | Answer | In short |
 |---|---|---|
-| 1 | `tasted-in-other-brew` | The roast was not tasted as filter coffee: ask for a retaste as filter coffee. |
+| 1 | `tasted-in-other-brew` | The roast was not tasted in the coffee's tasting brew: ask for a retaste in it. |
 | 2 | `quality-vs-words` | The roast quality and the taste words disagree about a defect: ask which is right. |
 | 3 | `mixed-signals` | Sour and bitter together: ask, change nothing. |
 | 4 | `tasted-too-soon` | Sour cup tasted before a Rest profile's rest is over: hold, retaste. |
@@ -182,25 +182,26 @@ Each worked example below is the engine's own wording for the evidence described
 
 ### 1. `tasted-in-other-brew`
 
-**When:** the roast's newest tasting of filter coffee does not exist: every tasting of it was of another
-brew. The cupping protocol is filter coffee: pour over, French press / immersion or AeroPress. The
-tasting form offers only these, so this answers a tasting recorded before the form was limited to them
-(for example an espresso shot).
-**What it does:** asks; changes nothing. A roast counts by its newest tasting of filter coffee whenever it
-has one, so a retaste as filter coffee answers the question. Earlier roasts with no tasting of filter
-coffee are left out of the comparison, and the answer says how many.
+**When:** the roast has no tasting in the coffee's tasting brew: every tasting of it was of another brew.
+The tasting brew is the one the roaster names at intake, whatever it is: their own usual brew. Every
+tasting of the coffee is of that one brew. The roaster can name a different one at any time; the tastings
+already recorded stay as they were.
+**What it does:** asks; changes nothing. A roast counts by its newest tasting in the tasting brew whenever it
+has one, so a retaste in that brew answers the question. Earlier roasts with no tasting in it are left out of
+the comparison, and the answer says how many. A tasting left without a brew is recorded in the tasting brew.
 **Why:** rest and brew change the cup, not the roast. A filter cup and an espresso shot of
-the same roast differ for reasons that are not the roast, so every roast is tasted as filter coffee. This is why
-rest and brew are not levers in rule 7: the tool coaches the roast, and it controls these two instead of
-advising on them. Filter coffee is a baseline chosen for access: it is the easiest cup to make well with
-inexpensive equipment, so any roaster can follow the protocol. It is not a target. The roast is coached toward
-the best result for the bean's own properties, and how a bean is brewed at home is outside what this tool
-judges.
+the same roast differ for reasons that are not the roast, so every roast of a coffee is tasted the same way. This is why
+rest and brew are not levers in rule 7: the tool coaches the roast, and it holds these two steady instead of
+advising on them. Which brew is the roaster's to say: what a roaster brews at home differs from one roaster to the
+next, and the tool does not aim the roast at it. A roaster with no usual brew is pointed to filter coffee, the easiest cup to make
+the same way each time with inexpensive equipment. The roast is coached toward the best result for the bean's own
+properties, whatever the brew.
 
-> Example: sour, brewed as espresso. "This roast was tasted brewed as espresso. Roasts are tasted as filter coffee (pour over, french press / immersion or aeropress), so that a difference in the cup is not a difference between filter and another kind of brew. Taste this roast brewed that way and record that tasting, then ask again."
+> Example: sour, tasted as pour over, when espresso is the coffee's tasting brew. "This roast was tasted brewed as pour over. Roasts of this coffee are tasted as espresso, so that a difference in the cup is not a difference between kinds of brew. Taste this roast brewed as espresso and record that tasting, then ask again."
 
-⚠ **Check this:** the standard is filter coffee, and the three brews on the form are all counted as the same
-standard; the rules do not weigh a pour over against an immersion brew. Days of rest still differ between
+⚠ **Check this:** the rules hold the brew the same from roast to roast; they do not correct for what a brew does to
+the cup. A roaster whose brew changes what one of the taste words means for them can set that word's meaning for
+their copy (section 3). Days of rest still differ between
 tastings: rule 4 holds an early sour cup, and rule 7 says when the tastings of a run were on different
 days of rest.
 
@@ -278,7 +279,7 @@ Within a side, the first of these that applies wins:
 ⚠ **Check this:** the step sizes (10% and 15%) are starting values, and one word is weighed the same as
 another. Section 6 shows what each step means in level and end temperature on every stock profile.
 The roast quality isn't used to size a step. The halfway rule assumes the roast that clears both defects lies between a sour
-roast and a bitter one; both were tasted as filter coffee (rule 1), but their days of rest can differ.
+roast and a bitter one; both were tasted in the coffee's tasting brew (rule 1), but their days of rest can differ.
 
 ### `level-not-helping` (inside rules 5 and 6)
 
@@ -393,52 +394,85 @@ to a change a rule can make" instead.
 
 ## 6. What a step means on each stock profile
 
-The steps are percentages of thermal dose, but you set a level on the machine. This table shows,
-for each stock profile at the level the tool starts it at (the level the profile's own file recommends),
-where a 10% or 15% step in either direction lands: the level, the temperature it ends at, and when the profile's curve gets
-there. It is measured from the stock profile files, not estimated.
+The steps are percentages of thermal dose, but you set a level on the machine. A step moves a different number of
+levels depending on where you stand on the level scale, so this table gives a range for each profile, not one
+number: for every level a bean can start at on that profile (from the lightest to the darkest colour on the
+Agtron scale, below), how many levels a 10% or 15% step in either direction moves, the fewest to the most.
+It is measured from the stock profile files, not estimated. It does not predict a change in the cup: the steps are
+starting values, and your cup judges whether one was right.
 
-How to read it: the level scale is uneven. On the same profile, a step can be a third of a level or
-more than a full one; on some profiles several levels differ by only a degree. Where two columns
-show the same level, the machine's 0.1 level grid can't tell those steps apart.
+It names no single starting level on purpose. The colour you are shooting for can change from bean to bean and from
+roast to roast, and the level you are at comes from your own cups, not from the first roast. The engine steps from the
+level of the roast you tasted, not from any row here.
+
+How to read it: the level scale is uneven. On the same profile, a step can be a tenth of a level at one place on the scale and
+more than a full level at another; on some profiles several levels differ by only a degree. Check the end temperature the
+machine shows for the level you choose. Where two levels give the same thermal dose to within the 0.1 level grid, a step
+cannot tell them apart.
 
 <!-- steps:start -->
-| Profile | Starts at (level · end · time) | −15% | −10% | +10% | +15% |
+| Profile | Starting levels | −15% | −10% | +10% | +15% |
 |---|---|---|---|---|---|
-| 0-1200m RTD | 3.0 · 221.0 °C · 10:07 | 2.4 · 219.0 °C · 9:40 | 2.6 · 219.6 °C · 9:49 | 3.9 · 222.2 °C · 10:23 | 4.1 · 222.9 °C · 10:32 |
-| 0-1200m Rest | 3.0 · 227.8 °C · 12:27 | 2.7 · 225.3 °C · 12:06 | 2.8 · 226.1 °C · 12:13 | 4.0 · 229.3 °C · 12:39 | 4.2 · 230.4 °C · 12:49 |
-| 1200-1500m RTD | 3.0 · 221.8 °C · 10:22 | 2.5 · 219.7 °C · 9:55 | 2.7 · 220.5 °C · 10:06 | 4.0 · 222.9 °C · 10:36 | 4.2 · 223.9 °C · 10:48 |
-| 1200-1500m Rest | 3.0 · 226.0 °C · 9:52 | 2.7 · 223.7 °C · 9:30 | 2.8 · 224.4 °C · 9:37 | 3.8 · 227.6 °C · 10:06 | 4.1 · 228.5 °C · 10:14 |
-| 1500-2000m RTD | 3.1 · 219.3 °C · 10:19 | 2.7 · 217.5 °C · 9:52 | 2.8 · 218.0 °C · 9:59 | 3.5 · 220.5 °C · 10:38 | 3.7 · 221.1 °C · 10:47 |
-| 1500-2000m Rest | 3.2 · 222.4 °C · 9:17 | 2.6 · 220.5 °C · 8:47 | 2.8 · 221.3 °C · 9:00 | 3.9 · 223.4 °C · 9:34 | 4.1 · 224.0 °C · 9:44 |
-| 2000-2700m RTD | 3.2 · 219.6 °C · 10:24 | 2.7 · 217.5 °C · 9:51 | 2.9 · 218.5 °C · 10:07 | 3.6 · 220.8 °C · 10:42 | 3.8 · 221.4 °C · 10:52 |
-| 2000-2700m Rest | 3.2 · 220.1 °C · 8:40 | 2.5 · 218.5 °C · 8:15 | 2.7 · 219.1 °C · 8:23 | 4.0 · 221.0 °C · 8:54 | 4.1 · 221.4 °C · 9:01 |
-| KL Washed | 0.8 · 214.4 °C · 6:34 | 0.6 · 212.2 °C · 6:15 | 0.7 · 213.3 °C · 6:24 | 0.9 · 215.4 °C · 6:44 | 0.9 · 215.4 °C · 6:44 |
-| KL Natural | 1.4 · 218.7 °C · 8:55 | 1.1 · 217.1 °C · 8:25 | 1.2 · 217.6 °C · 8:35 | 1.5 · 219.3 °C · 9:06 | 1.6 · 219.8 °C · 9:17 |
-| Cupping | 2.0 · 212.0 °C · 8:20 | 1.4 · 210.2 °C · 7:52 | 1.6 · 210.8 °C · 8:01 | 2.5 · 213.0 °C · 8:36 | 2.8 · 213.6 °C · 8:45 |
-| Decaf | 3.0 · 221.3 °C · 8:59 | 2.4 · 219.6 °C · 8:33 | 2.6 · 220.2 °C · 8:42 | 3.8 · 222.3 °C · 9:15 | 4.2 · 222.8 °C · 9:24 |
-| Robusta | 3.0 · 223.4 °C · 10:36 | 2.5 · 221.4 °C · 10:05 | 2.7 · 222.2 °C · 10:17 | 4.1 · 224.7 °C · 10:56 | 4.2 · 225.1 °C · 11:01 |
+| 0-1200m RTD | 0.3 to 5.5 | 0.2 to 1.2 | 0.1 to 1.0 | 0.1 to 0.9 | 0.2 to 1.1 |
+| 0-1200m Rest | 0.0 to 6.0 | 0.3 to 1.2 | 0.2 to 1.0 | 0.2 to 1.0 | 0.2 to 1.2 |
+| 1200-1500m RTD | 0.0 to 5.5 | 0.2 to 1.2 | 0.1 to 1.1 | 0.1 to 1.0 | 0.2 to 1.2 |
+| 1200-1500m Rest | 0.0 to 6.0 | 0.2 to 1.1 | 0.1 to 0.9 | 0.1 to 0.8 | 0.1 to 1.1 |
+| 1500-2000m RTD | 0.4 to 6.0 | 0.3 to 1.1 | 0.2 to 0.7 | 0.2 to 0.7 | 0.2 to 0.9 |
+| 1500-2000m Rest | 0.7 to 5.1 | 0.1 to 1.1 | 0.1 to 0.9 | 0.1 to 0.8 | 0.1 to 1.1 |
+| 2000-2700m RTD | 0.6 to 6.0 | 0.3 to 1.1 | 0.2 to 0.7 | 0.2 to 0.7 | 0.2 to 1.0 |
+| 2000-2700m Rest | 0.3 to 5.3 | 0.1 to 1.1 | 0.1 to 0.9 | 0.1 to 0.8 | 0.1 to 1.1 |
+| KL Washed | 0.7 to 1.2 | 0.2 to 0.3 | 0.1 to 0.2 | 0.1 to 0.2 | 0.1 to 0.3 |
+| KL Natural | 0.5 to 1.3 | 0.1 to 0.3 | 0.1 to 0.2 | 0.1 to 0.2 | 0.1 to 0.2 |
+| Decaf | 0.0 to 5.1 | 0.2 to 1.3 | 0.1 to 0.9 | 0.1 to 0.8 | 0.1 to 1.2 |
+| Robusta | 0.3 to 5.5 | 0.2 to 1.3 | 0.1 to 1.1 | 0.1 to 1.1 | 0.2 to 1.2 |
 <!-- steps:end -->
 
-The Cupping row is there because it is a stock profile; the tool no longer starts a bean on it (it was reached
-only through the removed "just tasting" goal), so a roaster would pick it themselves.
+The Cupping profile has no row: it labels one level only, so there is nothing to place a colour between, and the tool never starts a bean on it.
 
 Regenerate with `npm run rules:steps` (it needs the stock profile files in your own library, which
 this repository never contains).
 
-⚠ **Check this:** do the end temperatures and times look like a 10% or 15% change in roasting to you?
-If a step looks too small or too large on a profile you know well, step sizes can be changed for your
-copy (`calibration:set`, section 4).
+⚠ **Check this:** does a 10% or 15% step look like a change worth tasting on a profile you know well? Where the
+range reaches a full level or more, check the end temperature the machine shows for the level you set. If a step looks
+too small or too large, step sizes can be changed for your copy (`calibration:set`, section 4).
+
+
+### The first level to try
+
+A new bean's first level comes from the roast colour the roaster is shooting for, on the SCA / Agtron scale, where a
+higher number is lighter: 95 very light, 85 light, 75 moderately light, 65 light-medium, 55 medium, 45 medium-dark,
+35 dark, 25 extremely dark. Any number from 25 to 95 can be given, a colour-meter reading as it is, and a word is
+taken as its tile. The colour is the roaster's aim, not a measurement, and they can restate it at any time. It names no
+brew method.
+
+Kaffelogic's levels are end temperatures, and Kaffelogic publishes no table from a level to an Agtron number, so the
+tool ties the two in one of two ways, and the answer says which:
+
+- **An approximation, until the roaster has readings.** The three levels a profile's file labels (Kaffelogic's
+  filter, espresso and dark levels, read only as three points on the profile's own ladder) are taken as Agtron 65, 55
+  and 45. The basis is the Robusta file, which calls them Light/Medium, Medium and Medium Dark; the other profiles are
+  assumed to name theirs alike. This is not measured. The level for any other number is found along the ladder, between
+  those points and beyond them. A profile whose labelled levels reach no darker than Agtron 55 (KL Washed, KL Natural)
+  hands a darker target to the altitude profile. A colour beyond the profile's lightest or darkest level gets that
+  level, and the answer says so.
+- **The roaster's own readings.** The roast form takes an Agtron reading. With two readings on a profile at end
+  temperatures at least 3 °C apart, a later bean's level on that profile is read off the least-squares line through all
+  of the roaster's readings on it, across their beans. A line that gets lighter as the end gets hotter is not used.
+
+After the first roast the defects in the cup decide every step, whatever the colour was. The colour is used again only
+when the roaster restates it and asks for a level to try (`level-for`), and the level it gives is theirs to accept: it
+is recorded as a version only when they say so, with their own words as the reason.
 
 ## 7. What the engine does not know
 
 - It doesn't look at the temperature curve itself, only the total thermal dose. Two roasts with the same
   thermal dose but different shapes (fast then slow, or slow then fast) look the same to it.
 - It doesn't use weight loss, DTR, first-crack timing, rate of rise, crack-to-end temperature rise,
-  colour readings or how the beans looked. Some of those (the first-crack press) are button
-  presses; none has a validated range for the Nano yet.
+  or how the beans looked. Some of those (the first-crack press) are button
+  presses; none has a validated range for the Nano yet. A colour reading is used only to place a bean's first level
+  for a roast colour (section 6), not to judge a roast: a roast that read lighter or darker than its target says nothing to the rules.
 - It doesn't know your brew recipe or grind, so it can't tell an under-extracted cup from an
-  under-roasted roast. Every tasting is of filter coffee (rule 1) so that the brew is at least the same
+  under-roasted roast. Every tasting of a coffee is of one brew (rule 1) so that the brew is at least the same
   from roast to roast.
 - It doesn't know the bean's density, moisture or age beyond what the first profile choice used.
 - It can only change the level, or switch to another stock profile. It can't edit a curve yet.
