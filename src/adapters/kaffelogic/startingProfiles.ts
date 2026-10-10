@@ -263,7 +263,7 @@ export function placeColour(profileName: string, agtron: number, readings: reado
   if (!profile || profile.selectable === false) {
     return { ok: false, problem: `"${profileName}" is not a stock profile a level can be placed on. Name the stock profile the bean's profile is built on (for example Robusta or 1500-2000m RTD).` };
   }
-  if (!(agtron >= AGTRON_MIN && agtron <= AGTRON_MAX)) return { ok: false, problem: `Agtron must be between ${AGTRON_MIN} and ${AGTRON_MAX}; got ${agtron}.` };
+  if (!Number.isInteger(agtron) || agtron < AGTRON_MIN || agtron > AGTRON_MAX) return { ok: false, problem: `Agtron must be a whole number between ${AGTRON_MIN} and ${AGTRON_MAX}; got ${agtron}.` };
   if (Object.keys(LABELLED_LEVEL_AGTRON).filter((label) => profile.levels[label as Goal]).length < 2) {
     return { ok: false, problem: `${profile.name} labels too few levels to place a colour on. Name a stock profile a bean starts on.` };
   }

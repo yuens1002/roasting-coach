@@ -175,7 +175,9 @@ describe("the Agtron colour being shot for picks the first level on the profile"
     it("says in plain words why it cannot: a profile that is not a stock one, a colour off the scale, a colour the profile does not go as dark as", () => {
       expect(placeColour("My Bean", 65)).toEqual({ ok: false, problem: expect.stringContaining('"My Bean" is not a stock profile a level can be placed on') });
       expect(placeColour("Robusta_inc_fan", 65)).toMatchObject({ ok: false });
-      expect(placeColour("Robusta", 20)).toEqual({ ok: false, problem: "Agtron must be between 25 and 95; got 20." });
+      expect(placeColour("Robusta", 20)).toEqual({ ok: false, problem: "Agtron must be a whole number between 25 and 95; got 20." });
+      // The target is stored as a whole number, so a level is not offered for a fraction the target could not hold.
+      expect(placeColour("Robusta", 62.5)).toEqual({ ok: false, problem: "Agtron must be a whole number between 25 and 95; got 62.5." });
       expect(placeColour("Robusta", 120)).toMatchObject({ ok: false });
       expect(placeColour("KL Washed", 35)).toEqual({ ok: false, problem: "KL Washed names no level as dark as Agtron 35. A bean that dark starts on an altitude profile, which does." });
       expect(placeColour("KL Washed", 85)).toMatchObject({ ok: true });

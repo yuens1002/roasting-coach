@@ -277,7 +277,7 @@ Within a side, the first of these that applies wins:
 > Example, contradicted (other side): bitter; an earlier roast with 20% more roasting tasted sour. "This cup tasted bitter (over-roasted), but an earlier roast with 20% more roasting tasted sour (under-roasted). That runs against the expected direction: the roast with more roasting should not taste less roasted. So something other than the roast differs between them: the days of rest or the batch. Find out which before changing the roast."
 
 ⚠ **Check this:** the step sizes (10% and 15%) are starting values, and one word is weighed the same as
-another. Section 6 shows what each step means in level and end temperature on every stock profile.
+another. Section 6 shows how many levels each step moves on every stock profile.
 The roast quality isn't used to size a step. The halfway rule assumes the roast that clears both defects lies between a sour
 roast and a bitter one; both were tasted in the coffee's tasting brew (rule 1), but their days of rest can differ.
 
@@ -399,7 +399,9 @@ levels depending on where you stand on the level scale, so this table gives a ra
 number: for every level a bean can start at on that profile (from the lightest to the darkest colour on the
 Agtron scale, below), how many levels a 10% or 15% step in either direction moves, the fewest to the most.
 It is measured from the stock profile files, not estimated. It does not predict a change in the cup: the steps are
-starting values, and your cup judges whether one was right.
+starting values, and your cup judges whether one was right. A start at the very lightest or darkest end of a profile, where a
+step would run past level 0 or level 6 (the advice would stop at that level), is left out of the range rather than counted as a
+step of no levels.
 
 It names no single starting level on purpose. The colour you are shooting for can change from bean to bean and from
 roast to roast, and the level you are at comes from your own cups, not from the first roast. The engine steps from the

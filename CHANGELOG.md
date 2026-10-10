@@ -17,7 +17,7 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 - **`bean:add` requires two new answers:** `agtronTarget` (25 to 95) and `tastingBrew` (pour over, French press / immersion, AeroPress,
   espresso, moka pot or other).
 - The roast form's `colour` is an Agtron reading, 25 to 95 (it was a reading on a scale named in the notes, 0 to 150); the migration clears a stored one outside that. A reading tunes a bean's first level only when its roast has a recorded log, which gives the bean temperature the roast ended at.
-- `agtronTarget`, `altitudeM` and `densityGL` must be whole numbers (a fraction was a raw database error).
+- `agtronTarget`, `altitudeM` and `densityGL` must be whole numbers (a fraction was a raw database error), and `level-for` takes a whole Agtron number.
 
 ### Added
 
