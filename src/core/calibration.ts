@@ -23,9 +23,6 @@ export const SETTING_SPECS = {
   strongChipCount: { min: 1, max: 6, integer: true, plain: "how many agreeing taste words make the step strong" },
   noisePct: { min: 0, max: 10, unit: "%", plain: "thermal dose difference between roasts that still counts as the same roasting" },
   noResponsePct: { min: 1, max: 50, unit: "%", plain: "thermal dose move after which an unchanged cup means the level isn't helping" },
-  plateauSteps: { min: 1, max: 6, integer: true, plain: "steps the level takes without the roast quality improving before it counts as tried out" },
-  profileTestRoasts: { min: 1, max: 6, integer: true, plain: "tasted roasts on the bean's other profile that make switching to it a fair test" },
-  holdMinQuality: { min: 1, max: 5, integer: true, plain: "the roast quality at which a clean cup is left alone" },
 } as const satisfies Record<keyof RuleSettings, SettingSpec>;
 
 /** What a taste word can mean to the rules: a side of the roast, a good cup, or nothing they act on. */

@@ -485,10 +485,8 @@ async function updateForm(
     // Only fields the caller named; unknown names were already refused by the form check above.
     // Clearing a chips field stores an empty list: those columns can't be null.
     const named = fields.filter((f) => Object.hasOwn(changes, f.id));
-    // Giving a tasting a roast quality is what turns an old overall score (marked unrated by migration 005) into a rating.
-    const rates = table === "tasting" && named.some((f) => f.id === "quality") ? ["quality_rated = true"] : [];
     if (named.length)
-      await db.query(`update ${table} set ${[...named.map((f, i) => `${fieldColumn(f.id)} = $${i + 2}`), ...rates].join(", ")} where id = $1`, [id, ...named.map((f) => values[f.id] ?? (f.kind === "chips" ? [] : null))]);
+      await db.query(`update ${table} set ${named.map((f, i) => `${fieldColumn(f.id)} = $${i + 2}`).join(", ")} where id = $1`, [id, ...named.map((f) => values[f.id] ?? (f.kind === "chips" ? [] : null))]);
     return (await read(false)).rows[0].row;
   });
 }
@@ -597,7 +595,7 @@ export async function beanHistory(db: Db, beanId: number) {
   ).rows;
   const tastings = (
     await db.query(
-      `select t.id, t.roast_id, t.tasted_on::text as tasted_on, t.brew, t.quality, t.quality_rated, t.taste, t.notes
+      `select t.id, t.roast_id, t.tasted_on::text as tasted_on, t.brew, t.quality, t.taste, t.notes
          from tasting t join roast r on r.id = t.roast_id join profile_version v on v.id = r.version_id
         where v.bean_id = $1 order by t.tasted_on, t.id`,
       [beanId],
@@ -628,7 +626,7 @@ export async function beanHistory(db: Db, beanId: number) {
               : undefined,
             tastings: tastings
               .filter((t) => Number(t.roast_id) === Number(r.id))
-              .map((t) => ({ id: Number(t.id), tastedOn: t.tasted_on as string, brew: t.brew as string, quality: Number(t.quality), qualityRated: Boolean(t.quality_rated), taste: t.taste as string[], notes: t.notes ?? undefined })),
+              .map((t) => ({ id: Number(t.id), tastedOn: t.tasted_on as string, brew: t.brew as string, quality: Number(t.quality), taste: t.taste as string[], notes: t.notes ?? undefined })),
           };
         }),
     })),

@@ -5,10 +5,10 @@ import { STOCK_PROFILES } from "../src/adapters/kaffelogic/startingProfiles.js";
 import { stepTable, stockProfilesFrom } from "../src/adapters/kaffelogic/stepTable.js";
 import { SETTING_SPECS } from "../src/core/calibration.js";
 import { QUALITY_ANCHORS } from "../src/core/intake.js";
-import { LEVERS, LEVER_EFFECTS } from "../src/core/levers.js";
 import { OUTCOME_IDS, RULES, RULE_SETTINGS, TASTE_CHIPS, advise } from "../src/core/rules.js";
 import { PRIVATE_PROFILES } from "./privateFiles.js";
-import { EXAMPLES, sayFor } from "./rulesDocExamples.js";
+import { beanTable } from "../src/core/beanTable.js";
+import { EXAMPLES, TABLE_EXAMPLE, sayFor } from "./rulesDocExamples.js";
 
 // docs/RULES.md is the rulebook a roaster reads to audit the advice. Each thing the doc states
 // about the program is checked here, so the doc can't say something the program doesn't do.
@@ -40,12 +40,6 @@ describe("docs/RULES.md matches the program", () => {
     expect(stated).toEqual(real);
   });
 
-  it("states what each lever changes, in the words the answer uses", () => {
-    for (const lever of LEVERS) expect(doc, lever).toContain(`| \`${lever}\` | ${LEVER_EFFECTS[lever]} |`);
-    const stated = rows(/^\| `(rest|brew|level|profile|curve)` \| /gm).map((m) => m[1]);
-    expect(stated, "every lever once, in the ledger's order").toEqual([...LEVERS]);
-  });
-
   it("states how each taste word is read", () => {
     const stated = Object.fromEntries(rows(/^\| (under|over|good) \| (.+) \|$/gm).map((m) => [m[1], words(m[2])]));
     expect(stated).toEqual({ under: [...TASTE_CHIPS.under], over: [...TASTE_CHIPS.over], good: [...TASTE_CHIPS.good] });
@@ -60,6 +54,10 @@ describe("docs/RULES.md matches the program", () => {
     const stated = Object.fromEntries(rows(/^\| `([^`]+)` \| (\d+) to (\d+) \|$/gm).map((m) => [m[1], [Number(m[2]), Number(m[3])]]));
     const real = Object.fromEntries(Object.values(STOCK_PROFILES).filter((p) => p.restDays).map((p) => [p.name, [...p.restDays!]]));
     expect(stated).toEqual(real);
+  });
+
+  it("quotes the bean's table exactly as the table gives it", () => {
+    expect(doc).toContain(beanTable(TABLE_EXAMPLE).say);
   });
 
   describe("worked examples", () => {

@@ -1,6 +1,6 @@
 {
   "name": "roasting-coach",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Helps home roasters improve each roast from their logs and tasting notes",
   "directories": {
     "test": "test"

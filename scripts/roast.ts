@@ -16,6 +16,7 @@
 //   npx tsx scripts/roast.ts thermal-dose '{"profile": "Robusta", "level": 3, "change": -15}'   (level for a thermal dose change, in %)
 //   npx tsx scripts/roast.ts level-for '{"profile": "Robusta", "agtron": 65}'   (the level to try for an Agtron colour; records nothing)
 //   npx tsx scripts/roast.ts advise 1   (the rule table's advice for the newest tasted roast, as a level when it is a change)
+//   npx tsx scripts/roast.ts table 1   (the bean's table: each roast, how it tasted from uncooked to scorched, and where the bean stands)
 //   npx tsx scripts/roast.ts calibration   (this roaster's settings and taste-word meanings, with the defaults)
 //   npx tsx scripts/roast.ts calibration:set '{"settings": {"stepPct": 8}, "words": {"flat": "under", "sour": null}}'   (null: back to the default)
 //   npx tsx scripts/roast.ts features:refresh   (recompute features of stored logs)
@@ -30,12 +31,13 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { dirname } from "node:path";
 import { parseHeader, parseKpro, splitLines, timeCurveReaches } from "../src/adapters/kaffelogic/parse.js";
 import { kaffelogicAdviceContext } from "../src/adapters/kaffelogic/adviceContext.js";
+import { beanTable } from "../src/core/beanTable.js";
 import { placeColour, placementSay } from "../src/adapters/kaffelogic/startingProfiles.js";
 import { type LevelThermalDose, formatMinutesSeconds, levelAfterChange, profileThermalDoseAtLevel } from "../src/adapters/kaffelogic/thermalDose.js";
 import { type ProfileLines, findBaseProfile, formatKpro, profileFromKpro, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
 import { describeCalibration, personalChanges, resolveCalibration } from "../src/core/calibration.js";
 import { INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../src/core/intake.js";
-import { type LevelMove, adviceReport, adviseFromHistory, unratedTastingIds, unratedTastingsMessage } from "../src/core/rules.js";
+import { type LevelMove, adviceReport, adviseFromHistory } from "../src/core/rules.js";
 import { checkShape } from "../src/core/validate.js";
 import { type Db, InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, changeCalibration, intakeFromBeanRow, listBeans, loadColourReadings, loadOverrides, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
 import { asDb, connect } from "./db.js";
@@ -197,6 +199,13 @@ async function run() {
         return await addTasting(db, json() as never);
       case "history":
         return await beanHistory(db, beanIdArg());
+      case "table": {
+        // The bean's own table, built from its recorded roasts and tastings the way the advice reads them.
+        const history = await beanHistory(db, beanIdArg());
+        const context = kaffelogicAdviceContext(intakeFromBeanRow(history.bean), await loadColourReadings(db));
+        const { rows, levelChangesMade, say } = beanTable(history, context, resolveCalibration(await loadOverrides(db)));
+        return { say, levelChangesMade, rows };
+      }
       case "advise": {
         // The rule table's answer for the bean's newest tasted roast, finished: `say` is the whole
         // reply for the roaster and `onYes` the exact command to run if they agree. The advice is the
@@ -206,14 +215,10 @@ async function run() {
         // The roaster's own settings and taste-word meanings, where they've set any; `personal` lists them so the answer can be audited.
         const overrides = await loadOverrides(db);
         const result = adviseFromHistory(history, kaffelogicAdviceContext(intakeFromBeanRow(history.bean), await loadColourReadings(db)), resolveCalibration(overrides));
-        // Tastings recorded before roast quality replaced the overall score are left out until rated; say which.
-        const unratedTastings = unratedTastingIds(history);
-        if (!result) {
-          throw new InputError([unratedTastings.length ? unratedTastingsMessage(unratedTastings) : `Bean ${arg} has no tasted roast with a measured thermal dose yet. Record a roast and a tasting first.`]);
-        }
+        if (!result) throw new InputError([`Bean ${arg} has no tasted roast with a measured thermal dose yet. Record a roast and a tasting first.`]);
         const { basedOn, advice } = result;
         const personal = personalChanges(overrides);
-        const done = (move?: LevelMove, problem?: string) => ({ basedOn, advice, ...(personal.length ? { personal } : {}), ...(unratedTastings.length ? { unratedTastings } : {}), ...(move ? { move } : {}), ...adviceReport(beanId, result, move, problem) });
+        const done = (move?: LevelMove, problem?: string) => ({ basedOn, advice, ...(personal.length ? { personal } : {}), ...(move ? { move } : {}), ...adviceReport(beanId, result, move, problem) });
         if (advice.kind !== "change") return done();
         const version = history.versions.find((v) => v.number === basedOn.version)!;
         const level = basedOn.level ?? version.level;
@@ -271,7 +276,7 @@ async function run() {
       case "bean:remove":
         return await removeBean(db, beanIdArg());
       default:
-        throw new InputError([`Unknown command "${command}". Commands: fields, library, thermal-dose, level-for, advise, calibration, calibration:set, beans, profile:write, bean:add, bean:update, bean:remove, version:add, roast:add, taste:add, taste:update, history, features:refresh.`]);
+        throw new InputError([`Unknown command "${command}". Commands: fields, library, thermal-dose, level-for, advise, table, calibration, calibration:set, beans, profile:write, bean:add, bean:update, bean:remove, version:add, roast:add, taste:add, taste:update, history, features:refresh.`]);
     }
   } finally {
     await client.end();

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseKlog } from "../src/adapters/kaffelogic/parse.js";
+import { beanTable } from "../src/core/beanTable.js";
 import { placeColour, placementSay, selectStartingProfile } from "../src/adapters/kaffelogic/startingProfiles.js";
 import { kaffelogicToRoastLog } from "../src/adapters/kaffelogic/toRoastLog.js";
 import { extractFeatures } from "../src/core/features.js";
@@ -38,9 +39,8 @@ const stancesIn = (lines: string[]): string[] => {
   });
 };
 
-const DEFECT_WORDS = ["sour", "grassy", "bitter", "ashy", "flat", "thin"];
+const DEFECT_WORDS = ["grassy", "bready", "bitter", "ashy", "flat", "thin"];
 const roast = (over: Partial<TastedRoast>): TastedRoast => ({ thermalDose: 10, taste: ["flat"], quality: (over.taste ?? ["flat"]).some((c) => DEFECT_WORDS.includes(c)) ? 2 : 3, brew: "pourover", ...over });
-const ladder = (qualities: number[], over: Partial<TastedRoast> = {}) => qualities.map((q, i) => roast({ thermalDose: 12 * 0.9 ** i, quality: q, level: 3 - i * 0.3, profile: "Robusta", restedDays: 1, ...over }));
 const KL_WASHED = { alternative: { profileName: "KL Washed", level: 1.2, endTempC: 217.6 } };
 
 /**
@@ -49,26 +49,21 @@ const KL_WASHED = { alternative: { profileName: "KL Washed", level: 1.2, endTemp
  */
 const EXTRA: { id: string; input: AdviceInput }[] = [
   // Level not helping: no other profile to suggest, then the other profile already roasted.
-  { id: "level-not-helping", input: { latest: roast({ thermalDose: 11, taste: ["sour"], profile: "1500-2000m Rest" }), earlier: [roast({ thermalDose: 10, taste: ["sour"], profile: "1500-2000m Rest" })] } },
-  { id: "level-not-helping", input: { latest: roast({ thermalDose: 11, taste: ["sour"], profile: "1500-2000m Rest" }), earlier: [roast({ thermalDose: 10, taste: ["sour"], profile: "1500-2000m Rest" }), roast({ thermalDose: 10.5, taste: ["sour"], profile: "KL Washed" })], context: KL_WASHED } },
+  { id: "level-not-helping", input: { latest: roast({ thermalDose: 11, taste: ["grassy"], profile: "1500-2000m Rest" }), earlier: [roast({ thermalDose: 10, taste: ["grassy"], profile: "1500-2000m Rest" })] } },
+  { id: "level-not-helping", input: { latest: roast({ thermalDose: 11, taste: ["grassy"], profile: "1500-2000m Rest" }), earlier: [roast({ thermalDose: 10, taste: ["grassy"], profile: "1500-2000m Rest" }), roast({ thermalDose: 10.5, taste: ["grassy"], profile: "KL Washed" })], context: KL_WASHED } },
   // Contradicted at the same roasting (the doc examples cover the backwards direction).
-  { id: "under-roasted-contradicted", input: { latest: roast({ taste: ["sour"] }), earlier: [roast({ taste: ["bitter"] })] } },
-  { id: "over-roasted-contradicted", input: { latest: roast({ taste: ["bitter"] }), earlier: [roast({ taste: ["sour"] })] } },
-  // Clean cups below the bar: the level tried out and the other profile untested, with a reference; every lever tried out; the other profile ahead of the first.
-  { id: "clean-below-bar", input: { latest: ladder([3, 3, 3])[2], earlier: ladder([3, 3, 3]).slice(0, 2), context: { ...KL_WASHED, reference: "Lively and fruit-forward." } } },
-  { id: "clean-below-bar", input: { latest: ladder([3, 3, 3, 3])[3], earlier: ladder([3, 3, 3, 3]).slice(0, 3) } },
-  {
-    id: "clean-below-bar",
-    input: {
-      latest: roast({ taste: ["flat"], quality: 3, thermalDose: 10, profile: "KL Washed", level: 1.2 }),
-      earlier: [roast({ taste: ["flat"], quality: 2, thermalDose: 11, profile: "Robusta", level: 3 })],
-      context: KL_WASHED,
-    },
-  },
+  { id: "under-roasted-contradicted", input: { latest: roast({ taste: ["grassy"] }), earlier: [roast({ taste: ["bitter"] })] } },
+  { id: "over-roasted-contradicted", input: { latest: roast({ taste: ["bitter"] }), earlier: [roast({ taste: ["grassy"] })] } },
+  // Clean cups: a quality of 3 with a good word, and a quality of 4 with none (the doc example is a 3 with none).
+  { id: "keep-as-is", input: { latest: roast({ taste: ["balanced"], quality: 3 }), earlier: [] } },
+  { id: "keep-as-is", input: { latest: roast({ taste: ["flat"], quality: 4 }), earlier: [] } },
+  // The three level changes are used and the bean has no other profile to suggest, then the other profile already roasted.
+  { id: "level-changes-used", input: { latest: roast({ taste: ["ashy", "roasty"] }), earlier: [], levelChangesMade: 3 } },
+  { id: "level-changes-used", input: { latest: roast({ taste: ["grassy"], profile: "KL Washed" }), earlier: [roast({ taste: ["grassy"], profile: "KL Washed" })], context: KL_WASHED, levelChangesMade: 3 } },
   // Tasted in a brew other than the one every tasting of the coffee is of: a filter brew chosen, and another brew chosen.
-  { id: "tasted-in-other-brew", input: { latest: roast({ taste: ["sour"], brew: "moka" }), earlier: [], context: { tastingBrew: "pourover" } } },
-  { id: "tasted-in-other-brew", input: { latest: roast({ taste: ["sour"], brew: "immersion" }), earlier: [], context: { tastingBrew: "aeropress" } } },
-  { id: "quality-vs-words", input: { latest: roast({ taste: ["sour", "bitter"], quality: 5 }), earlier: [] } },
+  { id: "tasted-in-other-brew", input: { latest: roast({ taste: ["grassy"], brew: "moka" }), earlier: [], context: { tastingBrew: "pourover" } } },
+  { id: "tasted-in-other-brew", input: { latest: roast({ taste: ["grassy"], brew: "immersion" }), earlier: [], context: { tastingBrew: "aeropress" } } },
+  { id: "quality-vs-words", input: { latest: roast({ taste: ["grassy", "bitter"], quality: 5 }), earlier: [] } },
   { id: "keep-as-is", input: { latest: roast({ taste: ["sweet"], quality: 5 }), earlier: [] } },
 ];
 
@@ -98,7 +93,7 @@ const WHY_LINES = [...new Set([...STARTING_INTAKES.flatMap((intake) => selectSta
 const SET_ASIDE_NOTES = [1, 2].flatMap((roasts) =>
   ["pourover", "espresso"].map((tastingBrew) => {
     const advice = advise({ latest: roast({ taste: ["sweet", "balanced"], quality: 4 }), earlier: [] });
-    return adviceReport(1, { basedOn: { version: 1, roastId: 1, tastingId: 1, measuredThermalDose: 10 }, advice, setAside: { roasts, tastingBrew } }, undefined).say;
+    return adviceReport(1, { basedOn: { version: 1, roastId: 1, tastingId: 1, measuredThermalDose: 10, levelChange: 1 }, advice, setAside: { roasts, tastingBrew } }, undefined).say;
   }),
 );
 /** What the level-for command says: placed on the profile's labelled levels, placed from the roaster's readings, and at the end of a profile's range. */
@@ -110,6 +105,24 @@ const PLACEMENT_SAYS = [
   if (!placed.ok) throw new Error(placed.problem);
   return placementSay(placed, "10:36");
 });
+/** The bean's table: a ladder from uncooked to scorched to clean, then the cases with a disagreement, one side only, an untasted roast, and a roast not counted. */
+const tastedRow = (id: number, level: number, thermalDose: number | undefined, words?: string[], brew = "pourover") => ({
+  id,
+  roastedAt: `2026-10-0${id}`,
+  logLevel: level,
+  features: thermalDose === undefined ? undefined : { thermalDose },
+  tastings: words ? [{ id, tastedOn: `2026-10-1${id}`, quality: words.some((w) => DEFECT_WORDS.includes(w)) ? 2 : 4, taste: words, brew }] : [],
+});
+const tableVersion = (number: number, rows: ReturnType<typeof tastedRow>[]) => ({ number, parentNumber: number === 1 ? undefined : number - 1, profileName: "Robusta", roasts: rows });
+const TABLE_SAYS = [
+  [tableVersion(1, [tastedRow(1, 3, 10, ["grassy"])]), tableVersion(2, [tastedRow(2, 3.8, 11, ["bitter"])]), tableVersion(3, [tastedRow(3, 3.4, 10.5, ["sweet"])])],
+  [tableVersion(1, [tastedRow(1, 3, 10, ["ashy"])]), tableVersion(2, [tastedRow(2, 3.3, 11, ["grassy"])])],
+  [tableVersion(1, [tastedRow(1, 3, 10, ["grassy"])]), tableVersion(2, [tastedRow(2, 3.3, 11, ["bready"]), tastedRow(3, 3.3, undefined)])],
+  [tableVersion(1, [tastedRow(1, 3, 10, ["bitter"])]), tableVersion(2, [tastedRow(2, 2.7, 9, ["ashy"])])],
+  [tableVersion(1, [tastedRow(1, 3, 10, ["grassy"], "espresso")]), tableVersion(2, [tastedRow(2, 3.3, 11, ["grassy"])])],
+  [tableVersion(1, [tastedRow(1, 3, 10)])],
+  [tableVersion(1, [])],
+].map((versions, i) => beanTable({ versions }, i === 4 ? { tastingBrew: "pourover" } : undefined).say);
 const COLOUR_WARNINGS = [{ colour_change: 534, first_crack: 540 }, { colour_change: 480, first_crack: 520 }].map((markers) => extractFeatures(kaffelogicToRoastLog(parseKlog(syntheticLog({ ...markers, roast_end: 600 })))).dataWarnings[0]);
 
 describe("the engine's voice", () => {
@@ -119,6 +132,7 @@ describe("the engine's voice", () => {
     ...WHY_LINES.map((text, i) => ({ name: `starting-profile reason ${i + 1}`, text })),
     ...COLOUR_WARNINGS.map((text, i) => ({ name: `colour-change warning ${i + 1}`, text })),
     ...SET_ASIDE_NOTES.map((text, i) => ({ name: `set-aside note ${i + 1}`, text })),
+    ...TABLE_SAYS.map((text, i) => ({ name: `bean table ${i + 1}`, text })),
     ...PLACEMENT_SAYS.map((text, i) => ({ name: `level-for answer ${i + 1}`, text })),
   ];
 

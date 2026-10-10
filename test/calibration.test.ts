@@ -46,12 +46,12 @@ describe("a roaster's change", () => {
     expect(r).toMatchObject({ ok: true, overrides: { settings: { stepPct: 8 }, words: { flat: "under" } } });
     if (!r.ok) return;
     expect(resolveCalibration(r.overrides).settings).toEqual({ ...RULE_SETTINGS, stepPct: 8 });
-    expect(resolveCalibration(r.overrides).chips.under).toEqual(["sour", "grassy", "bready", "flat"]);
+    expect(resolveCalibration(r.overrides).chips.under).toEqual(["grassy", "bready", "flat"]);
     expect(personalChanges(r.overrides)).toEqual(["stepPct is 8 (default 10)", "flat means under (default none)"]);
   });
   it("moves a word off its side and onto another", () => {
     const { chips } = mine({ words: { bready: "none", sweet: "over" } });
-    expect(chips.under).toEqual(["sour", "grassy"]);
+    expect(chips.under).toEqual(["grassy"]);
     expect(chips.over).toEqual(["sweet", "bitter", "roasty", "ashy"].sort((a, b) => TASTE_WORDS.indexOf(a) - TASTE_WORDS.indexOf(b)));
     expect(chips.good).toEqual(["bright", "balanced"]);
   });
@@ -63,13 +63,13 @@ describe("a roaster's change", () => {
     if (!first.ok) throw new Error("expected ok");
     const second = applyChange(first.overrides, { settings: { stepPct: null, noisePct: RULE_SETTINGS.noisePct }, words: { flat: null } });
     expect(second).toEqual({ ok: true, overrides: NO_OVERRIDES });
-    expect(applyChange(NO_OVERRIDES, { words: { sour: "under" } })).toEqual({ ok: true, overrides: NO_OVERRIDES });
+    expect(applyChange(NO_OVERRIDES, { words: { grassy: "under" } })).toEqual({ ok: true, overrides: NO_OVERRIDES });
   });
   it("keeps what was already set when a later change names something else", () => {
     const first = applyChange(NO_OVERRIDES, { settings: { stepPct: 8 } });
     if (!first.ok) throw new Error("expected ok");
-    const second = applyChange(first.overrides, { settings: { holdMinQuality: 3 } });
-    expect(second).toMatchObject({ ok: true, overrides: { settings: { stepPct: 8, holdMinQuality: 3 } } });
+    const second = applyChange(first.overrides, { settings: { noisePct: 5 } });
+    expect(second).toMatchObject({ ok: true, overrides: { settings: { stepPct: 8, noisePct: 5 } } });
   });
   it("does not change the overrides it was given", () => {
     const given = { settings: { stepPct: 8 }, words: {} };
@@ -95,8 +95,10 @@ describe("a roaster's change", () => {
       expect(errors({ settings: { stepSize: 8 } })[0]).toContain('"stepSize" isn\'t a setting. Settings: stepPct, strongStepPct');
       expect(errors({ settings: { stepPct: 80 } })).toEqual(["stepPct must be between 1 and 50%; got 80%."]);
       expect(errors({ settings: { stepPct: 0 } })).toEqual(["stepPct must be between 1 and 50%; got 0%."]);
-      expect(errors({ settings: { holdMinQuality: 6 } })).toEqual(["holdMinQuality must be between 1 and 5; got 6."]);
-      expect(errors({ settings: { holdMinQuality: 3.5 } })).toEqual(["holdMinQuality must be a whole number; got 3.5."]);
+      expect(errors({ settings: { strongChipCount: 7 } })).toEqual(["strongChipCount must be between 1 and 6; got 7."]);
+      expect(errors({ settings: { strongChipCount: 3.5 } })).toEqual(["strongChipCount must be a whole number; got 3.5."]);
+      // The settings of the removed lever ledger are not settings any more.
+      expect(errors({ settings: { holdMinQuality: 3 } })[0]).toContain('"holdMinQuality" isn\'t a setting');
       expect(errors({ settings: { stepPct: "8" } })).toEqual(['stepPct must be a number; got "8".']);
       expect(errors({ settings: { stepPct: Number.NaN } })[0]).toContain("stepPct must be a number");
     });
@@ -138,19 +140,13 @@ describe("the rules with a roaster's own calibration", () => {
   };
   it("take the roaster's step sizes", () => {
     const cal = mine({ settings: { stepPct: 7, strongStepPct: 12 } });
-    expect(change(advise(input({ taste: ["sour"] }, cal))).thermalDoseChangePct).toBe(7);
+    expect(change(advise(input({ taste: ["grassy"] }, cal))).thermalDoseChangePct).toBe(7);
     expect(change(advise(input({ taste: ["ashy", "bitter"] }, cal))).thermalDoseChangePct).toBe(-12);
   });
   it("count as strong at the roaster's chosen number of agreeing words", () => {
     const cal = mine({ settings: { strongChipCount: 3 } });
-    expect(change(advise(input({ taste: ["sour", "grassy"] }, cal))).thermalDoseChangePct).toBe(10);
-    expect(change(advise(input({ taste: ["sour", "grassy", "bready"] }, cal))).thermalDoseChangePct).toBe(15);
-  });
-  it("keep a cup at the roaster's own bar for roast quality", () => {
-    const cup = { taste: ["sweet", "balanced"], quality: 3 };
-    expect(advise(input(cup, resolveCalibration(NO_OVERRIDES)))).toMatchObject({ kind: "ask", ruleId: "clean-below-bar" });
-    expect(advise(input(cup, mine({ settings: { holdMinQuality: 3 } })))).toMatchObject({ kind: "hold", ruleId: "keep-as-is" });
-    expect(advise(input({ ...cup, quality: 4 }, mine({ settings: { holdMinQuality: 5 } })))).toMatchObject({ kind: "ask", ruleId: "clean-below-bar" });
+    expect(change(advise(input({ taste: ["bitter", "roasty"] }, cal))).thermalDoseChangePct).toBe(-10);
+    expect(change(advise(input({ taste: ["bitter", "roasty", "ashy"] }, cal))).thermalDoseChangePct).toBe(-15);
   });
   it("use the roaster's noise band to tell a bracket from a contradiction", () => {
     // An over-roasted result 5% further along than this under-roasted cup: a bracket by default, within the noise at 6%.
@@ -159,9 +155,9 @@ describe("the rules with a roaster's own calibration", () => {
     expect(advise(input({ taste: ["grassy"] }, mine({ settings: { noisePct: 6 } }), earlier))).toMatchObject({ kind: "ask", ruleId: "under-roasted-contradicted" });
   });
   it("use the roaster's bar for the level not helping", () => {
-    // 8% more roasting than an earlier sour roast on the same profile, still sour: not helping at the default 7%, helping at 9%.
-    const earlier = [roast({ thermalDose: 10, taste: ["sour"], profile: "KL Washed" })];
-    const latest = { thermalDose: 10.8, taste: ["sour"], profile: "KL Washed" };
+    // 8% more roasting than an earlier grassy roast on the same profile, still grassy: not helping at the default 7%, helping at 9%.
+    const earlier = [roast({ thermalDose: 10, taste: ["grassy"], profile: "KL Washed" })];
+    const latest = { thermalDose: 10.8, taste: ["grassy"], profile: "KL Washed" };
     const context = { alternative: { profileName: "KL Natural", level: 1.2, endTempC: 217.6 } };
     expect(advise({ latest: roast(latest), earlier, context })).toMatchObject({ ruleId: "level-not-helping" });
     expect(advise({ latest: roast(latest), earlier, context, calibration: mine({ settings: { noResponsePct: 9 } }) })).toMatchObject({ ruleId: "under-roasted", kind: "change" });
@@ -169,7 +165,7 @@ describe("the rules with a roaster's own calibration", () => {
   it("read a word the way the roaster does", () => {
     // Default: flat alone is clean, so there is no defect for the level to fix. For a roaster whose flat means
     // under-roasted it is a defect (and the roast quality has to say so), so it gets a plain step.
-    expect(advise(input({ taste: ["flat"] }, resolveCalibration(NO_OVERRIDES)))).toMatchObject({ kind: "ask", ruleId: "clean-below-bar" });
+    expect(advise(input({ taste: ["flat"] }, resolveCalibration(NO_OVERRIDES)))).toMatchObject({ kind: "hold", ruleId: "keep-as-is" });
     const a = change(advise(input({ taste: ["flat"], quality: 2 }, mine({ words: { flat: "under" } }))));
     expect(a).toMatchObject({ ruleId: "under-roasted", thermalDoseChangePct: 10 });
     expect(a.reason).toBe("The cup tasted flat, which means the beans were under-roasted. Roast about 10% more.");
@@ -186,13 +182,13 @@ describe("the rules with a roaster's own calibration", () => {
     expect(advise(input({ taste: ["grassy"] }, mine({ words: { flat: "over" } }), earlier))).toMatchObject({ ruleId: "under-roasted-bracketed", thermalDoseChangePct: 10 });
   });
   it("stop acting on a word the roaster sets to none", () => {
-    // Not a defect for this roaster: a clean cup, so the quality has to be 3 or more.
-    expect(advise(input({ taste: ["sour"], quality: 3, brew: "pourover" }, mine({ words: { sour: "none" } })))).toMatchObject({ kind: "ask", ruleId: "clean-below-bar" });
-    const a = advise(input({ taste: ["sour"], quality: 4, brew: "pourover" }, mine({ words: { sour: "none" } })));
-    expect(a).toMatchObject({ kind: "none", ruleId: "no-rule" });
-    expect(a.reason).toContain("No rule covers sour yet");
+    // Not a defect for this roaster: a clean cup, so the quality has to be 3 or more, and it is left alone.
+    const a = advise(input({ taste: ["grassy"], quality: 3, brew: "pourover" }, mine({ words: { grassy: "none" } })));
+    expect(a).toMatchObject({ kind: "hold", ruleId: "keep-as-is" });
+    expect(a.reason).toContain("Nothing in the cup is a roast defect");
+    expect(advise(input({ taste: ["grassy"], quality: 2, brew: "pourover" }, mine({ words: { grassy: "none" } })))).toMatchObject({ kind: "ask", ruleId: "quality-vs-words" });
   });
-  it("see sour and bitter together as mixed signals whatever the other words mean", () => {
+  it("see grassy and bitter together as mixed signals whatever the other words mean", () => {
     expect(advise(input({ taste: ["flat", "bitter"] }, mine({ words: { flat: "under" } })))).toMatchObject({ kind: "ask", ruleId: "mixed-signals" });
   });
 });
@@ -209,9 +205,9 @@ describe("stored in the roaster's database", () => {
     const first = await changeCalibration(db, { settings: { stepPct: 8 }, words: { flat: "under" } });
     expect(first.personal).toEqual(["stepPct is 8 (default 10)", "flat means under (default none)"]);
     expect(await loadOverrides(db)).toEqual({ settings: { stepPct: 8 }, words: { flat: "under" } });
-    const second = await changeCalibration(db, { settings: { holdMinQuality: 3 }, words: { thin: "under" } });
-    expect(second.personal).toEqual(["stepPct is 8 (default 10)", "holdMinQuality is 3 (default 4)", "flat means under (default none)", "thin means under (default none)"]);
-    expect(await loadOverrides(db)).toEqual({ settings: { stepPct: 8, holdMinQuality: 3 }, words: { flat: "under", thin: "under" } });
+    const second = await changeCalibration(db, { settings: { noisePct: 5 }, words: { thin: "under" } });
+    expect(second.personal).toEqual(["stepPct is 8 (default 10)", "noisePct is 5 (default 3)", "flat means under (default none)", "thin means under (default none)"]);
+    expect(await loadOverrides(db)).toEqual({ settings: { stepPct: 8, noisePct: 5 }, words: { flat: "under", thin: "under" } });
   });
   it("writes nothing when any part of a change is refused", async () => {
     const before = await loadOverrides(db);
@@ -236,7 +232,7 @@ describe("stored in the roaster's database", () => {
     await changeCalibration(db, { settings: { noisePct: null } });
   });
   it("puts a setting or word back to the default, and ends with nothing stored", async () => {
-    await changeCalibration(db, { settings: { stepPct: null, holdMinQuality: null }, words: { flat: null, thin: null } });
+    await changeCalibration(db, { settings: { stepPct: null, noisePct: null }, words: { flat: null, thin: null } });
     expect(await loadOverrides(db)).toEqual(NO_OVERRIDES);
     const rows = await db.query<{ n: number }>("select (select count(*) from roaster_setting) + (select count(*) from roaster_taste_word) as n");
     expect(Number(rows.rows[0].n)).toBe(0);
@@ -251,9 +247,9 @@ describe("stored in the roaster's database", () => {
     const stamp = async () => (await db.query<{ t: string }>("select updated_at::text as t from roaster_setting where key = 'stepPct'")).rows[0].t;
     const before = await stamp();
     await db.query("select pg_sleep(0.05)");
-    await changeCalibration(db, { settings: { stepPct: 8, holdMinQuality: 3 } });
+    await changeCalibration(db, { settings: { stepPct: 8, noisePct: 5 } });
     expect(await stamp()).toBe(before);
-    await changeCalibration(db, { settings: { stepPct: null, holdMinQuality: null } });
+    await changeCalibration(db, { settings: { stepPct: null, noisePct: null } });
   });
 });
 
