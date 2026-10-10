@@ -11,8 +11,8 @@
 // same server; its scratch folders are under the system temp folder. The replay uses made-up logs only; `start` copies
 // the roaster's own stock profiles in and nothing else.
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import pg from "pg";
 import { DATABASE_URL } from "./db.js";
 import { ROOT } from "./env.js";
@@ -295,21 +295,32 @@ async function replay(): Promise<void> {
 }
 
 /**
- * Copies the roaster's stock profiles (the .kpro files directly in profiles/, not out/ or logs/) into the station's
- * library, so a new bean finds its starting profile as it would on a fresh install. Reads profiles/, never writes it.
+ * Copies the roaster's profile files (the .kpro files at any depth in profiles/, as the library finds them, except the
+ * generated out/ and logs/ folders) into the station's library with their relative paths, so a new bean finds its
+ * starting profile as it would on a fresh install. Reads profiles/, never writes it.
  */
 function copyStockProfiles(): number {
   const source = join(ROOT, "profiles");
   if (!existsSync(source)) return 0;
-  // A symlinked profile counts too (copyFileSync follows it), and the extension is matched as scripts/library.ts does.
-  const stock = readdirSync(source, { withFileTypes: true }).filter((entry) => (entry.isFile() || entry.isSymbolicLink()) && /\.kpro$/i.test(entry.name));
-  for (const entry of stock) copyFileSync(join(source, entry.name), join(STATION_DIR, STATION_SUBDIRS.library, entry.name));
+  const library = join(STATION_DIR, STATION_SUBDIRS.library);
+  // statSync follows a symlink, so a symlinked profile counts and a folder named like a profile does not.
+  const stock = (readdirSync(source, { recursive: true, encoding: "utf8" }) as string[]).filter(
+    (file) => /\.kpro$/i.test(file) && !/^(out|logs)[\\/]/i.test(file) && statSync(join(source, file)).isFile(),
+  );
+  for (const file of stock) {
+    const target = join(library, file);
+    mkdirSync(dirname(target), { recursive: true });
+    copyFileSync(join(source, file), target);
+  }
   return stock.length;
 }
 
-/** A command of the real CLI (`scripts/roast.ts`) run against the station with its output shown as it comes. */
+/** A command of the real CLI (`scripts/roast.ts`) run against the station with its output shown as it comes; a failure is thrown. */
 function showCli(args: string[]): void {
-  spawnSync(process.execPath, ["--import", "tsx", join(ROOT, "scripts", "roast.ts"), ...args], { cwd: ROOT, env: { ...process.env, ...stationEnv(DATABASE_URL) }, stdio: "inherit" });
+  const run = spawnSync(process.execPath, ["--import", "tsx", join(ROOT, "scripts", "roast.ts"), ...args], { cwd: ROOT, env: { ...process.env, ...stationEnv(DATABASE_URL) }, stdio: "inherit" });
+  if (run.error || run.status !== 0) {
+    throw new Error(`\`roast.ts ${args.join(" ")}\` failed (${run.error ? run.error.message : `exit ${run.status ?? run.signal}`}), so what the station recorded could not be listed.`);
+  }
 }
 
 /**
