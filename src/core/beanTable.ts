@@ -96,7 +96,7 @@ export function beanTable(history: HistoryForAdvice, context?: AdviceContext, ca
 export const cell = (value: string | number | undefined) => (value === undefined ? "-" : String(value));
 
 /** A table cell: a bar inside it would split the row. */
-export const escaped = (text: string) => text.replace(/\|/g, "\\|");
+export const escaped = (text: string) => text.replace(/\r\n|[\r\n]/g, " ").replace(/\|/g, "\\|");
 
 function render(rows: BeanTableRow[], levelChangesMade: number | undefined, calibration: Calibration): string {
   if (!rows.length) return "No roast has been recorded for this bean yet.";

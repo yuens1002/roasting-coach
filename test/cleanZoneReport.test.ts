@@ -121,6 +121,13 @@ describe("the cross-bean report", () => {
     expect(cleanZoneReport([bean(1, "A", apart)]).rows[0].bracket.disagree).toBe(false);
   });
 
+  it("keeps a bean name with a bar or a line break inside its cell, so the row stays one row", () => {
+    const { say } = cleanZoneReport([bean(1, "Kenya\r\nAA | lot 2\nfermented", history(roast(1, 3, 9, CLEAN)))]);
+    const row = say.split("\n").find((line) => line.includes("Kenya"))!;
+    expect(row.startsWith("| Kenya AA \\| lot 2 fermented | ")).toBe(true);
+    expect(say.split("\n").filter((line) => line.startsWith("|"))).toHaveLength(3);
+  });
+
   it("says the whole table as the finished text, and says so when there is no bean", () => {
     const b = bean(1, "A|B", history(roast(1, 3, 9, CLEAN)), { altitudeM: 1900, densityGL: 720 });
     expect(cleanZoneReport([b], new Map([[1, 8]])).say).toBe(
