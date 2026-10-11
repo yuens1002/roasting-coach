@@ -345,7 +345,8 @@ Order is a suggestion; the roaster picks.
      profiles, and a profile is a thermal dose plus a shape. A hypothesis, not a finding: the research supports moisture
      changing the timing and the drying phase far more than the total ([research.md](research.md), "Heat transfer"), and says
      nothing yet about how much for a Nano.
-   - **Bean properties: moisture, density and altitude (more research or data is needed before any is used).** Today altitude
+   - **Bean properties: moisture, density and altitude (altitude only picks the profile band today; more research or data is
+     needed before any is used to adjust a level).** Today altitude
      picks the profile's band (a stand-in for density) and `chaffy` adds a note for Robusta; moisture, density and crop date are
      stored from optional intake answers and no rule reads them (the form's help text said otherwise until 2026-10-11).
      Thermal dose is computed from the bean-temperature curve alone, so none of them is in it; if they matter, the correction goes in
