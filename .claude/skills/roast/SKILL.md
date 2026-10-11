@@ -42,7 +42,7 @@ A reference cup the roaster describes (say, the farm's or the seller's) goes in 
    the `why` lines, and the alternative profile. Ask for an Agtron reading of each roast if they have a colour
    meter: with two readings at ends at least 3 °C apart on a profile, the tool places later beans on that line.
 5. If `profile.written` is set, the bean has its own profile in
-   `profiles/out/` (or `KAFFELOGIC_OUT_DIR` when it is set), named by the tool (a file like `KLN7-YIRG-WSH-003-1r1.kpro`, short name `YIRG-003-1r1`): the chosen stock profile renamed for the bean, curve unchanged. Tell the
+   `profiles/out/` (or `KAFFELOGIC_OUT_DIR` when it is set), named by the tool (a file like `KLN7-YIRG-WSH-003-1r1.kpro`, short name `YIRG-003-1r1`; the README's "The names of the files it writes" explains the parts, version against revision included): the chosen stock profile renamed for the bean, curve unchanged. Tell the
    roaster to load it onto the machine, pick it, and set the level. Without it (a warning says
    the stock file is missing from `profiles/`), say which stock profile to pick and the level.
    The profile's name on the machine is the short name in the result (`version.profileName`); the tool picks both names, so don't ask the

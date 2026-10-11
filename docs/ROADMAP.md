@@ -383,7 +383,8 @@ Order is a suggestion; the roaster picks.
 4. **Profile files in Postgres as the source of truth**: an uploaded-profile table keyed by name
    and `profile_modified`, text kept verbatim, import from `profiles/`, export `.kpro` on demand.
    Fits both personal use and a later sharing feature.
-5. **Naming convention for written profiles** (decided and built 2026-10-11; `src/adapters/kaffelogic/profileNames.ts`). Two names,
+5. **Naming convention for written profiles** (decided and built 2026-10-11; `src/adapters/kaffelogic/profileNames.ts`; explained for
+   roasters in the README, "The names of the files it writes"). Two names,
    each with its job, and nothing asks the roaster for a name. The **short name** (what the machine and Kaffelogic Studio show) is at
    most 15 characters: Studio cuts a longer one at 15, measured 2026-10-11 (`KLN7-YGRG-WSH-001-3r1`, 21 characters, showed as
    `KLN7-YGRG-WSH-0`), which matches every stock short name (all 15 or fewer). It is `{origin}-{bean number}-{version}r{revision}`,

@@ -5,6 +5,10 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-11
+
+- 2026-10-11 - docs(readme): explain the profile file names, with the parts and an example of version against revision
+
 ## [0.5.0] - 2026-10-11
 
 - 2026-10-11 - feat(profiles): name written profiles by a convention the tool applies, a 15-character short name and a full file name

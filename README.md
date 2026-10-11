@@ -172,6 +172,46 @@ or point `KAFFELOGIC_DIR` at the folder your roaster writes to. Profiles roastin
 Kaffelogic's profiles and logs are not published under an open licence, so this repository never
 includes them. It refers to stock profiles by name and stores only numbers derived from them.
 
+### The names of the files it writes
+
+roasting-coach writes a profile file for a bean when it takes the bean in, and for any version when you ask for one. It names
+the files itself, so you are never asked for a name. Each file has two names, because the machine and your folders need
+different things:
+
+| | Example | What it is |
+|---|---|---|
+| **Short name** | `YIRG-003-1r1` | What the Nano and Kaffelogic Studio show. At most 15 characters: Studio cuts a longer short name at 15 (measured: a 21-character name showed as its first 15), which would lose the part that tells profiles apart. |
+| **File name** | `KLN7-YIRG-WSH-003-1r1.kpro` | The whole convention, with no length limit. The roast log records it beside the short name. |
+
+What each part means:
+
+| Part | Example | Meaning |
+|---|---|---|
+| Manufacturer and model | `KLN7` | `KL` Kaffelogic and `N7` Nano 7. In the file name only. |
+| Origin | `YIRG` | Where the coffee is from: the first four letters of the last part of the origin you gave at intake. "Ethiopia, Yirgacheffe" gives `YIRG`, so write the country first and the region last. With no origin, it is the first four letters of the bean's name. |
+| Processing | `WSH` | `WSH` washed, `NAT` natural, `HON` honey, `ANA` anaerobic, `WHL` wet-hulled, `UNK` don't know. In the file name only. |
+| Bean number | `003` | The bean's number in your database, up to 999. It keeps two beans of one origin apart. |
+| Version | `1` | Which step in the bean's journey the file is for. |
+| Revision | `r1` | Which curve (the profile's shape) that version uses. |
+
+**Version and revision.** The version counts steps: every time a change is recorded for the next roast, a different level or a
+different profile, the bean gets the next version. The revision says whether the curve itself changed: it stays the same while
+only the level changes, and takes the next number when the bean moves to a different curve. Going back to an earlier curve gives
+that curve's revision again. Curve edits are not built yet, so today the revision moves only when a bean switches to another
+profile. An example, the Yirgacheffe roasted on `2000-2700m RTD`:
+
+| Step | What is recorded | Short name |
+|---|---|---|
+| Version 1 | The first roast, at level 2.0 | `YIRG-003-1r1` |
+| Version 2 | The advice changes the level (level change 1 of 3) | `YIRG-003-2r1` |
+| Version 3 | Level change 2 | `YIRG-003-3r1` |
+| Version 4 | Level change 3 | `YIRG-003-4r1` |
+| Version 5 | A defect is left after three level changes, so you try another profile (KL Washed) | `YIRG-003-5r2` |
+| Version 6 | A level change on KL Washed | `YIRG-003-6r2` |
+
+The level is not in the name. It is inside the file, as the level the machine offers first: check the level on the machine
+before every roast. Profiles written before these names existed keep the names they have.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md); in short, never commit Kaffelogic files or personal data.
