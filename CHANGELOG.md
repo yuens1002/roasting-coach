@@ -5,6 +5,10 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-11
+
+- 2026-10-11 - docs(rules): record moisture, density and altitude as unused until research or data supports them, with a design sketch and the proposed sequencing for curve edits
+
 ## [0.4.1] - 2026-10-11
 
 - 2026-10-11 - docs(roadmap): plan curve edits and new profiles, with a thermal-dose tolerance, the test layers and the profile naming check

@@ -463,7 +463,11 @@ is recorded as a version only when they say so, with their own words as the reas
 - It doesn't know your brew recipe or grind, so it can't tell an under-extracted cup from an
   under-roasted roast. Every tasting of a coffee is of one brew (rule 1) so that the brew is at least the same
   from roast to roast.
-- It doesn't know the bean's density, moisture or age beyond what the first profile choice used.
+- It doesn't use the bean's moisture, density, altitude or crop date to set a level. Altitude and process pick the profile
+  (the first profile choice); nothing about the bean enters the first level or any step after it. No measurement in this
+  project ties them to the thermal dose a coffee needs to be clean: the intake takes moisture, density and crop date as optional
+  answers and nothing reads them, and the one published result found (two coffees, `docs/research.md`) is too small to rest a
+  rule on. More research or data is needed before they are used (`docs/ROADMAP.md`, Next, 3).
 - It can only change the level, or switch to another stock profile. It can't edit a curve yet.
 - It treats a bean's earlier roasts as comparable. A different green lot, batch size or ambient
   temperature between roasts isn't accounted for.
