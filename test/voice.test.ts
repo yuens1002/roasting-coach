@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseKlog } from "../src/adapters/kaffelogic/parse.js";
 import { beanTable } from "../src/core/beanTable.js";
+import { cleanZoneReport } from "../src/core/cleanZoneReport.js";
 import { placeColour, placementSay, selectStartingProfile } from "../src/adapters/kaffelogic/startingProfiles.js";
 import { kaffelogicToRoastLog } from "../src/adapters/kaffelogic/toRoastLog.js";
 import { extractFeatures } from "../src/core/features.js";
@@ -132,6 +133,19 @@ const TABLE_SAYS = [
   [tableVersion(1, [tastedRow(1, 3, 10)])],
   [tableVersion(1, [])],
 ].map((versions, i) => beanTable({ versions }, i === 4 ? { tastingBrew: "pourover" } : undefined).say);
+/** The cross-bean report's finished text: a bean with a clean roast, one with a bracket, one whose roasts disagree, one with nothing tasted, and no bean at all. */
+const REPORT_SAYS = [
+  cleanZoneReport(
+    [
+      { id: 1, name: "A", intake: { process: "washed", altitudeM: 1900 }, history: { versions: [tableVersion(1, [tastedRow(1, 3, 10, ["sweet"])])] }, context: undefined },
+      { id: 2, name: "B", intake: { process: "natural" }, history: { versions: [tableVersion(1, [tastedRow(1, 3, 8, ["grassy"])]), tableVersion(2, [tastedRow(2, 3.8, 11, ["ashy"])])] }, context: undefined },
+      { id: 3, name: "C", intake: { process: "washed" }, history: { versions: [tableVersion(1, [tastedRow(1, 3, 10, ["ashy"])]), tableVersion(2, [tastedRow(2, 3.3, 11, ["grassy"])])] }, context: undefined },
+      { id: 4, name: "D", intake: { process: "washed" }, history: { versions: [tableVersion(1, [tastedRow(1, 3, 10)])] }, context: undefined },
+    ],
+    new Map([[1, 9]]),
+  ).say,
+  cleanZoneReport([]).say,
+];
 const COLOUR_WARNINGS = [{ colour_change: 534, first_crack: 540 }, { colour_change: 480, first_crack: 520 }].map((markers) => extractFeatures(kaffelogicToRoastLog(parseKlog(syntheticLog({ ...markers, roast_end: 600 })))).dataWarnings[0]);
 
 describe("the engine's voice", () => {
@@ -142,6 +156,7 @@ describe("the engine's voice", () => {
     ...COLOUR_WARNINGS.map((text, i) => ({ name: `colour-change warning ${i + 1}`, text })),
     ...SET_ASIDE_NOTES.map((text, i) => ({ name: `set-aside note ${i + 1}`, text })),
     ...TABLE_SAYS.map((text, i) => ({ name: `bean table ${i + 1}`, text })),
+    ...REPORT_SAYS.map((text, i) => ({ name: `cross-bean report ${i + 1}`, text })),
     ...PLACEMENT_SAYS.map((text, i) => ({ name: `level-for answer ${i + 1}`, text })),
   ];
 

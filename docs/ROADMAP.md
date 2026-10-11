@@ -267,8 +267,8 @@ Order is a suggestion; the roaster picks.
    next version. Note anything awkward in the forms or the skill. Cheap, and it shows which rules
    matter first; it can run before or alongside the rule core.
 2b. **Clean-zone report** (built 2026-10-11: `clean-zone`, `src/core/cleanZoneReport.ts`): a read-only command that lists, per bean, the
-   predicted thermal dose of its first clean roast (roast quality 3 or more and no under or over word, the definition under "Decided (2026-10-10)"; a stored tasting where the two disagree is not clean), the bracket around it, the bean's properties and each
-   roast's offset from its curve's prediction. It records nothing and changes no advice; it is the data the bean-properties item
+   predicted thermal dose of its first clean roast (roast quality 3 or more and no under or over word, the definition under "Decided (2026-10-10)"; a stored tasting where the two disagree is not clean), the bracket around it, the bean's properties and the
+   first clean roast's offset from its curve's prediction (an offset for every roast is not built). It records nothing and changes no advice; it is the data the bean-properties item
    (under item 3) waits for, and what the clean zone as a number of the roaster's own steps would need.
 3. **Curve edits and new profiles** (planned 2026-10-11, nothing built; see the proposed sequencing below). Change the curve of a base profile (the one a log
    was roasted on, matched by name and `profile_modified`, or a stock profile chosen at intake), write it with `writeKpro`
@@ -279,7 +279,7 @@ Order is a suggestion; the roaster picks.
      been made, nothing offline shows what a shape edit does to a cup, each edit costs a real roast, and the engine's own job
      (a defect-free roast in three level changes) has had one real bean. The case for building is a wall the level and the stock
      profiles cannot get past: beans that end at the three-change limit with no profile to try, or hold at a quality of 3 when
-     the roaster wants more. Proposed order: item 2 (end-to-end sessions) and item 2b first; step 1 below (read-only analysis of
+     the roaster wants more. Proposed order: item 2 (end-to-end sessions) and item 2b (built) first; step 1 below (read-only analysis of
      the real logs, no code shipped) any time; steps 2 to 4 once real sessions show the wall (for example, two of the first five
      beans end at the limit or at a flat quality of 3 and the roaster wants more).
    - **Decided:** "about the same thermal dose" is within **3%**, and it is enforced: the error of the matched level is
@@ -361,9 +361,9 @@ Order is a suggestion; the roaster picks.
      altitude); seeing a strong link (correlation 0.7) takes about 14 beans with a first clean roast (quality 3 or more and no under or over word) and a weak one (0.3) about 85
      (a sample-size calculation, not a measurement); the published support is two coffees (Debona 2021) and an industry claim
      with no peer-reviewed measurement; and moisture and density need meters (altitude is on the bag). The plan: ask for altitude
-     at every intake (and moisture and density when the roaster has meters), record each roast's offset beside its bean's
-     properties, and record each bean's first clean roast (the report, item 2b), so the table builds as the roaster
-     roasts. No rule until it shows a link.
+     at every intake (and moisture and density when the roaster has meters), and show each bean's first clean roast and its
+     offset beside its properties (the report, item 2b, built; it derives them on each run and records nothing; an offset for
+     every roast is not built), so the table builds as the roaster roasts. No rule until it shows a link.
    - **Roasting philosophies, not yet considered.** Roast masters differ on shape: how fast to dry, how steeply to approach and
      pass first crack, how long development lasts. Kaffelogic's stock profiles already state targets for some of these
      (`developmentTarget` and `riseAfterCrack` in the table). A philosophy would be a named set of targets on the measured axes

@@ -5,9 +5,9 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
-## [0.4.3] - 2026-10-12
+## [0.4.3] - 2026-10-11
 
-- 2026-10-12 - feat(report): add the cross-bean clean-zone report, with a named clean quality in the rules
+- 2026-10-11 - feat(report): add the cross-bean clean-zone report, with a named clean quality in the rules
 
 ### Added
 

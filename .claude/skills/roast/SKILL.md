@@ -150,7 +150,7 @@ and run the command it hands you if the roaster says yes.
    its level as the level the machine offers first. Only labels change, so a roast on it still
    counts as the same profile. Remind them to check the level on the machine before roasting.
 
-6. To set every bean side by side (each one's altitude, process, moisture, density and crop date, and where its first clean
+7. To set every bean side by side (each one's altitude, process, moisture, density and crop date, and where its first clean
    roast stands in thermal dose), run `clean-zone` and say `say` as written. It records nothing and the advice does not use it;
    for how one bean stands, show its `table`.
 

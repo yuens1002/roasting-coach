@@ -401,17 +401,18 @@ export async function refreshFeatures(db: Db) {
  * the roast was made at ends. Keyed by roast id. A roast whose log can't be read, or whose curve never reaches that level, has no entry.
  */
 export async function predictedThermalDoses(db: Db): Promise<Map<number, number>> {
-  const r = await db.query<{ id: string | number; log_file: string; log_level: string | number | null }>("select id, log_file, log_level from roast where log_file is not null order by id");
+  const r = await db.query<{ id: string | number; log_file: string }>("select id, log_file from roast where log_file is not null order by id");
   const predicted = new Map<number, number>();
   for (const row of r.rows) {
+    let log: ReturnType<typeof parseKlog>;
     try {
-      const log = parseKlog(row.log_file);
-      const level = log.level ?? (row.log_level === null ? undefined : Number(row.log_level));
-      const atLevel = level === undefined ? undefined : profileThermalDoseAtLevel(log.profile, level);
-      if (atLevel) predicted.set(Number(row.id), atLevel.thermalDose);
+      log = parseKlog(row.log_file);
     } catch {
       // The log was readable when it was recorded; if it is not now, the roast has no prediction rather than breaking the report.
+      continue;
     }
+    const atLevel = log.level === undefined ? undefined : profileThermalDoseAtLevel(log.profile, log.level);
+    if (atLevel) predicted.set(Number(row.id), atLevel.thermalDose);
   }
   return predicted;
 }

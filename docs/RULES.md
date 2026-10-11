@@ -71,12 +71,12 @@ Clean: roast 3. The best, roast 3, was rated 4 (clean and expressive).
 
 **The cross-bean report.** `clean-zone` sets every bean side by side, one row each: its altitude, process, moisture, density
 and crop date (as the roaster gave them), the tasted roasts in the coffee's own brew, its first clean roast (roast quality 3
-or more and no under or over word; a tasting where the two disagree is not clean) with the level, the thermal dose the
-profile's curve predicts for that roast, the thermal dose measured and how far the measured one ran above the predicted one,
-and the bracket. The predicted thermal dose is worked out from the profile the roast's log carries, ended at the level the
-roast was made at. The report records nothing and no advice uses it: it is the data a link between a bean's properties and
-the thermal dose it needs to be clean would be fitted from (`docs/ROADMAP.md`, Next, 3).
-
+or more and no under or over word; a tasting where the two disagree is not clean) with its number in the bean's table, the
+level, the thermal dose the profile's curve predicts for that roast, the thermal dose measured and the offset of the measured
+one from the predicted one (above it, or below), and the bracket (marked when its edges are not apart beyond the noise band,
+as the bean's table says the roasts disagree). The predicted thermal dose is worked out from the profile the roast's log
+carries, ended at the level the roast was made at. The report records nothing and no advice uses it: it is the data a link
+between a bean's properties and the thermal dose it needs to be clean would be fitted from (`docs/ROADMAP.md`, Next, 3).
 
 **Not used yet:** weight loss, development time ratio, first-crack time or temperature, rate of
 rise, colour readings, how the beans looked, ambient temperature, batch size, grind or brew recipe.
