@@ -463,7 +463,13 @@ is recorded as a version only when they say so, with their own words as the reas
 - It doesn't know your brew recipe or grind, so it can't tell an under-extracted cup from an
   under-roasted roast. Every tasting of a coffee is of one brew (rule 1) so that the brew is at least the same
   from roast to roast.
-- It doesn't know the bean's density, moisture or age beyond what the first profile choice used.
+- It makes no adjustment to a level for the bean's moisture, density, altitude or crop date. Altitude and process pick the
+  profile (the first profile choice), and the colour target is then placed on that profile's own ladder, so altitude changes the
+  first level only through the profile (Agtron 60 is level 3.0 on 0-1200m RTD and 3.2 on 2000-2700m RTD); no later step adjusts a
+  level for the bean, and the alternative profile offered after three level changes comes from the same altitude band and
+  process. No measurement in this project ties them to the thermal dose a coffee needs to be clean: the intake takes
+  moisture, density and crop date as optional answers and nothing reads them, and the one published result found (two coffees, `docs/research.md`) is too small to rest a
+  rule on. More research or data is needed before they are used (`docs/ROADMAP.md`, Next, 3).
 - It can only change the level, or switch to another stock profile. It can't edit a curve yet.
 - It treats a bean's earlier roasts as comparable. A different green lot, batch size or ambient
   temperature between roasts isn't accounted for.

@@ -202,6 +202,44 @@ mass takes more heat per degree. No paper below measured it.
 4. **No density or moisture rule yet.** The direction for moisture is supported; for density it is not.
    Anything we ship should come from the roaster's own logs, not from this section.
 
+### Using bean properties in the thermal dose target (design sketch, not built)
+
+Thermal dose is computed from the bean-temperature curve alone (`thermalDose` in `src/core/features.ts`: time at each
+temperature weighted by an Arrhenius factor, 105 kJ/mol, referenced to 200 °C). Moisture, density and altitude are not in it. If
+they change the thermal dose a coffee needs to be clean, or how far a roast runs above its curve's prediction, the correction
+belongs in one place: the target the level search aims at, as a separate adjustment, not in the thermal dose calculation.
+
+```
+target = reference × (1 + k_density × % denser than the reference bean + k_moisture × % wetter)
+level  = levelForThermalDose(profile, target)      (built)
+```
+
+A worked example. The predicted thermal doses are real, from the stock 1500-2000m RTD file (level, end temperature, predicted
+thermal dose: 3.0, 219.0 °C, 8.29; 3.1, 219.3 °C, 8.50; 3.2, 219.6 °C, 8.71; 3.3, 219.9 °C, 8.93; 3.4, 220.2 °C, 9.18). The bean
+values and the coefficient are invented. Reference bean A: 720 g/L, first clean roast at level 3.1 (8.50). New bean B: 778 g/L,
+8% denser. With k_density = 0.5 (each +1% density needs +0.5% more thermal dose), the target is 8.50 × (1 + 0.5 × 8%) = 8.84, and
+the nearest level is 3.3 (predicted 8.93, about 1% above the target, inside the 3% tolerance) instead of the 3.1 the colour target alone
+gives. With k = 0 the target is 8.50 and nothing changes.
+
+What it would take, and what is missing:
+
+- **Data.** The predicted thermal dose of each bean's first clean roast (roast quality 3 or more and no under or over word in the tasting; a stored tasting where the two disagree is left out), beside its properties. One bean is
+  recorded so far, with moisture and no density or altitude, so no coefficient can be fitted. Beans needed to see a link at 80%
+  power and p < 0.05: about 10 for a correlation of 0.8, 14 for 0.7, 30 for 0.5 and 85 for 0.3 (`n = ((1.96 + 0.84) / atanh r)² + 3`;
+  a calculation, not a measurement).
+- **Meters.** Altitude is on the bag. Moisture and density need a moisture meter and a way to weigh a known volume.
+- **Research.** The published support is thin: Debona et al. 2021 (two coffees, the high-altitude one's best cup came from the
+  lowest thermal dose of three programs, a difference within cuppers' variability) and industry write-ups that dense,
+  high-altitude beans need more energy early, which Kaffelogic's altitude bands assume and which has no peer-reviewed measurement
+  that we found. The hypotheses above (moisture changes drying timing far more than the total; density is weaker) are structure,
+  not numbers for a Nano.
+- **One roaster, one machine.** Thermal dose is fair across profiles and levels on one machine, never across machines, so a
+  fitted coefficient would belong to one roaster's roasts on one machine.
+
+If a link shows, the coefficient is data of the same kind as the step sizes (the roaster's calibration, shown and changeable), off
+until the roaster's beans support it. The properties could also move a phase boundary in a curve edit (how long drying lasts),
+which is not total heat and cannot be sketched until edits exist.
+
 ### Not read, or not verifiable
 
 - Baggenstoss 2008 and Hernández et al., *Analysis of the heat and mass transfer during coffee batch

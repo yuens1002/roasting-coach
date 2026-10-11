@@ -263,11 +263,22 @@ Order is a suggestion; the roaster picks.
 2. **End-to-end session** with a real bean and log in `profiles/`: intake -> roast -> tasting ->
    next version. Note anything awkward in the forms or the skill. Cheap, and it shows which rules
    matter first; it can run before or alongside the rule core.
-3. **Curve edits and new profiles** (planned 2026-10-11, nothing built). Change the curve of a base profile (the one a log
+2b. **Clean-zone report** (proposed 2026-10-11, awaiting the roaster's go-ahead): a read-only command that lists, per bean, the
+   predicted thermal dose of its first clean roast (roast quality 3 or more and no under or over word, the definition under "Decided (2026-10-10)"; a stored tasting where the two disagree is not clean), the bracket around it, the bean's properties and each
+   roast's offset from its curve's prediction. It records nothing and changes no advice; it is the data the bean-properties item
+   (under item 3) waits for, and what the clean zone as a number of the roaster's own steps would need.
+3. **Curve edits and new profiles** (planned 2026-10-11, nothing built; see the proposed sequencing below). Change the curve of a base profile (the one a log
    was roasted on, matched by name and `profile_modified`, or a stock profile chosen at intake), write it with `writeKpro`
    to `profiles/out/` (never overwrite) and store it as the version's `profile_file`, with the base as its parent.
    *Storage already exists:* `version:add` takes a `profileFile` and reads its levels, `profile_version.profile_file` and
    `parent_id` hold the file and the tree, and a changed body is a different profile to `sameProfileBody`.
+   - **Sequencing (proposed 2026-10-11, awaiting the roaster's decision): not yet.** A roast on an edited profile has never
+     been made, nothing offline shows what a shape edit does to a cup, each edit costs a real roast, and the engine's own job
+     (a defect-free roast in three level changes) has had one real bean. The case for building is a wall the level and the stock
+     profiles cannot get past: beans that end at the three-change limit with no profile to try, or hold at a quality of 3 when
+     the roaster wants more. Proposed order: item 2 (end-to-end sessions) and item 2b first; step 1 below (read-only analysis of
+     the real logs, no code shipped) any time; steps 2 to 4 once real sessions show the wall (for example, two of the first five
+     beans end at the limit or at a flat quality of 3 and the roaster wants more).
    - **Decided:** "about the same thermal dose" is within **3%**, and it is enforced: the error of the matched level is
      computed (`levelForThermalDose` returns the nearest level whatever the error), and an edit whose best level is more than
      3% off is reduced or refused, never written or described as holding the thermal dose. The worst miss between two adjacent
@@ -334,14 +345,22 @@ Order is a suggestion; the roaster picks.
      profiles, and a profile is a thermal dose plus a shape. A hypothesis, not a finding: the research supports moisture
      changing the timing and the drying phase far more than the total ([research.md](research.md), "Heat transfer"), and says
      nothing yet about how much for a Nano.
-   - **Bean properties, recorded and unused (moisture, density).** The intake already takes `moisturePct`, `densityGL`,
-     `chaffy`, altitude, process and crop date as optional answers; only altitude and process reach a rule (the profile choice).
-     They are the candidates for what the tool cannot predict: the offset of a roast's measured thermal dose from its curve's
-     prediction, and the time of the drying phase (the hypotheses are in [research.md](research.md), "Heat transfer": wetter
-     beans need more early heat to follow a curve, and the support for density is weaker). It is also the offset a
-     cross-profile match needs. The plan: record each roast's offset beside its bean's properties, so a table of properties
-     against offset builds from the roaster's own roasts, and ask for moisture and density at intake when the seller lists them.
-     No rule until several beans show a link; one bean cannot.
+   - **Bean properties: moisture, density and altitude (altitude only picks the profile band today; more research or data is
+     needed before any is used to adjust a level).** Today altitude
+     picks the profile's band (a stand-in for density) and `chaffy` adds a note for Robusta; moisture, density and crop date are
+     stored from optional intake answers and no rule reads them (the form's help text said otherwise until 2026-10-11).
+     Thermal dose is computed from the bean-temperature curve alone, so none of them is in it; if they matter, the correction goes in
+     the target the level search aims at, as a separate adjustment (a sketch with a worked example on real ladder numbers is in
+     [research.md](research.md), "Using bean properties in the thermal dose target"). They are candidates for three things, each
+     a hypothesis: where the clean zone sits (the thermal dose a coffee needs to be clean), the offset of a roast's measured
+     thermal dose from its curve's prediction (which a cross-profile match needs), and the timing of the drying phase. Fitted
+     values would belong to one roaster on one machine. Why it is not built: one bean is recorded so far (moisture, no density or
+     altitude); seeing a strong link (correlation 0.7) takes about 14 beans with a first clean roast (quality 3 or more and no under or over word) and a weak one (0.3) about 85
+     (a sample-size calculation, not a measurement); the published support is two coffees (Debona 2021) and an industry claim
+     with no peer-reviewed measurement; and moisture and density need meters (altitude is on the bag). The plan: ask for altitude
+     at every intake (and moisture and density when the roaster has meters), record each roast's offset beside its bean's
+     properties, and record each bean's first clean roast (the report proposed as item 2b), so the table builds as the roaster
+     roasts. No rule until it shows a link.
    - **Roasting philosophies, not yet considered.** Roast masters differ on shape: how fast to dry, how steeply to approach and
      pass first crack, how long development lasts. Kaffelogic's stock profiles already state targets for some of these
      (`developmentTarget` and `riseAfterCrack` in the table). A philosophy would be a named set of targets on the measured axes

@@ -66,9 +66,9 @@ export const INTAKE_FIELDS: Field[] = [
   { id: "altitudeM", label: "Altitude", kind: "number", unit: "m", min: 0, max: 3000, integer: true, help: "If the bag gives a range, use the middle.", usedFor: "Altitude band; a proxy for density" },
   { id: "origin", label: "Country / region", kind: "text", usedFor: "Display; comparing beans later" },
   { id: "variety", label: "Variety", kind: "text", help: "e.g. Bourbon, Gesha, SL28.", usedFor: "Comparing beans later" },
-  { id: "cropDate", label: "Harvest or arrival date", kind: "date", help: "Old crop roasts faster and tastes flatter.", usedFor: "Flags past-crop beans" },
-  { id: "moisturePct", label: "Moisture", kind: "number", unit: "%", min: 5, max: 15, help: "Only if the seller lists it.", usedFor: "Adjusts drying expectations" },
-  { id: "densityGL", label: "Density", kind: "number", unit: "g/L", min: 550, max: 850, integer: true, help: "Only if the seller lists it.", usedFor: "Better than altitude when known" },
+  { id: "cropDate", label: "Harvest or arrival date", kind: "date", help: "Old crop roasts faster and tastes flatter.", usedFor: "Recorded for later; no rule reads it yet (docs/ROADMAP.md)" },
+  { id: "moisturePct", label: "Moisture", kind: "number", unit: "%", min: 5, max: 15, help: "Only if the seller lists it.", usedFor: "Recorded for later; no rule reads it yet (docs/ROADMAP.md)" },
+  { id: "densityGL", label: "Density", kind: "number", unit: "g/L", min: 550, max: 850, integer: true, help: "Only if the seller lists it.", usedFor: "Recorded for later; no rule reads it yet (docs/ROADMAP.md)" },
   { id: "chaffy", label: "Lots of chaff", kind: "boolean", help: "Leave blank until you've roasted it once.", usedFor: "Suggests the higher-fan variant" },
   { id: "sellerNotes", label: "Seller's tasting notes", kind: "text", usedFor: "What 'good' should taste like for this bean" },
 ];
