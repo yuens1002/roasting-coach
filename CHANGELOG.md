@@ -21,6 +21,7 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 ### Added
 
 - `profileNames` and `profileRevision` (`src/adapters/kaffelogic/profileNames.ts`): the names, and which curve a version has.
+- `scripts/profileFiles.ts`: the two file-writing flows (`bean:add`, `profile:write`) as functions, tested on a database and a temp folder. A name that can't be made (a bean number past 999) no longer fails `bean:add`: the bean is stored on its stock profile with a warning and no file.
 
 ## [0.4.3] - 2026-10-11
 

@@ -33,9 +33,15 @@ const LIMITS = { beanId: 999, version: 99, revision: 99 } as const;
 /** Letters only, upper case, accents taken off: "Yirgacheffé" is "YIRGACHEFFE". */
 const letters = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^A-Za-z]/g, "").toUpperCase();
 
-/** The four letters that name where the coffee is from: the last part of the origin text, else the bean's name. */
+/** A part of the origin text names a place when it has at least this many letters ("1900m" and "b" do not). */
+const MIN_ORIGIN_LETTERS = 3;
+
+/**
+ * The four letters that name where the coffee is from: the last part of the origin text that has at least three letters (so
+ * "Ethiopia, 1900m" is ETHI), else the first four letters of the bean's name, else BEAN. Only Latin letters count, accents off.
+ */
 export function originCode(origin: string | undefined, beanName: string): string {
-  const parts = (origin ?? "").split(",").map(letters).filter(Boolean);
+  const parts = (origin ?? "").split(",").map(letters).filter((part) => part.length >= MIN_ORIGIN_LETTERS);
   return (parts[parts.length - 1] ?? letters(beanName)).slice(0, 4) || "BEAN";
 }
 
@@ -63,6 +69,7 @@ export function profileNames(parts: ProfileNameParts): { shortName: string; file
   const origin = originCode(parts.origin, parts.beanName);
   const number = `${String(parts.beanId).padStart(3, "0")}-${parts.version}r${parts.revision}`;
   const shortName = `${origin}-${number}`;
+  // Cannot happen with the limits above (the longest is YIRG-999-99r99, 14), and keeps the 15-character limit true if a limit is raised.
   if (shortName.length > MAX_SHORT_NAME) throw new Error(`The profile short name "${shortName}" is longer than the ${MAX_SHORT_NAME} characters the machine shows.`);
   return { shortName, fileName: `${machine}-${origin}-${PROCESS_CODES[parts.process]}-${number}.kpro` };
 }
@@ -88,7 +95,10 @@ export function profileRevision(versions: readonly RevisionVersion[], number: nu
   for (const [i, v] of ordered.entries()) {
     const base = v.baseProfile ?? v.profileName;
     const sameBase = ordered.slice(0, i).find((earlier) => (earlier.baseProfile ?? earlier.profileName) === base);
-    const id = v.profileKey ?? (sameBase ? identity.get(sameBase.number)! : `stock:${base}`);
+    // A version with no stored profile is a stock profile (the same curve as an earlier version on it), or, when it has its own
+    // name, a profile of its own that nothing else shares.
+    const named = v.baseProfile !== undefined && v.profileName !== v.baseProfile;
+    const id = v.profileKey ?? (named ? `name:${v.profileName}` : sameBase ? identity.get(sameBase.number)! : `stock:${base}`);
     identity.set(v.number, id);
     if (!curves.includes(id)) curves.push(id);
   }

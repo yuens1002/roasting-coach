@@ -45,7 +45,7 @@ A reference cup the roaster describes (say, the farm's or the seller's) goes in 
    `profiles/out/` (or `KAFFELOGIC_OUT_DIR` when it is set), named by the tool (a file like `KLN7-YIRG-WSH-003-1r1.kpro`, short name `YIRG-003-1r1`): the chosen stock profile renamed for the bean, curve unchanged. Tell the
    roaster to load it onto the machine, pick it, and set the level. Without it (a warning says
    the stock file is missing from `profiles/`), say which stock profile to pick and the level.
-   The profile's name on the machine is the short name in the result (`profileName`); the tool picks both names, so don't ask the
+   The profile's name on the machine is the short name in the result (`version.profileName`); the tool picks both names, so don't ask the
    roaster for one. The origin they give (country first, region last: "Ethiopia, Yirgacheffe") is where its first four letters come from.
 
 ## 2. Roast (log + result)

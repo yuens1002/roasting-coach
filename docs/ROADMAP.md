@@ -390,8 +390,8 @@ Order is a suggestion; the roaster picks.
    e.g. `YIRG-003-1r1`. The **file name** (free length; Studio loaded a 26-character one) is the whole convention,
    `{manufacturer and model}-{origin}-{processing}-{bean number}-{version}r{revision}.kpro`, e.g. `KLN7-YIRG-WSH-003-1r1.kpro`; the
    log records it beside the short name (`profile_file_name`). The origin is the first four letters of the last part of the intake's
-   origin text, uppercase, accents off ("Ethiopia, Yirgacheffe" is YIRG: country first, region last), the bean's name when there is no
-   origin. Processing: WSH, NAT, HON, ANA, WHL (wet-hulled), UNK. The bean number is the bean's id (to 999), the version is the bean's
+   origin text that has at least three letters, uppercase, accents off ("Ethiopia, Yirgacheffe" is YIRG: country first, region last;
+   "Ethiopia, 1900m" is ETHI), else the first four letters of the bean's name (BEAN when that has no Latin letter either). Processing: WSH, NAT, HON, ANA, WHL (wet-hulled), UNK. The bean number is the bean's id (to 999), the version is the bean's
    version number (to 99), and the revision (to 99) is which curve the bean's profile has: it bumps only when the curve changes, a
    level-only version keeps it, a return to an earlier curve takes its number back, and switching to another stock profile is a
    different curve. `bean:add` stores the bean first so the file can carry its number; `profile:write` takes no name. Profiles already

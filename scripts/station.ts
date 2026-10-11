@@ -418,7 +418,7 @@ const SCENARIOS: Scenario[] = [
       "It asks for the roast colour and the tasting brew only if you did not say them. \"Light\" becomes Agtron 90 and \"dark\" Agtron 40, said as numbers.",
       "Light: KL Washed at level 1.0, ending at 216.5 °C. It says the level is an approximation until colour readings replace it, that the tool reads nothing lighter than Agtron 70 from KL Washed's file (so this is that level), and that the cup decides every step after the first roast.",
       "Dark: 1500-2000m RTD at level 4.3, ending at 222.6 °C. It says KL Washed names no level that dark, and that the tool reads nothing darker than Agtron 50 from the file, so this is that level.",
-      "With your stock profiles in the library it writes <bean name>.kpro to the station's out folder and tells you to load it and set the level.",
+      "With your stock profiles in the library it writes a file named by the tool (like KLN7-YIRG-WSH-001-1r1.kpro; the short name is in the answer's version.profileName) to the station's out folder and tells you to load it and set the level.",
       "It never offers a brew as the aim of the roast.",
     ],
   },

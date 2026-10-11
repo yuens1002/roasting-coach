@@ -19,6 +19,14 @@ describe("the origin part of a profile name", () => {
     expect(originCode("Ethiopia, 1234 , ", "x")).toBe("ETHI");
   });
 
+  it("skips a last part that is not a place (fewer than three letters), and one with no Latin letters", () => {
+    expect(originCode("Ethiopia, 1900m", "x")).toBe("ETHI");
+    expect(originCode("a, b, C", "Kron Nang")).toBe("KRON");
+    expect(originCode("エチオピア", "Kron Nang")).toBe("KRON");
+    expect(originCode("Ethiopia, エチオピア", "Kron Nang")).toBe("ETHI");
+    expect(originCode("Ethiopia, 1234", "x")).toBe("ETHI");
+  });
+
   it("falls back to the bean's name when there is no origin text with a letter in it", () => {
     expect(originCode(undefined, "Kron Nang")).toBe("KRON");
     expect(originCode("", "Kron Nang")).toBe("KRON");
@@ -42,9 +50,9 @@ describe("a profile's short name and file name", () => {
     expect(Object.keys(PROCESS_CODES).sort()).toEqual([...offered].sort());
     expect(new Set(Object.values(PROCESS_CODES)).size).toBe(offered.length);
     for (const process of offered) {
+      const code = PROCESS_CODES[process as keyof typeof PROCESS_CODES];
       const names = profileNames({ ...base, process: process as keyof typeof PROCESS_CODES });
-      expect(names.fileName).toContain(`-${PROCESS_CODES[process as keyof typeof PROCESS_CODES]}-`);
-      expect(names.shortName).not.toContain(PROCESS_CODES[process as keyof typeof PROCESS_CODES]);
+      expect(names).toEqual({ shortName: "YIRG-003-1r1", fileName: `KLN7-YIRG-${code}-003-1r1.kpro` });
     }
   });
 
@@ -61,6 +69,10 @@ describe("a profile's short name and file name", () => {
     expect(() => profileNames({ ...base, beanId: 0 })).toThrow("bean number from 1 to 999; got 0");
     expect(() => profileNames({ ...base, version: 100 })).toThrow("version from 1 to 99; got 100");
     expect(() => profileNames({ ...base, revision: 1.5 })).toThrow("revision from 1 to 99; got 1.5");
+    expect(() => profileNames({ ...base, revision: 100 })).toThrow("revision from 1 to 99; got 100");
+    expect(() => profileNames({ ...base, version: 0 })).toThrow("version from 1 to 99; got 0");
+    // The largest numbers the limits allow are inside the room, and one past each is not.
+    expect(profileNames({ ...base, beanId: 999, version: 99, revision: 99 }).shortName).toBe("YIRG-999-99r99");
     expect(() => profileNames({ ...base, machineId: "other-machine" })).toThrow('No profile name code for the machine "other-machine"');
   });
 });
@@ -84,6 +96,16 @@ describe("a version's revision", () => {
     // A version written under the bean's name is that stock profile's curve: it names its base.
     const named = [v(1, "k1", "Yirgacheffe", "KL Washed"), v(2, undefined, "KL Washed")];
     expect(profileRevision(named, 2)).toBe(1);
+  });
+
+  it("counts a version recorded under a name of its own, with no stored profile, as a curve of its own", () => {
+    const versions = [v(1, "k1", "YIRG-001-1r1", "KL Washed"), v(2, undefined, "Mine", "KL Washed"), v(3, undefined, "Mine", "KL Washed"), v(4, undefined, "KL Washed")];
+    expect([1, 2, 3, 4].map((n) => profileRevision(versions, n))).toEqual([1, 2, 2, 1]);
+  });
+
+  it("does not depend on the order the versions are given in", () => {
+    const versions = [v(3, "bbb"), v(1, "aaa"), v(2, "bbb")];
+    expect([1, 2, 3].map((n) => profileRevision(versions, n))).toEqual([1, 2, 2]);
   });
 
   it("only looks at versions up to the one asked about, and refuses a version the bean does not have", () => {

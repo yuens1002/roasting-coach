@@ -21,8 +21,8 @@ export function loadLibrary(): KaffelogicFile[] {
 }
 
 /** Where a new profile will be written, from its file name (profileNames). Refuses to overwrite: every written profile gets its own file. */
-export function outPath(fileName: string): string {
-  const path = join(KAFFELOGIC_OUT_DIR, fileName.replace(/[<>:"/\\|?*]/g, "-"));
+export function outPath(fileName: string, dir: string = KAFFELOGIC_OUT_DIR): string {
+  const path = join(dir, fileName.replace(/[<>:"/\\|?*]/g, "-"));
   if (existsSync(path)) throw new InputError([`${path} already exists. Move or delete it, then run the command again.`]);
   return path;
 }
