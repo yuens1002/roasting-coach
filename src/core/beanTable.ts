@@ -4,7 +4,7 @@
 // from there), the clean roasts, and how many of the three level changes are used. It reads the roasts the way the
 // rules do (tastedRoastsOf), so what the table shows is what the advice went on. Nothing here is a judgment of the coffee.
 import { qualityMeaning } from "./intake.js";
-import { type AdviceContext, type Calibration, DEFAULT_CALIBRATION, type HistoryForAdvice, LEVEL_CHANGE_BUDGET, levelChangesTo, tastedRoastsOf } from "./rules.js";
+import { type AdviceContext, type Calibration, CLEAN_QUALITY, DEFAULT_CALIBRATION, type HistoryForAdvice, LEVEL_CHANGE_BUDGET, levelChangesTo, tastedRoastsOf } from "./rules.js";
 
 /** What a roast's tasting says about how far it went. */
 export type Reads = "uncooked" | "scorched" | "uncooked and scorched" | "clean";
@@ -34,22 +34,42 @@ export interface BeanTable {
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
-const roundTo = (n: number, places: number) => Math.round(n * 10 ** places) / 10 ** places;
-const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n)}%`;
+export const roundTo = (n: number, places: number) => Math.round(n * 10 ** places) / 10 ** places;
+export const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n)}%`;
 
-function readsOf(words: string[], { chips }: Calibration): Reads {
+export function readsOf(words: string[], { chips }: Calibration): Reads {
   const under = words.some((w) => chips.under.includes(w));
   const over = words.some((w) => chips.over.includes(w));
   return under && over ? "uncooked and scorched" : under ? "uncooked" : over ? "scorched" : "clean";
+}
+
+/** Every roast of a bean with its version, oldest first: the order that numbers the bean's roasts in its table. */
+export function roastsInOrder(history: HistoryForAdvice) {
+  return history.versions
+    .flatMap((version) => version.roasts.map((roast) => ({ version, roast })))
+    .sort((a, b) => new Date(a.roast.roastedAt as string).getTime() - new Date(b.roast.roastedAt as string).getTime() || a.roast.id - b.roast.id);
+}
+
+/**
+ * The two edges of the bracket the tasted roasts make: the uncooked roast that went furthest (the highest thermal dose) and
+ * the scorched one that went least (the lowest). The thermal doses compared are the unrounded ones, as the advice compares them.
+ * With both edges, `apart` is the advice's own test: the gap is taken from the roast tasted later (the one the advice is about),
+ * and the two edges are apart only beyond the noise band; when they are not, the roasts disagree about which way to go.
+ */
+export function bracketOf<T extends { roast: number; tasted: { reads: Reads }; exactThermalDose: number }>(entries: readonly T[], noisePct: number): { furthestUncooked?: T; lightestScorched?: T; apart?: boolean } {
+  const furthestUncooked = entries.filter((r) => r.tasted.reads === "uncooked").reduce<T | undefined>((best, r) => (!best || r.exactThermalDose > best.exactThermalDose ? r : best), undefined);
+  const lightestScorched = entries.filter((r) => r.tasted.reads === "scorched").reduce<T | undefined>((best, r) => (!best || r.exactThermalDose < best.exactThermalDose ? r : best), undefined);
+  if (!furthestUncooked || !lightestScorched) return { furthestUncooked, lightestScorched };
+  const later = furthestUncooked.roast > lightestScorched.roast ? furthestUncooked : lightestScorched;
+  const apart = ((lightestScorched.exactThermalDose - furthestUncooked.exactThermalDose) * 100) / later.exactThermalDose > noisePct;
+  return { furthestUncooked, lightestScorched, apart };
 }
 
 /** A bean's table and where it stands, from its recorded history. */
 export function beanTable(history: HistoryForAdvice, context?: AdviceContext, calibration: Calibration = DEFAULT_CALIBRATION): BeanTable {
   const tasted = tastedRoastsOf(history, context);
   const byRoast = new Map(tasted.map((entry) => [entry.roast.id, entry]));
-  const all = history.versions
-    .flatMap((version) => version.roasts.map((roast) => ({ version, roast })))
-    .sort((a, b) => new Date(a.roast.roastedAt as string).getTime() - new Date(b.roast.roastedAt as string).getTime() || a.roast.id - b.roast.id);
+  const all = roastsInOrder(history);
   let previousDose: number | undefined;
   const rows: BeanTableRow[] = all.map(({ version, roast }, i) => {
     const entry = byRoast.get(roast.id);
@@ -73,10 +93,10 @@ export function beanTable(history: HistoryForAdvice, context?: AdviceContext, ca
   return { rows, levelChangesMade, say: render(rows, levelChangesMade, calibration) };
 }
 
-const cell = (value: string | number | undefined) => (value === undefined ? "-" : String(value));
+export const cell = (value: string | number | undefined) => (value === undefined ? "-" : String(value));
 
 /** A table cell: a bar inside it would split the row. */
-const escaped = (text: string) => text.replace(/\|/g, "\\|");
+export const escaped = (text: string) => text.replace(/\r\n|[\r\n]/g, " ").replace(/\|/g, "\\|");
 
 function render(rows: BeanTableRow[], levelChangesMade: number | undefined, calibration: Calibration): string {
   if (!rows.length) return "No roast has been recorded for this bean yet.";
@@ -98,16 +118,9 @@ function standing(rows: BeanTableRow[], levelChangesMade: number | undefined, { 
   ];
   const counted = rows.filter((r): r is BeanTableRow & { tasted: NonNullable<BeanTableRow["tasted"]>; thermalDose: number; exactThermalDose: number } => r.tasted?.counted === true && r.thermalDose !== undefined && r.exactThermalDose !== undefined);
   if (!counted.length) return [...lines, "None of the tasted roasts is in the coffee's tasting brew yet."];
-  const uncooked = counted.filter((r) => r.tasted.reads === "uncooked");
-  const scorched = counted.filter((r) => r.tasted.reads === "scorched");
-  const furthestUncooked = uncooked.reduce<(typeof counted)[number] | undefined>((best, r) => (!best || r.exactThermalDose > best.exactThermalDose ? r : best), undefined);
-  const lightestScorched = scorched.reduce<(typeof counted)[number] | undefined>((best, r) => (!best || r.exactThermalDose < best.exactThermalDose ? r : best), undefined);
+  const { furthestUncooked, lightestScorched, apart } = bracketOf(counted, settings.noisePct);
   const at = (r: (typeof counted)[number]) => `thermal dose ${r.thermalDose}, roast ${r.roast}${r.level === undefined ? "" : `, level ${r.level}`}`;
   if (furthestUncooked && lightestScorched) {
-    // The advice's own test, on unrounded thermal doses: the gap is taken from the roast tasted later (the one the advice is
-    // about), and the two are apart only beyond the noise band.
-    const later = furthestUncooked.roast > lightestScorched.roast ? furthestUncooked : lightestScorched;
-    const apart = ((lightestScorched.exactThermalDose - furthestUncooked.exactThermalDose) * 100) / later.exactThermalDose > settings.noisePct;
     lines.push(
       apart
         ? `Uncooked up to ${at(furthestUncooked)}; scorched from ${at(lightestScorched)}. The roast that clears both defects lies between them.`
@@ -118,7 +131,8 @@ function standing(rows: BeanTableRow[], levelChangesMade: number | undefined, { 
   } else if (lightestScorched) {
     lines.push(`Every defect so far was scorched, from ${at(lightestScorched)}. The roast that clears it lies with less roasting.`);
   }
-  const clean = counted.filter((r) => r.tasted.reads === "clean");
+  // A clean roast is a cup with no under or over word and a roast quality of CLEAN_QUALITY or more (a lower one with no defect word is for the advice to ask about).
+  const clean = counted.filter((r) => r.tasted.reads === "clean" && r.tasted.quality >= CLEAN_QUALITY);
   if (clean.length) {
     const best = clean.reduce((a, b) => (b.tasted.quality > a.tasted.quality ? b : a));
     lines.push(`Clean: ${clean.map((r) => `roast ${r.roast}`).join(", ")}. The best, roast ${best.roast}, was rated ${best.tasted.quality} (${qualityMeaning(best.tasted.quality)}).`);

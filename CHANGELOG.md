@@ -5,6 +5,22 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-10-11
+
+- 2026-10-11 - feat(report): add the cross-bean clean-zone report, with a named clean quality in the rules
+
+### Added
+
+- `clean-zone`: every bean side by side (altitude, process, moisture, density, crop date), with its first clean roast (roast quality
+  3 or more and no under or over word), the level, the thermal dose the profile's curve predicts for that roast (worked out from the
+  profile its log carries), the thermal dose measured, the offset between them, and the bracket. Read-only; no advice uses it. It
+  is the data a link between bean properties and the thermal dose a coffee needs would be fitted from (roadmap, Next 2b and 3).
+- `CLEAN_QUALITY` (3) in the rules, replacing two literals in `quality-vs-words`; `bracketOf` shared by the bean table and the report.
+
+### Fixed
+
+- The bean table's "Clean:" line listed any roast with no under or over word, whatever its quality; it now also needs the clean quality (3 or more), as the report and the rules do.
+
 ## [0.4.2] - 2026-10-11
 
 - 2026-10-11 - docs(rules): record moisture, density and altitude as unused until research or data supports them, with a design sketch and the proposed sequencing for curve edits

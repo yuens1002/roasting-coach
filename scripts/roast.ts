@@ -17,6 +17,7 @@
 //   npx tsx scripts/roast.ts level-for '{"profile": "Robusta", "agtron": 65}'   (the level to try for an Agtron colour; records nothing)
 //   npx tsx scripts/roast.ts advise 1   (the rule table's advice for the newest tasted roast, as a level when it is a change)
 //   npx tsx scripts/roast.ts table 1   (the bean's table: each roast, how it tasted from uncooked to scorched, and where the bean stands)
+//   npx tsx scripts/roast.ts clean-zone   (every bean side by side: its properties and where its first clean roast stands in thermal dose; records nothing)
 //   npx tsx scripts/roast.ts calibration   (this roaster's settings and taste-word meanings, with the defaults)
 //   npx tsx scripts/roast.ts calibration:set '{"settings": {"stepPct": 8}, "words": {"flat": "under", "sour": null}}'   (null: back to the default)
 //   npx tsx scripts/roast.ts features:refresh   (recompute features of stored logs)
@@ -32,6 +33,7 @@ import { dirname } from "node:path";
 import { parseHeader, parseKpro, splitLines, timeCurveReaches } from "../src/adapters/kaffelogic/parse.js";
 import { kaffelogicAdviceContext } from "../src/adapters/kaffelogic/adviceContext.js";
 import { beanTable } from "../src/core/beanTable.js";
+import { cleanZoneReport } from "../src/core/cleanZoneReport.js";
 import { placeColour, placementSay } from "../src/adapters/kaffelogic/startingProfiles.js";
 import { type LevelThermalDose, formatMinutesSeconds, levelAfterChange, profileThermalDoseAtLevel } from "../src/adapters/kaffelogic/thermalDose.js";
 import { type ProfileLines, findBaseProfile, formatKpro, profileFromKpro, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
@@ -39,7 +41,7 @@ import { describeCalibration, personalChanges, resolveCalibration } from "../src
 import { INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../src/core/intake.js";
 import { type LevelMove, adviceReport, adviseFromHistory } from "../src/core/rules.js";
 import { checkShape } from "../src/core/validate.js";
-import { type Db, InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, changeCalibration, intakeFromBeanRow, listBeans, loadColourReadings, loadOverrides, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
+import { type Db, InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, changeCalibration, intakeFromBeanRow, listBeans, loadColourReadings, loadOverrides, predictedThermalDoses, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
 import { asDb, connect } from "./db.js";
 import { KAFFELOGIC_DIR, KAFFELOGIC_OUT_DIR, loadLibrary, outPath } from "./library.js";
 
@@ -206,6 +208,18 @@ async function run() {
         const { rows, levelChangesMade, say } = beanTable(history, context, resolveCalibration(await loadOverrides(db)));
         return { say, levelChangesMade, rows };
       }
+      case "clean-zone": {
+        // Every bean side by side, read the way the advice reads them. It records nothing and no advice uses it.
+        const readings = await loadColourReadings(db);
+        const beans = await Promise.all(
+          (await listBeans(db)).map(async ({ id }) => {
+            const history = await beanHistory(db, id);
+            const intake = intakeFromBeanRow(history.bean);
+            return { id, name: intake.name, intake, history, context: kaffelogicAdviceContext(intake, readings) };
+          }),
+        );
+        return cleanZoneReport(beans, await predictedThermalDoses(db), resolveCalibration(await loadOverrides(db)));
+      }
       case "advise": {
         // The rule table's answer for the bean's newest tasted roast, finished: `say` is the whole
         // reply for the roaster and `onYes` the exact command to run if they agree. The advice is the
@@ -276,7 +290,7 @@ async function run() {
       case "bean:remove":
         return await removeBean(db, beanIdArg());
       default:
-        throw new InputError([`Unknown command "${command}". Commands: fields, library, thermal-dose, level-for, advise, table, calibration, calibration:set, beans, profile:write, bean:add, bean:update, bean:remove, version:add, roast:add, taste:add, taste:update, history, features:refresh.`]);
+        throw new InputError([`Unknown command "${command}". Commands: fields, library, thermal-dose, level-for, advise, table, clean-zone, calibration, calibration:set, beans, profile:write, bean:add, bean:update, bean:remove, version:add, roast:add, taste:add, taste:update, history, features:refresh.`]);
     }
   } finally {
     await client.end();

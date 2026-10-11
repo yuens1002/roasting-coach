@@ -73,7 +73,7 @@ make that experiment reliable if it:
    rest is over, a tasting that was not of the coffee's chosen brew, uncooked and scorched flavours together, a roast quality that disagrees with
    the words, or earlier roasts that contradict this one. A clean cup is held as done. It goes halfway between an
    uncooked and a scorched roast of the same bean, and says which of the three level changes each recommendation is. After the third, with a defect left, it
-   states to try a different profile. `table` shows the bean's roasts as they come in, and where it stands. Every tasting of a coffee is of the brew its roaster chose (their own usual one), so no cup is
+   states to try a different profile. `table` shows the bean's roasts as they come in, and where it stands; `clean-zone` sets every bean side by side. Every tasting of a coffee is of the brew its roaster chose (their own usual one), so no cup is
    a different kind of brew from the others.
 2. **Gives deterministic, explained advice.** The same evidence always leads to the same
    suggestion, from tested rules. A model never reads raw curves and never judges the cup. Every

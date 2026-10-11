@@ -150,6 +150,10 @@ and run the command it hands you if the roaster says yes.
    its level as the level the machine offers first. Only labels change, so a roast on it still
    counts as the same profile. Remind them to check the level on the machine before roasting.
 
+7. To set every bean side by side (each one's altitude, process, moisture, density and crop date, and where its first clean
+   roast stands in thermal dose), run `clean-zone` and say `say` as written. It records nothing and the advice does not use it;
+   for how one bean stands, show its `table`.
+
 The level is chosen on the machine before every roast, so a level change needs no file; a
 profile's `recommended_level` is only its suggestion, and the roast's real level is the log's
 `roasting_level`. A new .kpro is needed only when the profile itself changes (curve, fan, zones),

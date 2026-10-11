@@ -53,7 +53,8 @@ to try a different profile (`level-changes-used`, below).
 **The bean's table.** `table <bean>` shows the bean's roasts as they come in, one row each: the version, profile and level,
 the measured thermal dose, the step in thermal dose from the roast tasted before it, the taste words, the roast quality, and how
 the cup reads from uncooked to scorched. Under it are the level changes made, the bracket the roasts make (uncooked up to here,
-scorched from there, so the right roast lies between), and the clean roasts. It reads the roasts the way the advice does: a
+scorched from there, so the right roast lies between), and the clean roasts (no under or over word and a roast quality of 3
+or more). It reads the roasts the way the advice does: a
 tasting outside the coffee's tasting brew is marked as not counted and left out of the bracket, and the words are read as
 the roaster's own settings read them.
 
@@ -69,6 +70,14 @@ Uncooked up to thermal dose 10, roast 1, level 3; scorched from thermal dose 11,
 Clean: roast 3. The best, roast 3, was rated 4 (clean and expressive).
 ```
 
+**The cross-bean report.** `clean-zone` sets every bean side by side, one row each: its altitude, process, moisture, density
+and crop date (as the roaster gave them), the tasted roasts in the coffee's own brew, its first clean roast (roast quality 3
+or more and no under or over word; a tasting where the two disagree is not clean) with its number in the bean's table, the
+level, the thermal dose the profile's curve predicts for that roast, the thermal dose measured and the offset of the measured
+one from the predicted one (above it, or below), and the bracket (marked when its edges are not apart beyond the noise band,
+as the bean's table says the roasts disagree). The predicted thermal dose is worked out from the profile the roast's log
+carries, ended at the level the roast was made at. The report records nothing and no advice uses it: it is the data a link
+between a bean's properties and the thermal dose it needs to be clean would be fitted from (`docs/ROADMAP.md`, Next, 3).
 
 **Not used yet:** weight loss, development time ratio, first-crack time or temperature, rate of
 rise, colour readings, how the beans looked, ambient temperature, batch size, grind or brew recipe.
