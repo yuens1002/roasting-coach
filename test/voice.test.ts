@@ -79,7 +79,7 @@ const STARTING_INTAKES: Intake[] = [
   { name: "h", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 85, tastingBrew: "pourover" },
   { name: "i", species: "arabica", decaf: false, process: "washed", drinkWhen: "rest", altitudeM: 1850, agtronTarget: 35, tastingBrew: "pourover" },
   { name: "j", species: "arabica", decaf: false, process: "natural", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover" },
-  // A colour so dark that the profile's darkest level is as near as it gets.
+  // A colour darker than the profile's darkest labelled level, with no readings: it is placed at that level.
   { name: "k", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", altitudeM: 1850, agtronTarget: 25, tastingBrew: "pourover" },
 ] as Intake[];
 /** The roaster's own colour readings on Robusta, which give the line a starting level is placed on. */
@@ -105,7 +105,7 @@ const SET_ASIDE_NOTES = [1, 2].flatMap((roasts) =>
     return adviceReport(1, { basedOn: { version: 1, roastId: 1, tastingId: 1, measuredThermalDose: 10, levelChange: 1 }, advice, setAside: { roasts, tastingBrew } }, undefined).say;
   }),
 );
-/** What the level-for command says: placed on the profile's labelled levels, placed from the roaster's readings, and at the end of a profile's range. */
+/** What the level-for command says: placed on the profile's labelled levels, placed from the roaster's readings, and past the labelled levels (placed at the nearest one). */
 const PLACEMENT_SAYS = [
   placeColour("Robusta", 70),
   placeColour("Robusta", 60, STARTING_READINGS),

@@ -17,8 +17,8 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 - **A first level never goes past the lightest or darkest level a profile's file labels** until the roaster has colour readings on
   that profile. A straight extension of the ladder had put a dark target at level 5.9 on `1500-2000m RTD`, 3 °C past the
   darkest level its file recommends. A colour beyond them now gets that labelled level, and the answer says so
-  (`colour.beyondLabels`). Kaffelogic's Medium/Light, Medium and Medium/Dark are taken as the middle of the common roast-level
-  bands (70, 60 and 50), and the `0-1200m Rest` file's "Dark" as 40. The rulebook states which parts are Kaffelogic's words, which
+  (`colour.beyondLabels`). Kaffelogic's Medium/Light, Medium and Medium/Dark (for the KL profiles, which name brews, their Filter and
+  Espresso levels) are taken as the middle of the common roast-level bands (70, 60 and 50), and the `0-1200m Rest` file's "Dark" as 40. The rulebook states which parts are Kaffelogic's words, which
   are our reading of them, and that none of it is measured.
 
 ### Added

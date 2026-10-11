@@ -103,7 +103,9 @@ roaster has two colour readings on a profile at end temperatures 3 °C or more a
 reading now), the three levels a profile's file labels (Medium/Light, Medium, Medium/Dark) are taken as Agtron 70, 60 and
 50 (`LABELLED_LEVEL_AGTRON`; 40 for the `0-1200m Rest` file's "Dark", `labelledAgtron`): the middle of the common roast-level
 bands, the same middle a roaster's word is taken at (light 90, medium 60, dark 40; `ROAST_WORDS`). The bands follow LeBrew's lab
-chart (one lab, one meter). The match of Kaffelogic's words to the bands is our reading, not measured, and the answer says so.
+chart (one lab, one meter; `docs/research.md`). The match of Kaffelogic's words to the bands is our reading, not measured, and the
+answer says so; the KL files use no colour words (brews with level ranges), so for them the Filter and Espresso levels listed are
+taken as 70 and 60, a weaker guess.
 **Changed 2026-10-11:** the level is found between the labelled levels and goes no further (a colour beyond the lightest or
 darkest labelled level gets that level, `colour.beyondLabels`, and the answer says so): a straight extension of the ladder put
 a dark target (Agtron 35) at level 5.9 on 1500-2000m RTD, 3 °C past the file's darkest recommendation and at the end of the
@@ -113,8 +115,8 @@ no darker than Agtron 60 (KL Washed, KL Natural) hands a darker target to the al
 the profile's lightest or darkest level gets that level and the answer says so. After the first roast the defects in the cup
 decide every step. The roaster can restate the colour at any time (`bean:update`); it is their aim, not a measurement. Open: the
 advice does not use the colour readings yet (a roast read lighter or darker than its target says nothing to the rules);
-the readings are fitted per profile, not per bean or per density. Open: whether a level is the same colour across the altitude, Robusta and Decaf profiles (the roaster's observation on the machine; the files' wording fits it except the KL profiles, whose medium is 1.2) so one level-to-Agtron curve could take every reading, which only a colour meter can show; beans stored by migration 008 hold Agtron 55, which was then the word medium (now 60) and is a valid colour as it stands. Earlier "Brewing for" answers are dropped (column `goal`, removed by migration 008). What changes for the roaster: a washed or natural bean now starts on KL Washed or KL Natural
-(at 0.8 and 1.4 then, that profile's own recommendation) whatever it was brewed for. Open: no model turns bean
+the readings are fitted per profile, not per bean or per density. Open: whether a level is the same colour across the altitude, Robusta and Decaf profiles (the roaster's observation on the machine; the files' wording fits it except the KL profiles, whose Espresso level, taken as 60, is 1.2 or 1.3) so one level-to-Agtron curve could take every reading, which only a colour meter can show; beans stored by migration 008 hold Agtron 55, which was then the word medium (now 60) and is a valid colour as it stands. Earlier "Brewing for" answers are dropped (column `goal`, removed by migration 008). What changes for the roaster: a washed or natural bean now starts on KL Washed or KL Natural
+(at 0.8 and 1.4 when this was written, that profile's own recommendation; since 2026-10-11 the level comes from the colour, 1.0 to 1.3) whatever it was brewed for. Open: no model turns bean
 properties (density, moisture, age) into a starting level; only the profile choice uses altitude and process.
 The "Cupping" stock profile is never picked now; it stays in the table.
 

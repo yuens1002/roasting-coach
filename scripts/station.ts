@@ -350,7 +350,9 @@ function earlierRoast(beanId: number, n: number, level: number, words: string[],
   const onYes = advice.onYes as State["onYes"];
   if (!onYes) throw new Error(`Setting up the scenario: roast ${n} should have been answered with a version to record.`);
   const recorded = must(onYes.command, onYes.input);
-  return Number(at(recorded, "version.level") ?? recorded.level);
+  const recordedLevel = Number(recorded.level);
+  if (!Number.isFinite(recordedLevel)) throw new Error(`Setting up the scenario: the version recorded after roast ${n} has no level.`);
+  return recordedLevel;
 }
 
 interface Scenario {
@@ -395,7 +397,7 @@ const SCENARIOS: Scenario[] = [
           expectEqual("level", at(out, "version.level"), 1.0);
           expectEqual("end temperature", at(out, "version.endTempC"), 216.5);
           expectIncludes("an approximation", JSON.stringify(out.why), "approximation");
-          expectIncludes("no further than the file labels", JSON.stringify(out.why), "labels no level lighter than Agtron 70");
+          expectIncludes("no further than the file labels", JSON.stringify(out.why), "reads no level lighter than Agtron 70");
           expectIncludes("the cup decides", JSON.stringify(out.why), "The defects in the cup decide each step after the first roast.");
           expectEqual("the other profile is named", out.alternative, "1500-2000m RTD");
         },
@@ -408,14 +410,14 @@ const SCENARIOS: Scenario[] = [
           expectEqual("profile", at(out, "version.profileName"), "1500-2000m RTD");
           expectEqual("level", at(out, "version.level"), 4.3);
           expectIncludes("the reason", JSON.stringify(out.why), "names no level as dark as Agtron 40");
-          expectIncludes("no further than the file labels", JSON.stringify(out.why), "labels no level darker than Agtron 50");
+          expectIncludes("no further than the file labels", JSON.stringify(out.why), "reads no level darker than Agtron 50");
         },
       },
     ],
     expect: [
       "It asks for the roast colour and the tasting brew only if you did not say them. \"Light\" becomes Agtron 90 and \"dark\" Agtron 40, said as numbers.",
-      "Light: KL Washed at level 1.0, ending at 216.5 °C. It says the level is an approximation until colour readings replace it, that KL Washed's file labels nothing lighter than Agtron 70 (so this is that level), and that the cup decides every step after the first roast.",
-      "Dark: 1500-2000m RTD at level 4.3, ending at 222.6 °C. It says KL Washed names no level that dark, and that the file labels nothing darker than Agtron 50, so this is that level.",
+      "Light: KL Washed at level 1.0, ending at 216.5 °C. It says the level is an approximation until colour readings replace it, that the tool reads nothing lighter than Agtron 70 from KL Washed's file (so this is that level), and that the cup decides every step after the first roast.",
+      "Dark: 1500-2000m RTD at level 4.3, ending at 222.6 °C. It says KL Washed names no level that dark, and that the tool reads nothing darker than Agtron 50 from the file, so this is that level.",
       "With your stock profiles in the library it writes <bean name>.kpro to the station's out folder and tells you to load it and set the level.",
       "It never offers a brew as the aim of the roast.",
     ],
@@ -475,7 +477,7 @@ const SCENARIOS: Scenario[] = [
         run: (s) => ({ command: s.onYes!.command, input: s.onYes!.input }),
         check: (out, ok) => {
           expectEqual("version:add succeeded", ok, true);
-          expectEqual("version number", at(out, "version.number") ?? out.number, 3);
+          expectEqual("version number", out.number, 3);
         },
       },
     ],
@@ -527,7 +529,7 @@ const SCENARIOS: Scenario[] = [
         run: (s) => ({ command: s.onYes!.command, input: s.onYes!.input }),
         check: (out, ok) => {
           expectEqual("version:add succeeded", ok, true);
-          expectEqual("version number", at(out, "version.number") ?? out.number, 4);
+          expectEqual("version number", out.number, 4);
         },
       },
       {
@@ -579,7 +581,7 @@ const SCENARIOS: Scenario[] = [
         run: (s) => ({ command: s.onYes!.command, input: s.onYes!.input }),
         check: (out, ok) => {
           expectEqual("version:add succeeded", ok, true);
-          expectEqual("version number", at(out, "version.number") ?? out.number, 5);
+          expectEqual("version number", out.number, 5);
           expectEqual("profile", out.profileName, "1500-2000m RTD");
         },
       },

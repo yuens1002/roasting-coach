@@ -52,9 +52,9 @@ describe("the step table", () => {
       }
       expect(cells[2 + i], `${step}%`).toBe(`${Math.min(...moved).toFixed(1)} to ${Math.max(...moved).toFixed(1)}`);
     });
-    // The starting levels are where the eight tiles of the Agtron scale land on the profile.
-    expect(lowStart).toBe(Math.min(...SCA_TILES.map((t) => levelForAgtron(STOCK_PROFILES.Robusta, t.agtron)!.level)));
-    expect(highStart).toBe(Math.max(...SCA_TILES.map((t) => levelForAgtron(STOCK_PROFILES.Robusta, t.agtron)!.level)));
+    // The starting levels run from the lightest to the darkest level the profile's file labels. Robusta's file labels
+    // 2.2, 3.0 and 4.8 (Medium/Light, Medium, Medium/Dark), written out so the span is not derived the way the table derives it.
+    expect([lowStart, highStart]).toEqual([2.2, 4.8]);
   });
 
   it("gives a bigger step a bigger or equal range at the same end of it", () => {

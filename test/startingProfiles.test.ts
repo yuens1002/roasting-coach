@@ -77,12 +77,53 @@ describe("the Agtron colour being shot for picks the first level on the profile"
   it("says a colour beyond the labelled levels is placed at the labelled level nearest it, which readings will let it pass", () => {
     const dark = selectStartingProfile({ ...base, altitudeM: 1850, agtronTarget: 35 });
     expect(dark.level).toMatchObject({ level: 4.3, endTemp: 222.6, colour: { agtron: 35, basis: "approximation", beyondLabels: { side: "darker", agtron: 50 } } });
-    expect(dark.why).toContain("The profile's file labels no level darker than Agtron 50 (medium-dark), so this is that level: the tool does not guess past what the file labels. Colour readings from your roasts on this profile let it go further.");
+    expect(dark.why).toContain("The tool reads no level darker than Agtron 50 (medium-dark) from this profile's file, so this is that level: it does not guess past what it can read. Colour readings from your roasts on this profile let it go further.");
     const light = selectStartingProfile({ ...base, altitudeM: 1850, agtronTarget: 90 });
     expect(light.level).toMatchObject({ level: 2.4, colour: { beyondLabels: { side: "lighter", agtron: 70 } } });
-    expect(light.why.join(" ")).toContain("labels no level lighter than Agtron 70 (light-medium)");
+    expect(light.why.join(" ")).toContain("reads no level lighter than Agtron 70 (light-medium)");
     // Inside the labelled levels there is nothing to say.
     expect(selectStartingProfile({ ...base, altitudeM: 1850, agtronTarget: 55 }).level.colour.beyondLabels).toBeUndefined();
+  });
+
+  it("clamps exactly at the labelled levels: at a label and one point inside is placed, one point beyond is the label", () => {
+    const rtd = STOCK_PROFILES["1500-2000m RTD"];
+    const at = (agtron: number) => levelForAgtron(rtd, agtron)!;
+    expect(at(71)).toMatchObject({ level: 2.4, colour: { beyondLabels: { side: "lighter", agtron: 70 } } });
+    expect(at(70).colour.beyondLabels).toBeUndefined();
+    expect(at(69)).toMatchObject({ level: 2.5 });
+    expect(at(69).colour.beyondLabels).toBeUndefined();
+    expect(at(51).colour.beyondLabels).toBeUndefined();
+    expect(at(50)).toMatchObject({ level: 4.3 });
+    expect(at(50).colour.beyondLabels).toBeUndefined();
+    expect(at(49)).toMatchObject({ level: 4.3, colour: { beyondLabels: { side: "darker", agtron: 50 } } });
+  });
+
+  it("does not clamp with the roaster's own readings: the colour beyond the labels is placed on their line", () => {
+    const readings: ColourReading[] = [
+      { profile: "1500-2000m RTD", endTempC: 220, agtron: 70 },
+      { profile: "1500-2000m RTD", endTempC: 224, agtron: 50 },
+    ];
+    const rtd = STOCK_PROFILES["1500-2000m RTD"];
+    expect(levelForAgtron(rtd, 40, readings)!.colour).toMatchObject({ basis: "readings" });
+    expect(levelForAgtron(rtd, 40, readings)!.colour.beyondLabels).toBeUndefined();
+    expect(levelForAgtron(rtd, 40, readings)!.level).toBeGreaterThan(levelForAgtron(rtd, 40)!.level);
+    expect(levelForAgtron(rtd, 90, readings)!.colour.beyondLabels).toBeUndefined();
+  });
+
+  it("refuses a target darker than the KL profiles' darkest labelled colour (Agtron 60), and places that colour itself", () => {
+    for (const name of ["KL Washed", "KL Natural"]) {
+      expect(levelForAgtron(STOCK_PROFILES[name], 60), name).toBeDefined();
+      expect(levelForAgtron(STOCK_PROFILES[name], 59), name).toBeUndefined();
+      expect(placeColour(name, 59), name).toMatchObject({ ok: false });
+    }
+  });
+
+  it("places nothing on a profile with no labelled level, even with readings on it", () => {
+    const readings: ColourReading[] = [
+      { profile: "Cupping", endTempC: 210, agtron: 70 },
+      { profile: "Cupping", endTempC: 214, agtron: 50 },
+    ];
+    expect(levelForAgtron(STOCK_PROFILES.Cupping, 60, readings)).toBeUndefined();
   });
 
   it("takes the dark level of 0-1200m Rest as Agtron 40, because its file calls it Dark, not Medium/Dark", () => {
@@ -90,7 +131,7 @@ describe("the Agtron colour being shot for picks the first level on the profile"
     expect(levelForAgtron(rest, 40)).toMatchObject({ level: 5, endTemp: 235, colour: { basis: "approximation" } });
     expect(levelForAgtron(rest, 40)!.colour.beyondLabels).toBeUndefined();
     expect(levelForAgtron(rest, 30)).toMatchObject({ level: 5, colour: { beyondLabels: { side: "darker", agtron: 40 } } });
-    expect(levelForAgtron(rest, 50)!.level).toBeLessThan(5);
+    expect(levelForAgtron(rest, 50)!.level).toBe(4.4);
     // The other altitude profiles' files say Medium/Dark.
     expect(levelForAgtron(STOCK_PROFILES["0-1200m RTD"], 50)).toMatchObject({ level: 4.6 });
   });
@@ -149,6 +190,7 @@ describe("the Agtron colour being shot for picks the first level on the profile"
     const start = selectStartingProfile({ ...base, altitudeM: 1850, agtronTarget: 25 }, readings);
     expect(start.level).toMatchObject({ level: 6, colour: { basis: "readings", reach: "darkest" } });
     expect(start.why).toContain("The darkest level this profile has is as near to Agtron 25 as it gets.");
+    expect(start.level.colour.beyondLabels).toBeUndefined();
   });
 
   describe("with the roaster's own colour readings on the profile", () => {

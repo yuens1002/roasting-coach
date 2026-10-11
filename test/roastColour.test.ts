@@ -19,6 +19,11 @@ describe("the SCA / Agtron roast colour scale", () => {
     expect(agtronName(40)).toBe("dark");
     expect(agtronName(25)).toBe("extremely dark");
     expect(agtronName(20)).toBe("extremely dark");
+    // One point inside each band's lighter edge, and the number just under it.
+    expect(agtronName(94)).toBe("light");
+    expect(agtronName(84)).toBe("moderately light");
+    expect(agtronName(44)).toBe("dark");
+    expect(agtronName(34)).toBe("extremely dark");
   });
 
   it("takes the words light, medium and dark as the middle of their band, not its edge", () => {

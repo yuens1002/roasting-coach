@@ -88,7 +88,7 @@ describe("store", () => {
     expect(medium.version.changeReason).toContain("You are shooting for Agtron 60 (medium)");
     expect(medium.alternative).toBe("1500-2000m Rest");
     const light = await addBean(own, { ...washed, name: "Washed light", agtronTarget: 85 });
-    // Lighter than KL Washed's lightest labelled level (filter, Agtron 65) is that level.
+    // Lighter than KL Washed's lightest labelled level (filter, Agtron 70) is that level.
     expect(light.version).toMatchObject({ profileName: "KL Washed", level: 1, endTempC: 216.5 });
     // KL Washed names no level as dark as Agtron 35, so that roast starts on the altitude profile, which does, at its darkest labelled level.
     const dark = await addBean(own, { ...washed, name: "Washed dark", agtronTarget: 35 });

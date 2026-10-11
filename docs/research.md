@@ -282,6 +282,14 @@ Nano's own `development_percent` to three decimals on every real log checked (25
 - Treat weight loss, a colour reading and the tasting as the independent checks. Anything computed
   from the same temperature log is another view of the same curve, not a second witness.
 
+## Roast colour bands
+
+The roast colour wording (docs/RULES.md, "The first level to try") reads the Agtron scale as bands of ten, each named by its
+darker edge (medium 55 to 65, dark 35 to 45), after a roast-level chart credited to LeBrew's lab ("The above data results are
+from LEBREW lab"): one lab's readings on one meter, with a column of common names and a column of traditional roast names. No
+URL or date was kept with the image the maintainer shared; add them here when found. Other meters read a little differently, and
+nothing here ties a Kaffelogic level to an Agtron number: that tie is our reading of the words in the profile files.
+
 ## Open questions
 
 - Is the 6-12.5% curve-to-roast offset a property of each profile (the two RTD roasts agree), and

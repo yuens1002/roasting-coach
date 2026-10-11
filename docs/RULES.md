@@ -400,8 +400,8 @@ cannot tell them apart.
 | 1500-2000m Rest | 2.5 to 4.3 | 0.4 to 1.1 | 0.3 to 0.8 | 0.2 to 0.7 | 0.3 to 1.0 |
 | 2000-2700m RTD | 2.5 to 4.5 | 0.4 to 0.9 | 0.2 to 0.6 | 0.2 to 0.6 | 0.3 to 0.9 |
 | 2000-2700m Rest | 2.0 to 4.6 | 0.4 to 1.1 | 0.3 to 0.9 | 0.2 to 0.8 | 0.3 to 1.1 |
-| KL Washed | 1.0 to 1.1 | 0.2 to 0.2 | 0.1 to 0.2 | 0.2 to 0.2 | 0.3 to 0.3 |
-| KL Natural | 1.0 to 1.2 | 0.1 to 0.2 | 0.1 to 0.2 | 0.2 to 0.2 | 0.2 to 0.2 |
+| KL Washed | 1.0 to 1.2 | 0.2 to 0.3 | 0.1 to 0.2 | 0.2 to 0.2 | 0.3 to 0.3 |
+| KL Natural | 1.0 to 1.3 | 0.1 to 0.3 | 0.1 to 0.2 | 0.1 to 0.2 | 0.2 to 0.2 |
 | Decaf | 2.1 to 4.0 | 0.6 to 1.2 | 0.4 to 0.9 | 0.4 to 0.8 | 0.5 to 1.2 |
 | Robusta | 2.2 to 4.8 | 0.4 to 1.3 | 0.3 to 1.1 | 0.3 to 1.1 | 0.4 to 1.2 |
 <!-- steps:end -->
@@ -428,11 +428,13 @@ as it is. The colour is the roaster's aim, not a measurement, and they can resta
 method.
 
 **How it is tied to Kaffelogic's levels.** Kaffelogic's levels are end temperatures, and Kaffelogic publishes no table
-from a level to an Agtron number. Each profile's file does describe three of its levels in the common roast words:
-Medium/Light, Medium and Medium/Dark (the Robusta file says Light/Medium and Medium Dark, and the `0-1200m Rest` file
-calls its darkest Dark). The tool takes those words to mean the middle of the same bands a roaster's words mean: 70, 60
-and 50 (40 for Dark). That is how the two are tied, and it is our reading of Kaffelogic's words, not something
-Kaffelogic or any measurement states. The answer says which of two ways a level was found:
+from a level to an Agtron number. The altitude, Robusta and Decaf profiles' files describe three of their levels in the
+common roast words: Medium/Light, Medium and Medium/Dark (the Robusta file says Light/Medium and Medium Dark, and the
+`0-1200m Rest` file calls its darkest Dark). The tool takes those words to mean the middle of the same bands a roaster's
+words mean: 70, 60 and 50 (40 for Dark). The KL Washed and KL Natural files use no colour words: they name brews (Cupping,
+Filter, Espresso) with ranges of levels, so for them the tool takes the Filter and Espresso levels it lists (1.0, and 1.2
+or 1.3) as 70 and 60, which is a weaker guess than the other profiles'. All of this is our reading of Kaffelogic's files,
+not something Kaffelogic or any measurement states. The answer says which of two ways a level was found:
 
 - **An approximation, until the roaster has readings.** The level for a colour is found along the profile's own ladder
   between those labelled levels. The tool does not go past them: a colour lighter than the lightest labelled level, or
