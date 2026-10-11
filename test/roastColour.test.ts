@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AGTRON_MAX, AGTRON_MIN, MIN_SPREAD_C, SCA_TILES, agtronName, endTempForAgtron, fitColourLine } from "../src/core/roastColour.js";
+import { AGTRON_MAX, AGTRON_MIN, MIN_SPREAD_C, ROAST_WORDS, SCA_TILES, agtronName, endTempForAgtron, fitColourLine } from "../src/core/roastColour.js";
 
 describe("the SCA / Agtron roast colour scale", () => {
   it("runs from 95 (very light) to 25 (extremely dark) in eight tiles of ten", () => {
@@ -9,11 +9,30 @@ describe("the SCA / Agtron roast colour scale", () => {
     expect(SCA_TILES[SCA_TILES.length - 1].name).toBe("extremely dark");
   });
 
-  it("names a number by the tile nearest it", () => {
+  it("names a number by the band of ten it is in, a tile's number being the band's darker edge", () => {
     expect(agtronName(95)).toBe("very light");
     expect(agtronName(78)).toBe("moderately light");
-    expect(agtronName(52)).toBe("medium");
+    expect(agtronName(65)).toBe("light-medium");
+    expect(agtronName(60)).toBe("medium");
+    expect(agtronName(55)).toBe("medium");
+    expect(agtronName(52)).toBe("medium-dark");
+    expect(agtronName(40)).toBe("dark");
     expect(agtronName(25)).toBe("extremely dark");
+    expect(agtronName(20)).toBe("extremely dark");
+    // One point inside each band's lighter edge, and the number just under it.
+    expect(agtronName(94)).toBe("light");
+    expect(agtronName(84)).toBe("moderately light");
+    expect(agtronName(44)).toBe("dark");
+    expect(agtronName(34)).toBe("extremely dark");
+  });
+
+  it("takes the words light, medium and dark as the middle of their band, not its edge", () => {
+    const tile = (name: string) => SCA_TILES.find((t) => t.name === name)!.agtron;
+    expect(ROAST_WORDS).toEqual({ light: tile("light") + 5, medium: tile("medium") + 5, dark: tile("dark") + 5 });
+    for (const agtron of Object.values(ROAST_WORDS)) expect(agtronName(agtron)).toBe(agtronName(agtron - 4));
+    expect(agtronName(ROAST_WORDS.light)).toBe("light");
+    expect(agtronName(ROAST_WORDS.medium)).toBe("medium");
+    expect(agtronName(ROAST_WORDS.dark)).toBe("dark");
   });
 
   it("names no brew method: the scale is a colour", () => {

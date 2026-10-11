@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { STOCK_PROFILES } from "../src/adapters/kaffelogic/startingProfiles.js";
+import { LABELLED_LEVEL_AGTRON, STOCK_PROFILES } from "../src/adapters/kaffelogic/startingProfiles.js";
 import { stepTable, stockProfilesFrom } from "../src/adapters/kaffelogic/stepTable.js";
 import { SETTING_SPECS } from "../src/core/calibration.js";
 import { QUALITY_ANCHORS } from "../src/core/intake.js";
+import { ROAST_WORDS, SCA_TILES } from "../src/core/roastColour.js";
 import { OUTCOME_IDS, RULES, RULE_SETTINGS, TASTE_CHIPS, advise } from "../src/core/rules.js";
 import { PRIVATE_PROFILES } from "./privateFiles.js";
 import { beanTable } from "../src/core/beanTable.js";
@@ -20,6 +21,20 @@ describe("docs/RULES.md matches the program", () => {
   it("lists every answer the engine can give, and no other", () => {
     const listed = rows(/^\| [^|]+ \| `([a-z-]+)` \|/gm).map((m) => m[1]);
     expect([...listed].sort()).toEqual([...OUTCOME_IDS].sort());
+  });
+
+  it("states the Agtron numbers the first level is placed with, as the program takes them", () => {
+    const flat = doc.replace(/\s+/g, " ");
+    expect(flat).toContain(`light is ${ROAST_WORDS.light}, medium is ${ROAST_WORDS.medium}, dark is ${ROAST_WORDS.dark}`);
+    const { filter, espresso, dark } = LABELLED_LEVEL_AGTRON;
+    expect(flat).toContain(`${filter}, ${espresso} and ${dark} (${STOCK_PROFILES["0-1200m Rest"].labelledAgtron!.dark} for Dark)`);
+    // The bands, each named by its darker edge: a tile's number to ten above it.
+    const [veryLight, ...bands] = SCA_TILES;
+    expect(flat).toContain(`${veryLight.name} ${veryLight.agtron} and up`);
+    for (const tile of bands.slice(0, -1)) expect(flat, tile.name).toContain(`${tile.name} ${tile.agtron} to ${tile.agtron + 10}`);
+    expect(flat).toContain(`${SCA_TILES[SCA_TILES.length - 1].name} below ${SCA_TILES[SCA_TILES.length - 2].agtron}`);
+    // The KL profiles' darkest labelled colour, below which they hand a target to the altitude profile.
+    expect(flat).toContain(`reach no darker than Agtron ${ROAST_WORDS.medium} (KL Washed, KL Natural)`);
   });
 
   it("has a section for every rule in the table, in the order they are tried", () => {

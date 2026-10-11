@@ -1,6 +1,6 @@
 {
   "name": "roasting-coach",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Helps home roasters improve each roast from their logs and tasting notes",
   "directories": {
     "test": "test"
@@ -14,6 +14,9 @@
     "db:up": "docker compose up -d --wait",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "station": "tsx scripts/station.ts",
+    "station:new-bean": "tsx scripts/station.ts new-bean",
+    "station:follow-up": "tsx scripts/station.ts follow-up",
+    "station:three-changes": "tsx scripts/station.ts three-changes",
     "station:check": "tsx scripts/station.ts check",
     "station:beans": "tsx scripts/station.ts beans",
     "station:reset": "tsx scripts/station.ts reset",

@@ -372,7 +372,7 @@ clean zone.
 The steps are percentages of thermal dose, but you set a level on the machine. A step moves a different number of
 levels depending on where you stand on the level scale, so this table gives a range for each profile, not one
 number: for every level a bean can start at on that profile before the roaster has any colour readings (from the lightest to the
-darkest colour on the Agtron scale, below), how many levels a 10% or 15% step in either direction moves, the fewest to the most.
+darkest level the profile's file labels; see "The first level to try", below), how many levels a 10% or 15% step in either direction moves, the fewest to the most.
 It is measured from the stock profile files, not estimated. It does not predict a change in the cup: the steps are
 starting values, and your cup judges whether one was right. A start at the very lightest or darkest end of a profile, where a
 step would run past level 0 or level 6 (the advice would stop at that level), is left out of the range rather than counted as a
@@ -392,18 +392,18 @@ cannot tell them apart.
 <!-- steps:start -->
 | Profile | Starting levels | −15% | −10% | +10% | +15% |
 |---|---|---|---|---|---|
-| 0-1200m RTD | 0.3 to 5.5 | 0.2 to 1.2 | 0.1 to 1.0 | 0.1 to 0.9 | 0.2 to 1.1 |
-| 0-1200m Rest | 0.0 to 6.0 | 0.3 to 1.2 | 0.2 to 1.0 | 0.2 to 1.0 | 0.2 to 1.2 |
-| 1200-1500m RTD | 0.0 to 5.5 | 0.2 to 1.2 | 0.1 to 1.1 | 0.1 to 1.0 | 0.2 to 1.2 |
-| 1200-1500m Rest | 0.0 to 6.0 | 0.2 to 1.1 | 0.1 to 0.9 | 0.1 to 0.8 | 0.1 to 1.1 |
-| 1500-2000m RTD | 0.4 to 6.0 | 0.3 to 1.1 | 0.2 to 0.7 | 0.2 to 0.7 | 0.2 to 0.9 |
-| 1500-2000m Rest | 0.7 to 5.1 | 0.1 to 1.1 | 0.1 to 0.9 | 0.1 to 0.8 | 0.1 to 1.1 |
-| 2000-2700m RTD | 0.6 to 6.0 | 0.3 to 1.1 | 0.2 to 0.7 | 0.2 to 0.7 | 0.2 to 1.0 |
-| 2000-2700m Rest | 0.3 to 5.3 | 0.1 to 1.1 | 0.1 to 0.9 | 0.1 to 0.8 | 0.1 to 1.1 |
-| KL Washed | 0.7 to 1.2 | 0.2 to 0.3 | 0.1 to 0.2 | 0.1 to 0.2 | 0.1 to 0.3 |
-| KL Natural | 0.5 to 1.3 | 0.1 to 0.3 | 0.1 to 0.2 | 0.1 to 0.2 | 0.1 to 0.2 |
-| Decaf | 0.0 to 5.1 | 0.2 to 1.3 | 0.1 to 0.9 | 0.1 to 0.8 | 0.1 to 1.2 |
-| Robusta | 0.3 to 5.5 | 0.2 to 1.3 | 0.1 to 1.1 | 0.1 to 1.1 | 0.2 to 1.2 |
+| 0-1200m RTD | 2.2 to 4.6 | 0.4 to 1.2 | 0.2 to 1.0 | 0.2 to 0.9 | 0.3 to 1.1 |
+| 0-1200m Rest | 2.2 to 5.0 | 0.3 to 1.2 | 0.2 to 1.0 | 0.2 to 1.0 | 0.3 to 1.2 |
+| 1200-1500m RTD | 2.2 to 4.6 | 0.5 to 1.2 | 0.3 to 1.1 | 0.3 to 1.0 | 0.4 to 1.2 |
+| 1200-1500m Rest | 2.2 to 4.6 | 0.3 to 1.1 | 0.2 to 0.9 | 0.2 to 0.8 | 0.3 to 1.1 |
+| 1500-2000m RTD | 2.4 to 4.3 | 0.4 to 0.8 | 0.2 to 0.5 | 0.2 to 0.6 | 0.3 to 0.9 |
+| 1500-2000m Rest | 2.5 to 4.3 | 0.4 to 1.1 | 0.3 to 0.8 | 0.2 to 0.7 | 0.3 to 1.0 |
+| 2000-2700m RTD | 2.5 to 4.5 | 0.4 to 0.9 | 0.2 to 0.6 | 0.2 to 0.6 | 0.3 to 0.9 |
+| 2000-2700m Rest | 2.0 to 4.6 | 0.4 to 1.1 | 0.3 to 0.9 | 0.2 to 0.8 | 0.3 to 1.1 |
+| KL Washed | 1.0 to 1.2 | 0.2 to 0.3 | 0.1 to 0.2 | 0.2 to 0.2 | 0.3 to 0.3 |
+| KL Natural | 1.0 to 1.3 | 0.1 to 0.3 | 0.1 to 0.2 | 0.1 to 0.2 | 0.2 to 0.2 |
+| Decaf | 2.1 to 4.0 | 0.6 to 1.2 | 0.4 to 0.9 | 0.4 to 0.8 | 0.5 to 1.2 |
+| Robusta | 2.2 to 4.8 | 0.4 to 1.3 | 0.3 to 1.1 | 0.3 to 1.1 | 0.4 to 1.2 |
 <!-- steps:end -->
 
 The Cupping profile has no row: it labels one level only, so there is nothing to place a colour between, and the tool never starts a bean on it.
@@ -418,25 +418,35 @@ too small or too large, step sizes can be changed for your copy (`calibration:se
 
 ### The first level to try
 
-A new bean's first level comes from the roast colour the roaster is shooting for, on the SCA / Agtron scale, where a
-higher number is lighter: 95 very light, 85 light, 75 moderately light, 65 light-medium, 55 medium, 45 medium-dark,
-35 dark, 25 extremely dark. Any number from 25 to 95 can be given, a colour-meter reading as it is, and a word is
-taken as its tile. The colour is the roaster's aim, not a measurement, and they can restate it at any time. It names no
-brew method.
+**How roast colour is worded.** Roast colour is named on the Agtron scale used for coffee, where a higher number is
+lighter. It is read as bands of ten, each named by its darker edge: very light 95 and up, light 85 to 95, moderately
+light 75 to 85, light-medium 65 to 75, medium 55 to 65, medium-dark 45 to 55, dark 35 to 45, extremely dark below 35.
+The bands follow a published roast-level chart from LeBrew's lab, which is one lab's readings on one meter; other meters
+read a little differently. A roaster who says only light, medium or dark is taken at the middle of that band, not its
+edge: light is 90, medium is 60, dark is 40. Any whole number from 25 to 95 can be given instead, a colour-meter reading
+as it is. The colour is the roaster's aim, not a measurement, and they can restate it at any time. It names no brew
+method.
 
-Kaffelogic's levels are end temperatures, and Kaffelogic publishes no table from a level to an Agtron number, so the
-tool ties the two in one of two ways, and the answer says which:
+**How it is tied to Kaffelogic's levels.** Kaffelogic's levels are end temperatures, and Kaffelogic publishes no table
+from a level to an Agtron number. The altitude, Robusta and Decaf profiles' files describe three of their levels in the
+common roast words: Medium/Light, Medium and Medium/Dark (the Robusta file says Light/Medium and Medium Dark, and the
+`0-1200m Rest` file calls its darkest Dark). The tool takes those words to mean the middle of the same bands a roaster's
+words mean: 70, 60 and 50 (40 for Dark). The KL Washed and KL Natural files use no colour words: they name brews (Cupping,
+Filter, Espresso) with ranges of levels, so for them the tool takes the Filter and Espresso levels it lists (1.0, and 1.2
+or 1.3) as 70 and 60, which is a weaker guess than the other profiles'. All of this is our reading of Kaffelogic's files,
+not something Kaffelogic or any measurement states. The answer says which of two ways a level was found:
 
-- **An approximation, until the roaster has readings.** The three levels a profile's file labels (Kaffelogic's
-  filter, espresso and dark levels, read only as three points on the profile's own ladder) are taken as Agtron 65, 55
-  and 45. The basis is the Robusta file, which calls them Light/Medium, Medium and Medium Dark; the other profiles are
-  assumed to name theirs alike. This is not measured. The level for any other number is found along the ladder, between
-  those points and beyond them. A profile whose labelled levels reach no darker than Agtron 55 (KL Washed, KL Natural)
-  hands a darker target to the altitude profile. A colour beyond the profile's lightest or darkest level gets that
-  level, and the answer says so.
+- **An approximation, until the roaster has readings.** The level for a colour is found along the profile's own ladder
+  between those labelled levels. The tool does not go past them: a colour lighter than the lightest labelled level, or
+  darker than the darkest, gets that level, and the answer says so, because no file says what lies beyond it (a straight
+  extension of the ladder put a dark target at level 5.9 on 1500-2000m RTD, 3 °C past the darkest level its file
+  recommends and 0.2 °C short of the end of its ladder). A profile
+  whose labelled levels reach no darker than Agtron 60 (KL Washed, KL Natural) hands a darker target to the altitude
+  profile. Colour readings let a roaster go further.
 - **The roaster's own readings.** The roast form takes an Agtron reading. With two readings on a profile at end
   temperatures at least 3 °C apart, a later bean's level on that profile is read off the least-squares line through all
-  of the roaster's readings on it, across their beans. A line that gets lighter as the end gets hotter is not used.
+  of the roaster's readings on it, across their beans. A line that gets lighter as the end gets hotter is not used. A
+  colour beyond the profile's lightest or darkest level gets that level, and the answer says so.
 
 After the first roast the defects in the cup decide every step, whatever the colour was. The colour is used again only
 when the roaster restates it and asks for a level to try (`level-for`), and the level it gives is theirs to accept: it

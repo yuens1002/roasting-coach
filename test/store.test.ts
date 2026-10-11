@@ -7,7 +7,7 @@ import { type Db, InputError, addBean, addRoast, addTasting, addVersion, beanHis
 import { DB_DIR, migratedDb, readSql } from "./pg.js";
 import { PROFILE, syntheticLog } from "./syntheticLog.js";
 
-const GUJI = { name: "Ethiopia Guji", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 1950, sellerNotes: "peach, jasmine" };
+const GUJI = { name: "Ethiopia Guji", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", agtronTarget: 60, tastingBrew: "pourover", altitudeM: 1950, sellerNotes: "peach, jasmine" };
 
 describe("checkAnswers", () => {
   it("accepts a complete intake and keeps only answered fields", () => {
@@ -75,23 +75,24 @@ describe("store", () => {
     expect(r.version.changeReason).toMatch(/^Starting profile\. Grown at 1950 m/);
     // A bean with an unknown process has no other profile to suggest.
     expect(r.alternative).toBeUndefined();
-    expect(r.why.join(" ")).toContain("You are shooting for Agtron 55 (medium)");
+    expect(r.why.join(" ")).toContain("You are shooting for Agtron 60 (medium)");
   });
 
   it("starts a washed bean on KL Washed at the level its file gives for the roast shot for, with the altitude profile as the alternative", async () => {
     // A database of its own: the tests around this one count the beans in the shared one.
     const own = await migratedDb();
     const washed = { ...GUJI, process: "washed", drinkWhen: "rest" };
-    const medium = await addBean(own, { ...washed, name: "Washed medium", agtronTarget: 55 });
+    const medium = await addBean(own, { ...washed, name: "Washed medium", agtronTarget: 60 });
     expect(medium.version).toMatchObject({ number: 1, profileName: "KL Washed", level: 1.2, endTempC: 217.6 });
     expect(medium.version.changeReason).toContain("KL Washed is written for washed coffees.");
-    expect(medium.version.changeReason).toContain("You are shooting for Agtron 55 (medium)");
+    expect(medium.version.changeReason).toContain("You are shooting for Agtron 60 (medium)");
     expect(medium.alternative).toBe("1500-2000m Rest");
     const light = await addBean(own, { ...washed, name: "Washed light", agtronTarget: 85 });
-    expect(light.version).toMatchObject({ profileName: "KL Washed", level: 0.8, endTempC: 214.4 });
-    // KL Washed names no level as dark as Agtron 35, so that roast starts on the altitude profile, which does.
+    // Lighter than KL Washed's lightest labelled level (filter, Agtron 70) is that level.
+    expect(light.version).toMatchObject({ profileName: "KL Washed", level: 1, endTempC: 216.5 });
+    // KL Washed names no level as dark as Agtron 35, so that roast starts on the altitude profile, which does, at its darkest labelled level.
     const dark = await addBean(own, { ...washed, name: "Washed dark", agtronTarget: 35 });
-    expect(dark.version).toMatchObject({ profileName: "1500-2000m Rest", level: 4.8, endTempC: 227.3 });
+    expect(dark.version).toMatchObject({ profileName: "1500-2000m Rest", level: 4.3, endTempC: 224.9 });
     expect(dark.version.changeReason).toContain("KL Washed is written for washed coffees, but its file names no level as dark as Agtron 35, so this uses 1500-2000m Rest");
     expect(dark.alternative).toBeUndefined();
   });
@@ -100,7 +101,7 @@ describe("store", () => {
     const own = await migratedDb();
     const { beanId } = await addBean(own, { ...GUJI, name: "Own brew", tastingBrew: "espresso" });
     const stored = await own.query<{ agtron_target: string; tasting_brew: string }>("select agtron_target, tasting_brew from bean where id = $1", [beanId]);
-    expect(stored.rows[0]).toEqual({ agtron_target: 55, tasting_brew: "espresso" });
+    expect(stored.rows[0]).toEqual({ agtron_target: 60, tasting_brew: "espresso" });
     await addRoast(own, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
     const left = await addTasting(own, { beanId, answers: { tastedOn: "2026-03-12", quality: 3, taste: ["flat"] } });
     const named = await addTasting(own, { beanId, answers: { tastedOn: "2026-03-13", brew: "pourover", quality: 3, taste: ["flat"] } });
@@ -605,7 +606,7 @@ describe("store", () => {
 describe("profile keys across a chain of near-identical copies", () => {
   it("joins two groups that a later copy bridges, so the level ladder doesn't split", async () => {
     const db = await migratedDb();
-    const { beanId } = await addBean(db, { name: "Kenya chain", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 1950 });
+    const { beanId } = await addBean(db, { name: "Kenya chain", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover", altitudeM: 1950 });
     // 204.1044 and 204.1056 round to different 5-figure keys and are further apart than the 6-figure tolerance;
     // 204.105 is within the tolerance of both, so it bridges them.
     const withFirstLevel = (value: string) => PROFILE.replace("profile_short_name:Test line", "profile_short_name:Kenya chain").replace("roast_levels:204,", `roast_levels:${value},`);
@@ -623,7 +624,7 @@ describe("profile keys across a chain of near-identical copies", () => {
 describe("profile keys keep distinct profiles apart", () => {
   it("gives two profiles that round to the same key different keys when they are further apart than the tolerance", async () => {
     const db = await migratedDb();
-    const { beanId } = await addBean(db, { name: "Kenya apart", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 1950 });
+    const { beanId } = await addBean(db, { name: "Kenya apart", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover", altitudeM: 1950 });
     // 204.1001 and 204.1049 both round to 204.1 at five figures but are 0.0048 apart, well over the 6-figure tolerance.
     const withFirstLevel = (value: string) => PROFILE.replace("profile_short_name:Test line", "profile_short_name:Kenya apart").replace("roast_levels:204,", `roast_levels:${value},`);
     await addVersion(db, { beanId, profileName: "Kenya apart", level: 3.6, reason: "Profile one.", profileFile: withFirstLevel("204.1001") });

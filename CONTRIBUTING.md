@@ -45,7 +45,10 @@ folder, so your own database is never touched and nothing is written to `profile
 
 ```
 npm run station          # empty the station and start Claude Code on it, with a new user's data
-npm run station:check    # replay a scripted session through scripts/roast.ts, checking each answer
+npm run station:new-bean      # scenario: a new bean on a roast colour the roaster wants
+npm run station:follow-up     # scenario: a subsequent roast of a bean already started
+npm run station:three-changes # scenario: the third roast still has a defect, the three level changes are used
+npm run station:check    # replay a scripted session and each scenario through scripts/roast.ts, checking each answer
 npm run station:beans    # list what the station has recorded
 npm run station:reset    # empty the station and nothing else
 ```
@@ -57,6 +60,11 @@ lists what was recorded and the `/roast` skill's rules to read the session again
 `profiles/` into the scratch folder (a copy in the system temp folder, never committed; `profiles/` is only read);
 there are no made-up logs and no prompt. Only the station's data is a new user's: the session still loads your own
 Claude Code settings and this repository's local notes, so it can behave better than a first-day user's would.
+
+A scenario (`station:new-bean`, `station:follow-up`, `station:three-changes`) does the same, but first records the
+earlier roasts of its story with made-up logs, then prints what to say in order and what to watch for (also in
+`SCENARIO.txt` in the scratch folder) before it starts `claude`. Each is also run headless by `station:check`, so what
+a person is told to watch for is what the engine says.
 
 Run `npm run station:check` after changing a rule, a message, a form or the starting-profile choice: it stops at
 the first answer that is not what the rulebook says. Edit the scenario in `scripts/station.ts` with the
