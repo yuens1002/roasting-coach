@@ -136,6 +136,21 @@ describe("profile:write", () => {
     expect(readdirSync(outDir)).toEqual([]);
   });
 
+  it("reports a database failure while working out the revision as itself, not as input the roaster can fix, and writes nothing", async () => {
+    const real = await migratedDb();
+    const { beanId } = await addBeanWithProfile(real, YIRG, env);
+    // The first read of a stored profile is for the file to write from; the second is the revision's.
+    let reads = 0;
+    const flaky: Db = {
+      query: ((text: string, params?: unknown[]) => (/select profile_file from profile_version where id/i.test(text) && ++reads === 2 ? Promise.reject(new Error("the database went away")) : real.query(text, params))) as Db["query"],
+    };
+    const err = await writeVersionProfile(flaky, { beanId, version: 1 }, env).catch((e: unknown) => e);
+    expect(reads).toBe(2);
+    expect(err).not.toBeInstanceOf(InputError);
+    expect((err as Error).message).toBe("the database went away");
+    expect(readdirSync(outDir)).toEqual(["KLN7-YIRG-WSH-001-1r1.kpro"]);
+  });
+
   it("writes nothing when the version's profile is neither stored nor in the library", async () => {
     const db = await migratedDb();
     const { beanId } = await addBeanWithProfile(db, YIRG, { ...env, library: [] });

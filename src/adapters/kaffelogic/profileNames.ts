@@ -30,8 +30,18 @@ export const PROCESS_CODES = {
 
 const LIMITS = { beanId: 999, version: 99, revision: 99 } as const;
 
-/** Letters only, upper case, accents taken off: "Yirgacheffé" is "YIRGACHEFFE". */
-const letters = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^A-Za-z]/g, "").toUpperCase();
+/** Latin letters that do not decompose into a base letter and an accent, with the letters they are spelled with. */
+const SPELLED_WITH: Record<string, string> = { ł: "l", ø: "o", đ: "d", ð: "d", ħ: "h", ı: "i", ŋ: "n", æ: "ae", œ: "oe", ß: "ss", þ: "th" };
+
+/** Latin letters only, upper case, accents taken off ("Yirgacheffé" is "YIRGACHEFFE") and the letters that carry none spelled out ("Łódź" is "LODZ"). */
+const letters = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[łøđðħıŋæœßþ]/g, (c) => SPELLED_WITH[c])
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z]/g, "")
+    .toUpperCase();
 
 /** A part of the origin text names a place when it has at least this many letters ("1900m" and "b" do not). */
 const MIN_ORIGIN_LETTERS = 3;

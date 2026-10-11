@@ -115,6 +115,8 @@ export async function writeVersionProfile(db: Db, input: unknown, env: ProfileFi
   const base = await versionBase(db, beanId, v, env.library);
   if (!base) throw new InputError([`v${v.number}'s profile "${v.profileName}" isn't stored and has no copy in ${env.libraryDir}, so there's nothing to write from.`]);
   const beanName = String(history.bean.name);
+  // Looked up before the names are made: a failure here is the database's or a stored file's, not something the roaster typed.
+  const revision = profileRevision(await versionsForRevision(db, beanId, history.versions, env.library), v.number);
   let names: ReturnType<typeof profileNames>;
   try {
     // The names follow the convention: the bean, this version and the curve's revision, never a name the roaster picks.
@@ -124,7 +126,7 @@ export async function writeVersionProfile(db: Db, input: unknown, env: ProfileFi
       origin: history.bean.origin === undefined || history.bean.origin === null ? undefined : String(history.bean.origin),
       process: history.bean.process as Intake["process"],
       version: v.number,
-      revision: profileRevision(await versionsForRevision(db, beanId, history.versions, env.library), v.number),
+      revision,
     });
   } catch (e) {
     throw new InputError([(e as Error).message]);

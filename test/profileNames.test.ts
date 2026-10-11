@@ -19,6 +19,16 @@ describe("the origin part of a profile name", () => {
     expect(originCode("Ethiopia, 1234 , ", "x")).toBe("ETHI");
   });
 
+  it("spells out the Latin letters that carry no accent to take off, instead of dropping them", () => {
+    expect(originCode("Łódź", "x")).toBe("LODZ");
+    expect(originCode("Poland, Łódź", "x")).toBe("LODZ");
+    expect(originCode("Smørum", "x")).toBe("SMOR");
+    expect(originCode("Straße", "x")).toBe("STRA");
+    expect(originCode("Æble", "x")).toBe("AEBL");
+    expect(originCode("Đà Lạt", "x")).toBe("DALA");
+    expect(originCode("ŁÓDŹ", "x")).toBe("LODZ");
+  });
+
   it("skips a last part that is not a place (fewer than three letters), and one with no Latin letters", () => {
     expect(originCode("Ethiopia, 1900m", "x")).toBe("ETHI");
     expect(originCode("a, b, C", "Kron Nang")).toBe("KRON");
