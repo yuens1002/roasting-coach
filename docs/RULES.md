@@ -53,7 +53,8 @@ to try a different profile (`level-changes-used`, below).
 **The bean's table.** `table <bean>` shows the bean's roasts as they come in, one row each: the version, profile and level,
 the measured thermal dose, the step in thermal dose from the roast tasted before it, the taste words, the roast quality, and how
 the cup reads from uncooked to scorched. Under it are the level changes made, the bracket the roasts make (uncooked up to here,
-scorched from there, so the right roast lies between), and the clean roasts. It reads the roasts the way the advice does: a
+scorched from there, so the right roast lies between), and the clean roasts (no under or over word and a roast quality of 3
+or more). It reads the roasts the way the advice does: a
 tasting outside the coffee's tasting brew is marked as not counted and left out of the bracket, and the words are read as
 the roaster's own settings read them.
 

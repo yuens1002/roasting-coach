@@ -17,6 +17,10 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
   is the data a link between bean properties and the thermal dose a coffee needs would be fitted from (roadmap, Next 2b and 3).
 - `CLEAN_QUALITY` (3) in the rules, replacing two literals in `quality-vs-words`; `bracketOf` shared by the bean table and the report.
 
+### Fixed
+
+- The bean table's "Clean:" line listed any roast with no under or over word, whatever its quality; it now also needs the clean quality (3 or more), as the report and the rules do.
+
 ## [0.4.2] - 2026-10-11
 
 - 2026-10-11 - docs(rules): record moisture, density and altitude as unused until research or data supports them, with a design sketch and the proposed sequencing for curve edits

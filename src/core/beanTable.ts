@@ -4,7 +4,7 @@
 // from there), the clean roasts, and how many of the three level changes are used. It reads the roasts the way the
 // rules do (tastedRoastsOf), so what the table shows is what the advice went on. Nothing here is a judgment of the coffee.
 import { qualityMeaning } from "./intake.js";
-import { type AdviceContext, type Calibration, DEFAULT_CALIBRATION, type HistoryForAdvice, LEVEL_CHANGE_BUDGET, levelChangesTo, tastedRoastsOf } from "./rules.js";
+import { type AdviceContext, type Calibration, CLEAN_QUALITY, DEFAULT_CALIBRATION, type HistoryForAdvice, LEVEL_CHANGE_BUDGET, levelChangesTo, tastedRoastsOf } from "./rules.js";
 
 /** What a roast's tasting says about how far it went. */
 export type Reads = "uncooked" | "scorched" | "uncooked and scorched" | "clean";
@@ -131,7 +131,8 @@ function standing(rows: BeanTableRow[], levelChangesMade: number | undefined, { 
   } else if (lightestScorched) {
     lines.push(`Every defect so far was scorched, from ${at(lightestScorched)}. The roast that clears it lies with less roasting.`);
   }
-  const clean = counted.filter((r) => r.tasted.reads === "clean");
+  // A clean roast is a cup with no under or over word and a roast quality of CLEAN_QUALITY or more (a lower one with no defect word is for the advice to ask about).
+  const clean = counted.filter((r) => r.tasted.reads === "clean" && r.tasted.quality >= CLEAN_QUALITY);
   if (clean.length) {
     const best = clean.reduce((a, b) => (b.tasted.quality > a.tasted.quality ? b : a));
     lines.push(`Clean: ${clean.map((r) => `roast ${r.roast}`).join(", ")}. The best, roast ${best.roast}, was rated ${best.tasted.quality} (${qualityMeaning(best.tasted.quality)}).`);

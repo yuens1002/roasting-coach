@@ -83,6 +83,18 @@ describe("the cross-bean report", () => {
     expect(beanTable(h, context).rows.find((r) => r.tasted?.counted && r.tasted.reads === "clean")?.roast).toBe(rows[0].firstClean!.roast);
   });
 
+  it("agrees with the bean's table on which roasts are clean: a cup with no defect word and a quality below the clean quality is not", () => {
+    const h = history(roast(1, 3, 8, { words: ["flat"], quality: 2 }), roast(2, 3.4, 9, CLEAN));
+    expect(cleanZoneReport([bean(1, "A", h)]).rows[0].firstClean?.roast).toBe(2);
+    const { say, rows } = beanTable(h, context);
+    expect(say).toContain("Clean: roast 2. The best, roast 2,");
+    expect(say).not.toContain("roast 1,");
+    // The row still reads the words as they are: no defect word. Only the clean summary asks for the quality too.
+    expect(rows[0].tasted?.reads).toBe("clean");
+    // With only the low-quality cup, the table names no clean roast at all.
+    expect(beanTable(history(roast(1, 3, 8, { words: ["flat"], quality: 2 })), context).say).not.toContain("Clean:");
+  });
+
   it("gives the bracket of a bean with no clean roast yet, and a bean with nothing tasted or no roast a row of dashes", () => {
     const b = bean(1, "B", history(roast(1, 3, 8, { words: ["grassy"], quality: 2 }), roast(2, 4, 11, { words: ["ashy"], quality: 2 })));
     const untasted = bean(2, "C", history(roast(1, 3, 8)));
