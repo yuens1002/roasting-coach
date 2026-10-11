@@ -188,18 +188,19 @@ What each part means:
 | Part | Example | Meaning |
 |---|---|---|
 | Manufacturer and model | `KLN7` | `KL` Kaffelogic and `N7` Nano 7. In the file name only. |
-| Origin | `YIRG` | Where the coffee is from: the first four letters of the last part of the origin you gave at intake. "Ethiopia, Yirgacheffe" gives `YIRG`, so write the country first and the region last. With no origin, it is the first four letters of the bean's name. |
+| Origin | `YIRG` | Where the coffee is from: the first four letters of the last part of the origin you gave at intake that has at least three letters (Latin letters only, accents taken off). "Ethiopia, Yirgacheffe" gives `YIRG`, so write the country first and the region last; "Ethiopia, 1900m" gives `ETHI`. With no such part, it is the first four letters of the bean's name (`BEAN` if that has no Latin letters either). |
 | Processing | `WSH` | `WSH` washed, `NAT` natural, `HON` honey, `ANA` anaerobic, `WHL` wet-hulled, `UNK` don't know. In the file name only. |
 | Bean number | `003` | The bean's number in your database, up to 999. It keeps two beans of one origin apart. |
 | Version | `1` | Which step in the bean's journey the file is for. |
-| Revision | `r1` | Which curve (the profile's shape) that version uses. |
+| Revision | `r1` | Which profile body that version uses: the curve, zones and settings together. |
 
 **Version and revision.** The version counts steps: every time a change is recorded for the next roast, a different level or a
-different profile, the bean gets the next version. The revision says whether the curve itself changed: it stays the same while
-only the level changes, and takes the next number when the bean moves to a different curve. Going back to an earlier curve gives
-that curve's revision again. The tool cannot edit a curve yet, so today the revision moves when a bean switches to another
-profile, or when you roast a curve you changed yourself (in Kaffelogic Studio): a roast on a changed curve is recorded as a new
-version, and it gets the next revision. An example, the Yirgacheffe roasted on `2000-2700m RTD`:
+different profile, the bean gets the next version. The revision says whether the profile itself changed (its curve, zones or
+settings): it stays the same while only the level changes, and takes the next number when the bean moves to a different profile
+body. Going back to an earlier one gives its revision again. The tool cannot edit a curve yet, so today the revision moves when a bean switches to another
+profile, or when you roast a profile you changed yourself (in Kaffelogic Studio): that roast is recorded as a new version and
+gets the next revision, unless the version it replaces has not been roasted yet, in which case that version is updated to what
+you roasted. An example, the Yirgacheffe roasted on `2000-2700m RTD`:
 
 | Step | What is recorded | Short name |
 |---|---|---|
