@@ -146,7 +146,11 @@ async function findVersion(db: Db, beanId: number, number?: number): Promise<Ver
 
 /** What the intake chose, handed to whoever builds the bean's own .kpro from it. */
 export interface StartingChoice {
+  /** The bean's id: the bean is stored before its file is made, so the file's name can carry the bean's number. */
+  beanId: number;
   beanName: string;
+  origin?: string;
+  process: Intake["process"];
   stockName: string;
   level: number;
   endTempC: number;
@@ -177,9 +181,19 @@ export async function loadColourReadings(db: Db): Promise<ColourReading[]> {
 export async function addBean(db: Db, input: Record<string, unknown>, makeFile?: StartingProfileFile) {
   const values = checked(INTAKE_FIELDS, input);
   const start = selectStartingProfile(values as unknown as Intake, await loadColourReadings(db));
-  const own = makeFile?.({ beanName: String(values.name), stockName: start.profile.name, level: start.level.level, endTempC: start.level.endTemp, why: start.why });
   return inTransaction(db, async () => {
     const beanId = await insert(db, "bean", asColumns(values));
+    // Made inside the transaction, after the bean: a file that can't be written rolls the bean back.
+    const own = makeFile?.({
+      beanId,
+      beanName: String(values.name),
+      origin: values.origin === undefined ? undefined : String(values.origin),
+      process: values.process as Intake["process"],
+      stockName: start.profile.name,
+      level: start.level.level,
+      endTempC: start.level.endTemp,
+      why: start.why,
+    });
     await insert(db, "profile_version", {
       bean_id: beanId,
       number: 1,

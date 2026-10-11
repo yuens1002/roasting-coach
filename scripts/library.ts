@@ -20,9 +20,9 @@ export function loadLibrary(): KaffelogicFile[] {
     .map((path) => ({ path, text: readFileSync(path, "utf8") }));
 }
 
-/** Where a new profile will be written. Refuses to overwrite: every written profile gets its own file. */
-export function outPath(profileName: string): string {
-  const path = join(KAFFELOGIC_OUT_DIR, `${profileName.replace(/[<>:"/\\|?*]/g, "-")}.kpro`);
-  if (existsSync(path)) throw new InputError([`${path} already exists. Move it, or give the bean a different name.`]);
+/** Where a new profile will be written, from its file name (profileNames). Refuses to overwrite: every written profile gets its own file. */
+export function outPath(fileName: string, dir: string = KAFFELOGIC_OUT_DIR): string {
+  const path = join(dir, fileName.replace(/[<>:"/\\|?*]/g, "-"));
+  if (existsSync(path)) throw new InputError([`${path} already exists. Move or delete it, then run the command again.`]);
   return path;
 }

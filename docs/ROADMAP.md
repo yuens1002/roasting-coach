@@ -201,7 +201,7 @@ What each change does, and where it stands. The reason is there when it was set 
 - **Writing profile files**: the bean's own `.kpro` is written to `profiles/out/` at intake, and
   `profile:write` writes a version's file. A written file is accepted by Kaffelogic Studio and the
   Nano. Curve, fan and zone edits are not built (see below), so a written file differs from its
-  base only in name, description and the level it offers first.
+  base only in name (by the naming convention, Next 5), description and the level it offers first.
 - **Sizing a level change in thermal dose** (`thermal-dose`, `levelForThermalDose`), so "about 15% less
   roasting" becomes the right level for the profile at hand.
 - **Restating the roast colour** (`level-for`, `placeColour`): when the roaster's target colour changes, the level to try
@@ -383,17 +383,21 @@ Order is a suggestion; the roaster picks.
 4. **Profile files in Postgres as the source of truth**: an uploaded-profile table keyed by name
    and `profile_modified`, text kept verbatim, import from `profiles/`, export `.kpro` on demand.
    Fits both personal use and a later sharing feature.
-5. **Naming convention for written profiles** (before any edited file is written). Today: `<bean name>.kpro`, short name
-   = bean name. Two names exist: `profile_short_name` (shown on the Nano) and the file name (free length). Measured on the
-   stock files: every stock short name is 15 characters or fewer (5 of the 15 stock files are exactly 15; "1500-2000m RTD v1.0" is a file
-   name, its short name is "1500-2000m RTD"), consistent with a 15-character display limit but not proof of one. **To confirm:**
-   load `profiles/out/NAMETEST 16 chars.kpro` and `NAMETEST 24 chars.kpro` (written 2026-10-11, same curve as 1500-2000m RTD)
-   in Kaffelogic Studio and see whether either is cut or refused. Proposed within 15: machine, origin, processing, bean id and
-   revision, e.g. `N7-ETH-WSH-12r2` (Nano 7, Ethiopia, washed, bean 12, revision 2); the bean id is what keeps two beans of one
-   origin and process apart. The revision bumps only when the file changes (level-only versions reuse it). The full name, the
-   base's credit and the change reason go in the file name and the description, which have no limit, e.g.
-   `2026-10-11 N7-ETH-WSH-12r2 (KL Washed) b12.kpro`. With files generated from the database on export, the name is a function
-   and easy to change.
+5. **Naming convention for written profiles** (decided and built 2026-10-11; `src/adapters/kaffelogic/profileNames.ts`). Two names,
+   each with its job, and nothing asks the roaster for a name. The **short name** (what the machine and Kaffelogic Studio show) is at
+   most 15 characters: Studio cuts a longer one at 15, measured 2026-10-11 (`KLN7-YGRG-WSH-001-3r1`, 21 characters, showed as
+   `KLN7-YGRG-WSH-0`), which matches every stock short name (all 15 or fewer). It is `{origin}-{bean number}-{version}r{revision}`,
+   e.g. `YIRG-003-1r1`. The **file name** (free length; Studio loaded a 26-character one) is the whole convention,
+   `{manufacturer and model}-{origin}-{processing}-{bean number}-{version}r{revision}.kpro`, e.g. `KLN7-YIRG-WSH-003-1r1.kpro`; the
+   log records it beside the short name (`profile_file_name`). The origin is the first four letters of the last part of the intake's
+   origin text that has at least three letters, uppercase, accents off ("Ethiopia, Yirgacheffe" is YIRG: country first, region last;
+   "Ethiopia, 1900m" is ETHI), else the first four letters of the bean's name (BEAN when that has no Latin letter either). Processing: WSH, NAT, HON, ANA, WHL (wet-hulled), UNK. The bean number is the bean's id (to 999), the version is the bean's
+   version number (to 99), and the revision (to 99) is which curve the bean's profile has: it bumps only when the curve changes, a
+   level-only version keeps it, a return to an earlier curve takes its number back, and switching to another stock profile is a
+   different curve. A stored profile counts as a stock curve only when it matches the library's copy of that stock profile body to
+   body (a version keeps its stock base through edits, so the base alone cannot say), so an edited curve and the stock one differ. `bean:add` stores the bean first so the file can carry its number; `profile:write` takes no name. Profiles already
+   written were renamed to match (one: Kron Nang's v1, now `VIET-002-1r1`). Not built: the clean-zone report and the roadmap do not
+   use the names; revisions only differ once curve edits exist or a bean switches stock profile.
 
 ## Waiting on others
 

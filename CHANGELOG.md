@@ -5,6 +5,24 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-11
+
+- 2026-10-11 - feat(profiles): name written profiles by a convention the tool applies, a 15-character short name and a full file name
+
+### Breaking
+
+- **Written profiles are named by the tool.** The short name the machine shows is `{origin}-{bean number}-{version}r{revision}`
+  (`YIRG-003-1r1`, at most 15 characters: Kaffelogic Studio cuts a longer short name at 15) and the file name is
+  `{manufacturer and model}-{origin}-{processing}-{bean number}-{version}r{revision}.kpro` (`KLN7-YIRG-WSH-003-1r1.kpro`). Until now
+  both were the bean's name. `profile:write` no longer takes `name`. `bean:add` stores the bean before it writes the file, so the
+  file can carry the bean's number. Profiles written earlier keep their names unless renamed by hand; the maintainer's one was renamed
+  in the database and on disk. The intake's origin help now asks for the country first and the region last.
+
+### Added
+
+- `profileNames` and `profileRevision` (`src/adapters/kaffelogic/profileNames.ts`): the names, and which curve a version has.
+- `scripts/profileFiles.ts`: the two file-writing flows (`bean:add`, `profile:write`) as functions, tested on a database and a temp folder. A name that can't be made (a bean number past 999) no longer fails `bean:add`: the bean is stored on its stock profile with a warning and no file.
+
 ## [0.4.3] - 2026-10-11
 
 - 2026-10-11 - feat(report): add the cross-bean clean-zone report, with a named clean quality in the rules
