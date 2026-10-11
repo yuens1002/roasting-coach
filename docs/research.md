@@ -223,7 +223,7 @@ gives. With k = 0 the target is 8.50 and nothing changes.
 
 What it would take, and what is missing:
 
-- **Data.** The predicted thermal dose of each bean's first clean roast (quality 3 or higher), beside its properties. One bean is
+- **Data.** The predicted thermal dose of each bean's first clean roast (roast quality 3 or more and no under or over word in the tasting; a stored tasting where the two disagree is left out), beside its properties. One bean is
   recorded so far, with moisture and no density or altitude, so no coefficient can be fitted. Beans needed to see a link at 80%
   power and p < 0.05: about 10 for a correlation of 0.8, 14 for 0.7, 30 for 0.5 and 85 for 0.3 (`n = ((1.96 + 0.84) / atanh r)² + 3`;
   a calculation, not a measurement).

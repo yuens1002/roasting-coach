@@ -264,7 +264,7 @@ Order is a suggestion; the roaster picks.
    next version. Note anything awkward in the forms or the skill. Cheap, and it shows which rules
    matter first; it can run before or alongside the rule core.
 2b. **Clean-zone report** (proposed 2026-10-11, awaiting the roaster's go-ahead): a read-only command that lists, per bean, the
-   predicted thermal dose of its first clean roast (quality 3 or higher), the bracket around it, the bean's properties and each
+   predicted thermal dose of its first clean roast (roast quality 3 or more and no under or over word, the definition under "Decided (2026-10-10)"; a stored tasting where the two disagree is not clean), the bracket around it, the bean's properties and each
    roast's offset from its curve's prediction. It records nothing and changes no advice; it is the data the bean-properties item
    (under item 3) waits for, and what the clean zone as a number of the roaster's own steps would need.
 3. **Curve edits and new profiles** (planned 2026-10-11, nothing built; see the proposed sequencing below). Change the curve of a base profile (the one a log
@@ -354,7 +354,7 @@ Order is a suggestion; the roaster picks.
      a hypothesis: where the clean zone sits (the thermal dose a coffee needs to be clean), the offset of a roast's measured
      thermal dose from its curve's prediction (which a cross-profile match needs), and the timing of the drying phase. Fitted
      values would belong to one roaster on one machine. Why it is not built: one bean is recorded so far (moisture, no density or
-     altitude); seeing a strong link (correlation 0.7) takes about 14 beans with a first clean roast and a weak one (0.3) about 85
+     altitude); seeing a strong link (correlation 0.7) takes about 14 beans with a first clean roast (quality 3 or more and no under or over word) and a weak one (0.3) about 85
      (a sample-size calculation, not a measurement); the published support is two coffees (Debona 2021) and an industry claim
      with no peer-reviewed measurement; and moisture and density need meters (altitude is on the bag). The plan: ask for altitude
      at every intake (and moisture and density when the roaster has meters), record each roast's offset beside its bean's
