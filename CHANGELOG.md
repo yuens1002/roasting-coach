@@ -5,6 +5,10 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-11
+
+- 2026-10-11 - docs(roadmap): plan curve edits and new profiles, with a thermal-dose tolerance, the test layers and the profile naming check
+
 ## [0.4.0] - 2026-10-11
 
 - 2026-10-11 - feat(rules): take colour words at band middles, stop at a profile's labelled levels, and add dev station scenarios

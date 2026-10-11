@@ -120,7 +120,7 @@ the readings are fitted per profile, not per bean or per density. Open: whether 
 properties (density, moisture, age) into a starting level; only the profile choice uses altitude and process.
 The "Cupping" stock profile is never picked now; it stays in the table.
 
-**Idea (2026-10-09), not built: curve edits sized by thermal dose.** The thermal dose can be computed for
+**Idea (2026-10-09), planned 2026-10-11 (Next, 3), not built: curve edits sized by thermal dose.** The thermal dose can be computed for
 any curve, so a new profile can hold the total thermal dose fixed and change only the shape (moving it
 between phases). That makes shape a clean experiment: the quality change belongs to the shape, not to a
 different amount of heat. The roaster chooses to try it; the tool reports what a change does in measured
@@ -263,25 +263,77 @@ Order is a suggestion; the roaster picks.
 2. **End-to-end session** with a real bean and log in `profiles/`: intake -> roast -> tasting ->
    next version. Note anything awkward in the forms or the skill. Cheap, and it shows which rules
    matter first; it can run before or alongside the rule core.
-3. **Curve edits**: change the curve, fan or zones of a base profile (the one a log was roasted
-   on, matched by name and `profile_modified`, or a stock profile chosen at intake), write it with
-   `writeKpro` to `profiles/out/` (never overwrite) and store it as the version's `profile_file`.
-   Only when the rule core asks for more than a level change. Each edit needs its own
-   plain-language account of what it does to the roast, in measured terms. First build, per the
-   2026-10-09 idea above: one edit that holds the total thermal dose and moves thermal dose between phases.
+3. **Curve edits and new profiles** (planned 2026-10-11, nothing built). Change the curve of a base profile (the one a log
+   was roasted on, matched by name and `profile_modified`, or a stock profile chosen at intake), write it with `writeKpro`
+   to `profiles/out/` (never overwrite) and store it as the version's `profile_file`, with the base as its parent.
+   *Storage already exists:* `version:add` takes a `profileFile` and reads its levels, `profile_version.profile_file` and
+   `parent_id` hold the file and the tree, and a changed body is a different profile to `sameProfileBody`.
+   - **Decided:** "about the same thermal dose" is within **3%** (the 0.1 level grid is coarser than that in flat parts of a
+     ladder, so some edits cannot be matched closer). The direction of a shape edit is the roaster's choice; the tool ranks
+     nothing and records each edit as an experiment (the edit, the defect before, the defect after), which is the evidence a
+     direction rule would need later. A written file never leaves the roaster's machine (sharing is undecided, see below).
+   - **The mechanism:** edit the curve, then find the level on the new curve whose thermal dose matches the roast being held
+     (`levelForThermalDose`, built). The answer is a plain-words account in measured terms: thermal dose held, end temperature
+     against the old one, minutes in each phase, development ratio, rate of rise at first crack. It cannot say the roast will be
+     clean; the cup decides.
+   - **Three ways in, one engine.** (1) *Engine-offered, no clean roast yet:* after three level changes with a defect the
+     engine says "try a different profile"; when it has no other profile to name (or it was tried), it offers a shape edit.
+     The case for it is strongest when one cup shows both defects (`mixed-signals`): the same total heat gives both, so
+     the level is not the lever. (2) *Engine-offered, clean but flat (quality 3):* `keep-as-is` says a better cup needs
+     another profile or an edited curve; the roaster can take the edit at the clean roast's measured thermal dose, which is
+     the lever for a quality of 4 or better. (3) *Roaster-asked:* "the same roast on a different profile", through a preview
+     command (like `level-for`, it records nothing until they say yes).
+   - **Known thermal doses.** Each roast stores its measured thermal dose and each tasting its words, so the tool knows the thermal dose of a
+     clean roast and the bracket around it (the uncooked roast of highest thermal dose and the scorched one of lowest). A switch to
+     another stock profile after cup evidence should place the level by that thermal dose (fair across profiles on one machine),
+     not by the colour target as the first level is.
+   - **First edit family:** development time at about the same thermal dose: reshape the stretch after first crack (against
+     the drying and Maillard stretches), then re-level to hold the thermal dose. The research says the early phase adds almost no
+     thermal dose, so holding the thermal dose while moving it between phases mostly changes the hot end.
+   - **Steps, each its own PR.** (1) Read first, no code shipped: compare the real logs' achieved curve with the requested one,
+     what the nodes do, and how the machine follows a curve (findings in [research.md](research.md), "Heat transfer"; the
+     Studio check below). (2) Pure edit functions (`editCurve.ts`): phase boundaries, one reshape, the re-level that holds the thermal dose, and the
+     level that matches the thermal dose for a profile switch. (3) The session surface: a `profile:edit` preview, the version recorded on yes,
+     `profile:write`, the engine statements at the entries above, the skill text, a RULES.md section, a station scenario per
+     entry. (4) Real roasts of the base and the edited profile (the protocol below), then the rules. (5) Later, blocked on 4: fan
+     and zone edits and learning from the roaster's own logs.
+   - **How it is tested without edited roasts.** Real logs in `profiles/logs`: five, four on Robusta (levels 3.0, 2.7, 2.4,
+     2.1) and one on 1500-2000m RTD (3.3), all on unedited stock profiles; no roast on an edited profile exists. Layers:
+     (a) pure tests on made-up curves whose thermal dose is known by hand, and properties: the thermal dose after the edit and the
+     re-level is within 3% of the original over a range of edits, the curve stays rising, the file round-trips through
+     `parseKpro`, the levels are unchanged, an edit is a different body and a rename is the same. (b) The same properties over
+     every stock profile in `profiles/`, skipped when the files are absent, as today. (c) Station scenarios on made-up logs of
+     an edited profile (`stationLog` taught to embed an edited file), so edit, `version:add` with a `profileFile`,
+     `roast:add` matched by body, the three-level count restarting and the engine's statements run end to end, one scenario per
+     way in. (d) The made-up log follows the requested curve with a tracking error taken from the real logs (mean 2.1 °C, max 5.8
+     °C on log0040) and a thermal dose 6 to 12.5% above the curve's; it is labelled made-up and shows the pipeline copes, nothing
+     about the Nano. (e) Each new test is shown to fail when its logic is broken. What no offline test can show, and a roaster
+     must: whether Studio and the Nano accept an edited file, whether the machine follows the edited curve, and whether the cup
+     improves. The protocol, written before the roasts: roast the base and the edited profile at the levels that match their
+     thermal dose; pass if the file loads, the roast ends at that level's temperature, the measured thermal dose is within the 6 to 12.5%
+     band above its prediction, tracking is no worse than the stock roasts', and the tasting is recorded. Real results enter the
+     code as derived numbers only, never the files.
+   - **Not done, on purpose:** a rule that picks the direction from a defect (no evidence yet); sharing edited profiles;
+     asking what the roaster likes.
+   - **Later, to decide:** the clean zone as a number of the roaster's own steps (the bracket's width in % of thermal dose over
+     their step size), and exploring inside it by the quality they record. It reopens "a clean cup is done" and the
+     considered-and-not-built "probe within the clean zone" (see "Levers and ideas considered"), so it needs the roaster's say.
    Read first: the "Heat transfer" section of [research.md](research.md) (how moisture and density shape the
    bean temperature, what is unread, and the hypotheses to test with the roaster's own logs).
 4. **Profile files in Postgres as the source of truth**: an uploaded-profile table keyed by name
    and `profile_modified`, text kept verbatim, import from `profiles/`, export `.kpro` on demand.
    Fits both personal use and a later sharing feature.
-5. **Naming convention for written profiles** (before any wider use). Today: `<bean name>.kpro`,
-   short name = bean name. Two names exist: `profile_short_name` (shown on the Nano; stock names
-   are all 15 characters or fewer, so probably a display limit, to confirm on the machine) and the
-   file name (free length). Name by profile revision (r1, r2: bumps only when the file changes;
-   level-only versions reuse it), not by version number; keep it unique (bean id or date in the
-   file name) and credit the base. Starting idea: short `Guji2100 r2`, file
-   `2026-10-05 Guji2100 r2 (KL Washed) b12.kpro`. With files generated from the database on
-   export, the name is a function and easy to change.
+5. **Naming convention for written profiles** (before any edited file is written). Today: `<bean name>.kpro`, short name
+   = bean name. Two names exist: `profile_short_name` (shown on the Nano) and the file name (free length). Measured on the
+   stock files: every stock short name is 15 characters or fewer (5 of the 15 stock files are exactly 15; "1500-2000m RTD v1.0" is a file
+   name, its short name is "1500-2000m RTD"), consistent with a 15-character display limit but not proof of one. **To confirm:**
+   load `profiles/out/NAMETEST 16 chars.kpro` and `NAMETEST 24 chars.kpro` (written 2026-10-11, same curve as 1500-2000m RTD)
+   in Kaffelogic Studio and see whether either is cut or refused. Proposed within 15: machine, origin, processing, bean id and
+   revision, e.g. `N7-ETH-WSH-12r2` (Nano 7, Ethiopia, washed, bean 12, revision 2); the bean id is what keeps two beans of one
+   origin and process apart. The revision bumps only when the file changes (level-only versions reuse it). The full name, the
+   base's credit and the change reason go in the file name and the description, which have no limit, e.g.
+   `2026-10-11 N7-ETH-WSH-12r2 (KL Washed) b12.kpro`. With files generated from the database on export, the name is a function
+   and easy to change.
 
 ## Waiting on others
 
