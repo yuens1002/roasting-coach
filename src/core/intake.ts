@@ -64,7 +64,7 @@ export const INTAKE_FIELDS: Field[] = [
     usedFor: "Every tasting is of this brew (docs/RULES.md, rule 1)",
   },
   { id: "altitudeM", label: "Altitude", kind: "number", unit: "m", min: 0, max: 3000, integer: true, help: "If the bag gives a range, use the middle.", usedFor: "Altitude band; a proxy for density" },
-  { id: "origin", label: "Country / region", kind: "text", usedFor: "Display; comparing beans later" },
+  { id: "origin", label: "Country / region", kind: "text", help: "Country first, then the region, e.g. 'Ethiopia, Yirgacheffe'. The first four letters of the last part (YIRG) name the profile file the tool writes.", usedFor: "The profile's name (the first four letters of the last part); display; comparing beans later" },
   { id: "variety", label: "Variety", kind: "text", help: "e.g. Bourbon, Gesha, SL28.", usedFor: "Comparing beans later" },
   { id: "cropDate", label: "Harvest or arrival date", kind: "date", help: "Old crop roasts faster and tastes flatter.", usedFor: "Recorded for later; no rule reads it yet (docs/ROADMAP.md)" },
   { id: "moisturePct", label: "Moisture", kind: "number", unit: "%", min: 5, max: 15, help: "Only if the seller lists it.", usedFor: "Recorded for later; no rule reads it yet (docs/ROADMAP.md)" },

@@ -68,6 +68,23 @@ describe("store", () => {
       return log.replace(from, to);
     }, base);
 
+  it("stores the bean before its profile file is made, so the file can carry the bean's number, and leaves no bean when the file can't be made", async () => {
+    const own = await migratedDb();
+    const seen: unknown[] = [];
+    const added = await addBean(own, { ...GUJI, name: "Named", origin: "Ethiopia, Yirgacheffe", process: "washed" }, (start) => {
+      seen.push(start);
+      return { profileName: "YIRG-001-1r1", profileFile: PROFILE };
+    });
+    expect(seen).toEqual([expect.objectContaining({ beanId: added.beanId, beanName: "Named", origin: "Ethiopia, Yirgacheffe", process: "washed" })]);
+    expect(added.version).toMatchObject({ number: 1, profileName: "YIRG-001-1r1", hasProfileFile: true });
+    await expect(
+      addBean(own, { ...GUJI, name: "Broken" }, () => {
+        throw new InputError(["The file can't be written."]);
+      }),
+    ).rejects.toThrow("The file can't be written.");
+    expect((await listBeans(own)).map((b) => b.name)).toEqual(["Named"]);
+  });
+
   it("stores a bean with its starting profile as v1", async () => {
     const r = await addBean(db, GUJI);
     gujiId = r.beanId;

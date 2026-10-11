@@ -10,7 +10,7 @@
 //   npx tsx scripts/roast.ts version:add '{"beanId": 1, "level": 3.6, "reason": "..."}'   (same profile, new level)
 //   npx tsx scripts/roast.ts version:add '{"beanId": 1, "profileName": "KL Washed", "level": 1.2, "reason": "..."}'
 //   npx tsx scripts/roast.ts history 1
-//   npx tsx scripts/roast.ts profile:write '{"beanId": 1, "version": 2}'   (a .kpro for that version, its level as the recommended level)
+//   npx tsx scripts/roast.ts profile:write '{"beanId": 1, "version": 2}'   (a .kpro for that version, its level as the recommended level, named by the profile naming convention)
 //   npx tsx scripts/roast.ts bean:update  '{"beanId": 1, "answers": {"sellerNotes": "..."}}'   (merged over the stored answers; null clears)
 //   npx tsx scripts/roast.ts taste:update '{"tastingId": 2, "answers": {"quality": 3, "taste": ["flat"]}}'
 //   npx tsx scripts/roast.ts thermal-dose '{"profile": "Robusta", "level": 3, "change": -15}'   (level for a thermal dose change, in %)
@@ -24,7 +24,8 @@
 //   npx tsx scripts/roast.ts bean:remove 1   (only when the roaster asks; deletes its versions, roasts, tastings)
 //   npx tsx scripts/roast.ts library   (the .kpro and .klog files in KAFFELOGIC_DIR)
 //
-// bean:add also writes the bean's own profile, "<bean name>.kpro", to KAFFELOGIC_OUT_DIR:
+// bean:add also writes the bean's own profile to KAFFELOGIC_OUT_DIR, named by the profile naming convention
+// (src/adapters/kaffelogic/profileNames.ts; short name YIRG-003-1r1, file KLN7-YIRG-WSH-003-1r1.kpro):
 // the chosen stock profile renamed for the bean, curve unchanged. It needs that stock
 // profile's .kpro (or a log roasted on it) in KAFFELOGIC_DIR; without one, v1 is the stock
 // profile as is. Later level changes keep using the same profile.
@@ -34,11 +35,12 @@ import { parseHeader, parseKpro, splitLines, timeCurveReaches } from "../src/ada
 import { kaffelogicAdviceContext } from "../src/adapters/kaffelogic/adviceContext.js";
 import { beanTable } from "../src/core/beanTable.js";
 import { cleanZoneReport } from "../src/core/cleanZoneReport.js";
+import { profileNames, profileRevision } from "../src/adapters/kaffelogic/profileNames.js";
 import { placeColour, placementSay } from "../src/adapters/kaffelogic/startingProfiles.js";
 import { type LevelThermalDose, formatMinutesSeconds, levelAfterChange, profileThermalDoseAtLevel } from "../src/adapters/kaffelogic/thermalDose.js";
 import { type ProfileLines, findBaseProfile, formatKpro, profileFromKpro, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
 import { describeCalibration, personalChanges, resolveCalibration } from "../src/core/calibration.js";
-import { INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../src/core/intake.js";
+import { INTAKE_FIELDS, type Intake, ROAST_FIELDS, TASTING_FIELDS } from "../src/core/intake.js";
 import { type LevelMove, adviceReport, adviseFromHistory } from "../src/core/rules.js";
 import { checkShape } from "../src/core/validate.js";
 import { type Db, InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, changeCalibration, intakeFromBeanRow, listBeans, loadColourReadings, loadOverrides, predictedThermalDoses, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
@@ -139,14 +141,16 @@ async function run() {
               return undefined;
             }
             endsAtFromFile = curveReachesAt(base.lines, start.endTempC);
-            const profileName = start.beanName;
+            // The names come from the bean, never from the roaster: the short name the machine shows and the file's name.
+            const names = profileNames({ beanId: start.beanId, beanName: start.beanName, origin: start.origin, process: start.process, version: 1, revision: 1 });
+            const profileName = names.shortName;
             const description = [
-              `${profileName}: ${start.stockName} for this bean, written by roasting-coach. Curve and settings are unchanged.`,
+              `${profileName}: ${start.stockName} for ${start.beanName}, written by roasting-coach. Curve and settings are unchanged.`,
               `Set level ${start.level} (ends at ${start.endTempC} °C).`,
               ...start.why,
             ].join("\n");
             const text = writeKpro(base.lines, { shortName: profileName, description });
-            const path = outPath(profileName);
+            const path = outPath(names.fileName);
             try {
               mkdirSync(dirname(path), { recursive: true });
               writeFileSync(path, text, { flag: "wx" });
@@ -260,30 +264,38 @@ async function run() {
         // level the machine offers first. Curve and settings are unchanged, so a roast on this file
         // still counts as the same profile.
         const input = json();
-        const errors = checkShape(input, { beanId: { type: "integer", required: true }, version: { type: "integer" }, name: { type: "string" } });
+        const errors = checkShape(input, { beanId: { type: "integer", required: true }, version: { type: "integer" } });
         if (errors.length) throw new InputError(errors);
-        const { beanId, version: number, name } = input as { beanId: number; version?: number; name?: string };
+        const { beanId, version: number } = input as { beanId: number; version?: number };
         const history = await beanHistory(db, beanId);
         const v = number === undefined ? history.versions[history.versions.length - 1] : history.versions.find((x) => x.number === number);
         if (!v) throw new InputError([`Bean ${beanId} has no v${number}.`]);
         const base = await versionBase(db, beanId, v);
         if (!base) throw new InputError([`v${v.number}'s profile "${v.profileName}" isn't stored and has no copy in ${KAFFELOGIC_DIR}, so there's nothing to write from.`]);
         const beanName = String(history.bean.name);
-        const profileName = (name ?? `${beanName} ${v.level}`).trim();
-        if (!profileName || /[\r\n]/.test(profileName)) throw new InputError(["The profile name must be one line of text."]);
+        // The names follow the convention: the bean, this version and the curve's revision, never a name the roaster picks.
+        const names = profileNames({
+          beanId,
+          beanName,
+          origin: history.bean.origin === undefined || history.bean.origin === null ? undefined : String(history.bean.origin),
+          process: history.bean.process as Intake["process"],
+          version: v.number,
+          revision: profileRevision(history.versions, v.number),
+        });
+        const profileName = names.shortName;
         const description = [
           `${profileName}: v${v.number} of ${beanName}, level ${v.level} (ends at ${v.endTempC} °C), written by roasting-coach. Curve and settings are those of ${v.profileName}.`,
           v.changeReason ?? "",
         ].filter(Boolean).join("\n");
         const text = writeKpro(base.lines, { shortName: profileName, description, recommendedLevel: v.level });
-        const path = outPath(profileName);
+        const path = outPath(names.fileName);
         try {
           mkdirSync(dirname(path), { recursive: true });
           writeFileSync(path, text, { flag: "wx" });
         } catch (e) {
           throw new InputError([`Couldn't write ${path}: ${(e as Error).message}`]);
         }
-        return { written: path, profileName, version: v.number, level: v.level, endTempC: v.endTempC, builtFrom: base.path };
+        return { written: path, profileName, fileName: names.fileName, version: v.number, level: v.level, endTempC: v.endTempC, builtFrom: base.path };
       }
       case "features:refresh":
         return await refreshFeatures(db);
