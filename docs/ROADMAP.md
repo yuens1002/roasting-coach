@@ -268,12 +268,18 @@ Order is a suggestion; the roaster picks.
    to `profiles/out/` (never overwrite) and store it as the version's `profile_file`, with the base as its parent.
    *Storage already exists:* `version:add` takes a `profileFile` and reads its levels, `profile_version.profile_file` and
    `parent_id` hold the file and the tree, and a changed body is a different profile to `sameProfileBody`.
-   - **Decided:** "about the same thermal dose" is within **3%** (the 0.1 level grid is coarser than that in flat parts of a
-     ladder, so some edits cannot be matched closer). The direction of a shape edit is the roaster's choice; the tool ranks
+   - **Decided:** "about the same thermal dose" is within **3%**, and it is enforced: the error of the matched level is
+     computed (`levelForThermalDose` returns the nearest level whatever the error), and an edit whose best level is more than
+     3% off is reduced or refused, never written or described as holding the thermal dose. In the steep parts of a ladder one
+     0.1 level step is itself more than 3% (Robusta, 2.6 to 3.0, adds about 15%, so about 3.7% a step), so some edits cannot be
+     matched that closely; in flat parts the grid is finer than 3%. The direction of a shape edit is the roaster's choice; the tool ranks
      nothing and records each edit as an experiment (the edit, the defect before, the defect after), which is the evidence a
      direction rule would need later. A written file never leaves the roaster's machine (sharing is undecided, see below).
-   - **The mechanism:** edit the curve, then find the level on the new curve whose thermal dose matches the roast being held
-     (`levelForThermalDose`, built). The answer is a plain-words account in measured terms: thermal dose held, end temperature
+   - **The mechanism:** edit the curve, then find the level on the new curve whose *predicted* thermal dose (the curve's own
+     figure, `profileThermalDoseAtLevel`) matches the predicted thermal dose of the roast being held. A thermal dose
+     measured on a roast is never passed to that search: real roasts ran 6 to 12.5% above their curve's prediction (Robusta level 3 +6.4%;
+     1500-2000m RTD +11% and +12.5%), and the offset may depend on the profile and the bean, so a measured figure would pick a
+     level with too much predicted heat. The answer is a plain-words account in measured terms: thermal dose held, end temperature
      against the old one, minutes in each phase, development ratio, rate of rise at first crack. It cannot say the roast will be
      clean; the cup decides.
    - **Three ways in, one engine.** (1) *Engine-offered, no clean roast yet:* after three level changes with a defect the
@@ -283,15 +289,18 @@ Order is a suggestion; the roaster picks.
      another profile or an edited curve; the roaster can take the edit at the clean roast's measured thermal dose, which is
      the lever for a quality of 4 or better. (3) *Roaster-asked:* "the same roast on a different profile", through a preview
      command (like `level-for`, it records nothing until they say yes).
-   - **Known thermal doses.** Each roast stores its measured thermal dose and each tasting its words, so the tool knows the thermal dose of a
-     clean roast and the bracket around it (the uncooked roast of highest thermal dose and the scorched one of lowest). A switch to
-     another stock profile after cup evidence should place the level by that thermal dose (fair across profiles on one machine),
-     not by the colour target as the first level is.
+   - **Known thermal doses.** Each roast stores its measured thermal dose, its version stores the profile and level, and each
+     tasting its words. So the tool knows a clean roast, the bracket around it (the uncooked roast of highest thermal dose and
+     the scorched one of lowest), and the *predicted* thermal dose of each, which is what a match uses. On the same profile the
+     offset is the same on both sides of the match, so the 3% holds. A switch to another profile after cup evidence should place
+     the level by predicted thermal dose, not by the colour target as the first level is, but the 3% then holds on predicted
+     figures only: the two profiles' offsets can differ by several points (6 to 12.5% above), more than the tolerance. The
+     answer says so until the roaster has a measured offset on both profiles, and then corrects by the ratio of the two.
    - **First edit family:** development time at about the same thermal dose: reshape the stretch after first crack (against
      the drying and Maillard stretches), then re-level to hold the thermal dose. The research says the early phase adds almost no
      thermal dose, so holding the thermal dose while moving it between phases mostly changes the hot end.
    - **Steps, each its own PR.** (1) Read first, no code shipped: compare the real logs' achieved curve with the requested one,
-     what the nodes do, and how the machine follows a curve (findings in [research.md](research.md), "Heat transfer"; the
+     what the nodes do, how the machine follows a curve, and each roast's offset from its curve's prediction (findings in [research.md](research.md), "Heat transfer"; the
      Studio check below). (2) Pure edit functions (`editCurve.ts`): phase boundaries, one reshape, the re-level that holds the thermal dose, and the
      level that matches the thermal dose for a profile switch. (3) The session surface: a `profile:edit` preview, the version recorded on yes,
      `profile:write`, the engine statements at the entries above, the skill text, a RULES.md section, a station scenario per
@@ -309,10 +318,30 @@ Order is a suggestion; the roaster picks.
      °C on log0040) and a thermal dose 6 to 12.5% above the curve's; it is labelled made-up and shows the pipeline copes, nothing
      about the Nano. (e) Each new test is shown to fail when its logic is broken. What no offline test can show, and a roaster
      must: whether Studio and the Nano accept an edited file, whether the machine follows the edited curve, and whether the cup
-     improves. The protocol, written before the roasts: roast the base and the edited profile at the levels that match their
-     thermal dose; pass if the file loads, the roast ends at that level's temperature, the measured thermal dose is within the 6 to 12.5%
-     band above its prediction, tracking is no worse than the stock roasts', and the tasting is recorded. Real results enter the
-     code as derived numbers only, never the files.
+     improves. The protocol, written before the roasts: roast the base twice (the spread between the two is the machine's own
+     repeat variation) and the edited profile at the level that matches its predicted thermal dose; pass if the file loads, the
+     roast ends at that level's temperature, tracking is no worse than the stock roasts', the edited roast's measured thermal dose
+     is within 3% of the base's plus the spread between the two base roasts (a direct comparison: two profiles whose offsets
+     are 6% and 12.5% above their predictions would both look right against that band while their measured thermal doses
+     differ by about 6%), the offset of each roast is recorded, and the tasting is recorded. Real results enter the code as
+     derived numbers only, never the files.
+   - **Bean properties, recorded and unused (moisture, density).** The intake already takes `moisturePct`, `densityGL`,
+     `chaffy`, altitude, process and crop date as optional answers; only altitude and process reach a rule (the profile choice).
+     They are the candidates for what the tool cannot predict: the offset of a roast's measured thermal dose from its curve's
+     prediction, and the time of the drying phase (the hypotheses are in [research.md](research.md), "Heat transfer": wetter
+     beans need more early heat to follow a curve, and the support for density is weaker). It is also the offset a
+     cross-profile match needs. The plan: record each roast's offset beside its bean's properties, so a table of properties
+     against offset builds from the roaster's own roasts, and ask for moisture and density at intake when the seller lists them.
+     No rule until several beans show a link; one bean cannot.
+   - **Roasting philosophies, not yet considered.** Roast masters differ on shape: how fast to dry, how steeply to approach and
+     pass first crack, how long development lasts. Kaffelogic's stock profiles already state targets for some of these
+     (`developmentTarget` and `riseAfterCrack` in the table). A philosophy would be a named set of targets on the measured axes
+     an edit moves (phase times, development ratio, rate of rise at first crack), shipped as data with the roaster's own
+     overrides like the step sizes: the edit moves toward it at the held thermal dose and reports the result in measured terms.
+     It waits on three things: the axes must be measured first (steps 1 and 2); a named preset needs a cited source for each
+     number, and no roaster's published practice has been read for this repository, so nothing is claimed about any of them;
+     and it is a method choice, like the step sizes, not a choice of taste, which the project keeps out. To decide with the
+     roaster: which practices to read first, and whether presets are wanted before their own roasts show what an edit does.
    - **Not done, on purpose:** a rule that picks the direction from a defect (no evidence yet); sharing edited profiles;
      asking what the roaster likes.
    - **Later, to decide:** the clean zone as a number of the roaster's own steps (the bracket's width in % of thermal dose over
