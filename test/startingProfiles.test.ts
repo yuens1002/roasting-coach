@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { kaffelogicAdviceContext } from "../src/adapters/kaffelogic/adviceContext.js";
 import { levelToTemp, parseKpro, timeCurveReaches } from "../src/adapters/kaffelogic/parse.js";
-import { type ColourReading, STOCK_PROFILES, altitudeBand, levelForAgtron, placeColour, placementSay, selectStartingProfile } from "../src/adapters/kaffelogic/startingProfiles.js";
-import { SCA_TILES } from "../src/core/roastColour.js";
+import { LABELLED_LEVEL_AGTRON, type ColourReading, STOCK_PROFILES, altitudeBand, levelForAgtron, placeColour, placementSay, selectStartingProfile } from "../src/adapters/kaffelogic/startingProfiles.js";
+import { ROAST_WORDS, SCA_TILES } from "../src/core/roastColour.js";
 import { INTAKE_FIELDS, type Intake } from "../src/core/intake.js";
 import { PRIVATE_PROFILES, headerValue } from "./privateFiles.js";
 
-const base: Intake = { name: "test", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" };
+const base: Intake = { name: "test", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover" };
 
 describe("selectStartingProfile", () => {
   it("uses the altitude band and timing by default, at the level the profile recommends", () => {
@@ -54,28 +54,56 @@ describe("selectStartingProfile", () => {
 describe("the Agtron colour being shot for picks the first level on the profile", () => {
   const robusta: Intake = { ...base, species: "robusta" };
 
-  it("places the profile's labelled levels at Agtron 65, 55 and 45, exactly", () => {
+  it("places the profile's labelled levels at Agtron 70, 60 and 50 (the middle of their bands), exactly", () => {
     const at = (agtronTarget: number) => selectStartingProfile({ ...robusta, agtronTarget }).level;
-    expect(at(65)).toMatchObject({ level: 2.2, endTemp: 220.1 });
-    expect(at(55)).toMatchObject({ level: 3.0, endTemp: 223.4 });
-    expect(at(45)).toMatchObject({ level: 4.8, endTemp: 227.1 });
+    expect(at(70)).toMatchObject({ level: 2.2, endTemp: 220.1 });
+    expect(at(60)).toMatchObject({ level: 3.0, endTemp: 223.4 });
+    expect(at(50)).toMatchObject({ level: 4.8, endTemp: 227.1 });
+    // The word medium is the same middle, so a roaster who says it starts on the profile's own default medium.
+    expect(LABELLED_LEVEL_AGTRON.espresso).toBe(ROAST_WORDS.medium);
   });
 
-  it("runs from lighter to darker as the number falls, past the labelled levels", () => {
+  it("runs from lighter to darker as the number falls, and goes no further than the profile's labelled levels", () => {
     const levels = [95, 85, 75, 65, 55, 45, 35, 25].map((agtronTarget) => selectStartingProfile({ ...robusta, agtronTarget }).level.level);
     expect(levels).toEqual([...levels].sort((a, b) => a - b));
-    expect(new Set(levels).size).toBe(levels.length);
+    // Robusta's file labels Agtron 70, 60 and 50 at levels 2.2, 3.0 and 4.8; lighter or darker than those is those.
+    expect(levels.slice(0, 3)).toEqual([2.2, 2.2, 2.2]);
+    expect(levels.slice(5)).toEqual([4.8, 4.8, 4.8]);
+    expect(levels[3]).toBeGreaterThan(2.2);
+    expect(levels[4]).toBeGreaterThan(levels[3]);
+    expect(levels[4]).toBeLessThan(4.8);
+  });
+
+  it("says a colour beyond the labelled levels is placed at the labelled level nearest it, which readings will let it pass", () => {
+    const dark = selectStartingProfile({ ...base, altitudeM: 1850, agtronTarget: 35 });
+    expect(dark.level).toMatchObject({ level: 4.3, endTemp: 222.6, colour: { agtron: 35, basis: "approximation", beyondLabels: { side: "darker", agtron: 50 } } });
+    expect(dark.why).toContain("The profile's file labels no level darker than Agtron 50 (medium-dark), so this is that level: the tool does not guess past what the file labels. Colour readings from your roasts on this profile let it go further.");
+    const light = selectStartingProfile({ ...base, altitudeM: 1850, agtronTarget: 90 });
+    expect(light.level).toMatchObject({ level: 2.4, colour: { beyondLabels: { side: "lighter", agtron: 70 } } });
+    expect(light.why.join(" ")).toContain("labels no level lighter than Agtron 70 (light-medium)");
+    // Inside the labelled levels there is nothing to say.
+    expect(selectStartingProfile({ ...base, altitudeM: 1850, agtronTarget: 55 }).level.colour.beyondLabels).toBeUndefined();
+  });
+
+  it("takes the dark level of 0-1200m Rest as Agtron 40, because its file calls it Dark, not Medium/Dark", () => {
+    const rest = STOCK_PROFILES["0-1200m Rest"];
+    expect(levelForAgtron(rest, 40)).toMatchObject({ level: 5, endTemp: 235, colour: { basis: "approximation" } });
+    expect(levelForAgtron(rest, 40)!.colour.beyondLabels).toBeUndefined();
+    expect(levelForAgtron(rest, 30)).toMatchObject({ level: 5, colour: { beyondLabels: { side: "darker", agtron: 40 } } });
+    expect(levelForAgtron(rest, 50)!.level).toBeLessThan(5);
+    // The other altitude profiles' files say Medium/Dark.
+    expect(levelForAgtron(STOCK_PROFILES["0-1200m RTD"], 50)).toMatchObject({ level: 4.6 });
   });
 
   it("says it is an approximation from the profile's labelled levels, which readings will replace, and that the cup decides after the first roast", () => {
-    const start = selectStartingProfile({ ...robusta, agtronTarget: 55 });
-    expect(start.level.colour).toMatchObject({ agtron: 55, basis: "approximation", readings: 0 });
-    expect(start.why).toContain("You are shooting for Agtron 55 (medium). The profile's file gives no Agtron, so this level is an approximation from its own labelled levels, and colour readings from your roasts on this profile replace it.");
+    const start = selectStartingProfile({ ...robusta, agtronTarget: 60 });
+    expect(start.level.colour).toMatchObject({ agtron: 60, basis: "approximation", readings: 0 });
+    expect(start.why).toContain("You are shooting for Agtron 60 (medium). The profile's file gives no Agtron, so this level is an approximation from its own labelled levels, and colour readings from your roasts on this profile replace it.");
     expect(start.why).toContain("The defects in the cup decide each step after the first roast.");
   });
 
   it("moves with the profile: the same colour is a different level on each", () => {
-    const medium = (intake: Partial<Intake>) => selectStartingProfile({ ...base, agtronTarget: 55, ...intake }).level.level;
+    const medium = (intake: Partial<Intake>) => selectStartingProfile({ ...base, agtronTarget: 60, ...intake }).level.level;
     expect(medium({ altitudeM: 1850 })).toBe(3.1);
     expect(medium({ altitudeM: 2100, drinkWhen: "rest" })).toBe(3.2);
     expect(medium({ decaf: true })).toBe(3.0);
@@ -83,37 +111,43 @@ describe("the Agtron colour being shot for picks the first level on the profile"
   });
 
   it("starts a profile whose file names no level as dark as the target on the altitude profile, which does", () => {
-    // The KL profiles label light-to-medium levels only (Agtron 65 and 55 here): nothing darker.
+    // The KL profiles label light-to-medium levels only (Agtron 70 and 60 here): nothing darker.
     const washed = { ...base, process: "washed", altitudeM: 1850, drinkWhen: "rest" } as const;
     const dark = selectStartingProfile({ ...washed, agtronTarget: 35 });
     expect(dark.profile.name).toBe("1500-2000m Rest");
-    expect(dark.level.level).toBe(4.8);
+    // Agtron 35 is darker than the 1500-2000m Rest file's darkest labelled level (4.3, Agtron 50), so that is the level.
+    expect(dark.level.level).toBe(4.3);
     expect(dark.alternative).toBeUndefined();
     expect(dark.why).toContain("KL Washed is written for washed coffees, but its file names no level as dark as Agtron 35, so this uses 1500-2000m Rest, which does.");
     const mediumDark = selectStartingProfile({ ...washed, agtronTarget: 45 });
     expect(mediumDark.profile.name).toBe("1500-2000m Rest");
     expect(mediumDark.level.level).toBe(4.3);
-    // Lighter than its labelled levels is fine: it runs lighter along its own ladder.
+    // Lighter than its labelled levels is its lightest labelled level (filter, Agtron 70).
     const light = selectStartingProfile({ ...washed, agtronTarget: 85 });
     expect(light.profile.name).toBe("KL Washed");
-    expect(light.level.level).toBe(0.8);
+    expect(light.level.level).toBe(1);
     expect(light.alternative).toBe("1500-2000m Rest");
   });
 
-  it("places every tile of the scale on every profile a bean can start on, except that the KL profiles go no darker than Agtron 55", () => {
+  it("places every tile of the scale on every profile a bean can start on, except that the KL profiles go no darker than Agtron 60", () => {
     const tiles = SCA_TILES.map((t) => t.agtron);
     // Cupping is never picked, and the legacy and fan variants are not selectable.
     const startable = Object.values(STOCK_PROFILES).filter((p) => p.selectable !== false && p.name !== "Cupping");
     expect(startable.length).toBeGreaterThan(10);
     for (const profile of startable) {
       const placed = tiles.filter((agtron) => levelForAgtron(profile, agtron));
-      expect(placed, profile.name).toEqual(profile.name.startsWith("KL ") ? tiles.filter((agtron) => agtron >= 55) : tiles);
+      expect(placed, profile.name).toEqual(profile.name.startsWith("KL ") ? tiles.filter((agtron) => agtron >= 60) : tiles);
     }
   });
 
-  it("says when the profile's lightest or darkest level is as near as it gets", () => {
-    const start = selectStartingProfile({ ...base, altitudeM: 1850, agtronTarget: 25 });
-    expect(start.level).toMatchObject({ level: 6, colour: { reach: "darkest" } });
+  it("says when the profile's lightest or darkest level is as near as it gets, which only the roaster's readings can place a colour at", () => {
+    // Two roasts on 1500-2000m RTD: 220 °C read Agtron 70 and 224 °C read 50, so Agtron 25 is at 230 °C, past its last level (226 °C).
+    const readings: ColourReading[] = [
+      { profile: "1500-2000m RTD", endTempC: 220, agtron: 70 },
+      { profile: "1500-2000m RTD", endTempC: 224, agtron: 50 },
+    ];
+    const start = selectStartingProfile({ ...base, altitudeM: 1850, agtronTarget: 25 }, readings);
+    expect(start.level).toMatchObject({ level: 6, colour: { basis: "readings", reach: "darkest" } });
     expect(start.why).toContain("The darkest level this profile has is as near to Agtron 25 as it gets.");
   });
 
@@ -151,11 +185,11 @@ describe("the Agtron colour being shot for picks the first level on the profile"
 
   describe("placing a colour the roaster names later (level-for)", () => {
     it("gives the level, its end temperature and the reasons, and says what to do with it", () => {
-      const placed = placeColour("Robusta", 65);
+      const placed = placeColour("Robusta", 70);
       expect(placed).toMatchObject({ ok: true, level: { level: 2.2, endTemp: 220.1 } });
       if (!placed.ok) return;
       expect(placementSay(placed, "9:47")).toBe(
-        "You are shooting for Agtron 65 (light-medium). The profile's file gives no Agtron, so this level is an approximation from its own labelled levels, and colour readings from your roasts on this profile replace it. The defects in the cup decide each step after the first roast. On Robusta, try level 2.2: it ends at 220.1 °C, reached at 9:47. Shall I record that as the next version, with your own words as the reason?",
+        "You are shooting for Agtron 70 (light-medium). The profile's file gives no Agtron, so this level is an approximation from its own labelled levels, and colour readings from your roasts on this profile replace it. The defects in the cup decide each step after the first roast. On Robusta, try level 2.2: it ends at 220.1 °C, reached at 9:47. Shall I record that as the next version, with your own words as the reason?",
       );
       expect(placementSay(placed)).not.toContain("reached at");
     });
@@ -189,8 +223,8 @@ describe("the Agtron colour being shot for picks the first level on the profile"
   it("gives the alternative profile its level for the same colour", () => {
     const natural: Intake = { ...base, process: "natural", altitudeM: 2100 };
     const alternativeLevel = (agtronTarget: number) => kaffelogicAdviceContext({ ...natural, agtronTarget }).alternative?.level;
-    expect(alternativeLevel(85)).toBe(1.3);
-    expect(alternativeLevel(55)).toBe(3.2);
+    expect(alternativeLevel(85)).toBe(2.5);
+    expect(alternativeLevel(60)).toBe(3.2);
     // A colour KL Natural cannot reach starts on the altitude profile itself, so it has no other to switch to.
     expect(alternativeLevel(35)).toBeUndefined();
   });

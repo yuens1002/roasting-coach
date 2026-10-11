@@ -290,7 +290,7 @@ describe("advice from a bean's history", () => {
 describe("advice from what the store actually returns", () => {
   it("reads a bean, a logged roast and a tasting end to end", async () => {
     const db = await migratedDb();
-    const { beanId } = await addBean(db, { name: "Rules bean", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" });
+    const { beanId } = await addBean(db, { name: "Rules bean", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover" });
     const { roastId } = await addRoast(db, { beanId, klog: syntheticLog({ first_crack: 540, roast_end: 600 }), answers: { greenG: 120, roastedG: 101.5 } });
     expect(adviseFromHistory(await beanHistory(db, beanId))).toBeUndefined();
     await addTasting(db, { beanId, roastId, answers: { tastedOn: "2025-06-29", brew: "pourover", quality: 2, taste: ["grassy", "bready"] } });
@@ -630,7 +630,7 @@ describe("when the level isn't helping", () => {
 });
 
 describe("what the Kaffelogic adapter tells the rules", () => {
-  const washed = { name: "Guji", species: "arabica", decaf: false, process: "washed", drinkWhen: "rest", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 1950 } as const;
+  const washed = { name: "Guji", species: "arabica", decaf: false, process: "washed", drinkWhen: "rest", agtronTarget: 60, tastingBrew: "pourover", altitudeM: 1950 } as const;
 
   it("knows which stock profiles must rest, and for how long", () => {
     const { restNeeded } = kaffelogicAdviceContext(washed);
@@ -653,7 +653,7 @@ describe("what the Kaffelogic adapter tells the rules", () => {
 describe("rest and profile switching, from what the store returns", () => {
   it("holds a grassy cup tasted a day after a Rest-profile roast, then judges the retaste", async () => {
     const db = await migratedDb();
-    const intake = { name: "Rest bean", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 1950 } as const;
+    const intake = { name: "Rest bean", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", agtronTarget: 60, tastingBrew: "pourover", altitudeM: 1950 } as const;
     const { beanId } = await addBean(db, intake);
     const { roastId } = await addRoast(db, { beanId, klog: syntheticLog({ first_crack: 540, roast_end: 600 }), answers: { greenG: 120, roastedG: 101.5 } });
     const context = kaffelogicAdviceContext(intake);

@@ -3,7 +3,7 @@
 // the rules can rely on the same ids. Anything the log already records
 // (profile, level, ambient temperature, times, temperatures) is not asked for.
 
-import { AGTRON_MAX, AGTRON_MIN, SCA_TILES } from "./roastColour.js";
+import { AGTRON_MAX, AGTRON_MIN, ROAST_WORDS, SCA_TILES } from "./roastColour.js";
 
 export type Field =
   | { id: string; label: string; kind: "text"; required?: boolean; help?: string; usedFor: string }
@@ -51,7 +51,7 @@ export const INTAKE_FIELDS: Field[] = [
     max: AGTRON_MAX,
     integer: true,
     required: true,
-    help: `The SCA / Agtron roast colour, higher is lighter: ${SCA_TILES.map((t) => `${t.agtron} ${t.name}`).join(", ")}. A word is taken as its number; a colour meter's reading can be used as it is. It only picks the first level to try: after that, the defects in the cup decide each step.`,
+    help: `The SCA / Agtron roast colour, higher is lighter: ${SCA_TILES.map((t) => `${t.agtron} ${t.name}`).join(", ")}. The words light, medium and dark are taken as the middle of their band (${ROAST_WORDS.light}, ${ROAST_WORDS.medium} and ${ROAST_WORDS.dark}); a colour meter's reading can be used as it is. It only picks the first level to try: after that, the defects in the cup decide each step.`,
     usedFor: "The first level to try, from the Agtron scale",
   },
   {

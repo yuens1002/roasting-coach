@@ -27,8 +27,8 @@ A reference cup the roaster describes (say, the farm's or the seller's) goes in 
    Bag altitude ranges: use the middle.
    - **The roast they are shooting for** is a colour on the SCA / Agtron scale (95 very light, 85 light, 75
      moderately light, 65 light-medium, 55 medium, 45 medium-dark, 35 dark, 25 extremely dark; `roast.ts fields
-     intake` lists them). If they say just light, medium or dark, take light as 85, medium as 55 and dark as 35, and
-     show the number; a roaster with a colour meter can give any whole number from 25 to 95. It only picks the first level to try; after that the defects in the cup decide each step.
+     intake` lists them). If they say just light, medium or dark, take light as 90, medium as 60 and dark as 40 (the middle of each band), and
+     show the number; a roaster with a colour meter can give any whole number from 25 to 95. It only picks the first level to try; after that the defects in the cup decide each step. The first level never goes past the lightest or darkest level the profile's file labels, and `why` says so when it applies: relay it, and say that colour readings from their roasts on that profile let it go further.
      It is a colour, not a brew method, and no brew is a roast target. Say in plain words that the first level is an
      approximation until their own colour readings on that profile tune it (`why` says which it is).
    - **The brew they taste with** is their own usual brew, whatever it is (pour over, French press / immersion,

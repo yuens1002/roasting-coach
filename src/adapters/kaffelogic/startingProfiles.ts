@@ -6,7 +6,7 @@
 // the profile curve reaches that temperature. We refer to profiles by name only;
 // the files themselves stay on the user's machine.
 import type { Intake } from "../../core/intake.js";
-import { AGTRON_MAX, AGTRON_MIN, agtronName, endTempForAgtron, fitColourLine } from "../../core/roastColour.js";
+import { AGTRON_MAX, AGTRON_MIN, ROAST_WORDS, agtronName, endTempForAgtron, fitColourLine } from "../../core/roastColour.js";
 import { levelToTemp } from "./parse.js";
 
 /**
@@ -47,6 +47,8 @@ export interface StockProfile {
   selectable?: boolean;
   /** The levels Kaffelogic labels by use. Read only as points on the profile's ladder (LABELLED_LEVEL_AGTRON); nothing else does. */
   levels: Partial<Record<Goal, StockLevel>>;
+  /** The Agtron a labelled level is taken as, where the profile's own file calls it something other than LABELLED_LEVEL_AGTRON does. */
+  labelledAgtron?: Partial<Record<Goal, number>>;
   /** Development % the profile itself says to aim for, when it says. */
   developmentTarget?: Partial<Record<Goal, [number, number]>>;
   /** Temperature rise after first crack the profile says to aim for, °C, when it says. */
@@ -68,7 +70,8 @@ const L = (level: number, endTemp: number, endsAt: string): StockLevel => ({ lev
 
 export const STOCK_PROFILES: Record<string, StockProfile> = {
   "0-1200m RTD": { name: "0-1200m RTD", recommended: L(3.0, 221.0, "10:07"), version: "1.0", roastLevels: [208.4, 215.4, 217.6, 221, 222.3, 227.8, 241], family: "altitude", levels: { filter: L(2.2, 218.3, "9:31"), espresso: L(3.0, 221.0, "10:07"), dark: L(4.6, 225.6, "11:10") } },
-  "0-1200m Rest": { name: "0-1200m Rest", recommended: L(3.0, 227.8, "12:27"), version: "1.0", roastLevels: [205, 212.8, 219.5, 227.8, 229.3, 235, 241], family: "altitude", restDays: REST, levels: { filter: L(2.2, 221.2, "11:31"), espresso: L(3.0, 227.8, "12:27"), dark: L(5.0, 235.0, "13:27") } },
+  // Its file calls the dark level "Dark roast", where the others' say "Medium/Dark".
+  "0-1200m Rest": { name: "0-1200m Rest", recommended: L(3.0, 227.8, "12:27"), version: "1.0", roastLevels: [205, 212.8, 219.5, 227.8, 229.3, 235, 241], family: "altitude", restDays: REST, labelledAgtron: { dark: ROAST_WORDS.dark }, levels: { filter: L(2.2, 221.2, "11:31"), espresso: L(3.0, 227.8, "12:27"), dark: L(5.0, 235.0, "13:27") } },
   "1200-1500m RTD": { name: "1200-1500m RTD", recommended: L(3.0, 221.8, "10:22"), version: "1.0", roastLevels: [208.4, 215.4, 217.6, 221.8, 222.9, 227.8, 241], family: "altitude", levels: { filter: L(2.2, 218.4, "9:39"), espresso: L(3.0, 221.8, "10:22"), dark: L(4.6, 225.8, "11:13") } },
   "1200-1500m Rest": { name: "1200-1500m Rest", recommended: L(3.0, 226.0, "9:52"), version: "1.0", roastLevels: [205, 216.5, 218.2, 226, 228, 232.9, 241], family: "altitude", restDays: REST, levels: { filter: L(2.2, 219.8, "8:55"), espresso: L(3.0, 226.0, "9:52"), dark: L(4.6, 230.9, "10:36") } },
   "1500-2000m RTD": { name: "1500-2000m RTD", recommended: L(3.1, 219.3, "10:19"), version: "1.0", roastLevels: [204, 209, 214, 219, 222, 224, 226], family: "altitude", levels: { filter: L(2.4, 216.0, "9:32"), espresso: L(3.1, 219.3, "10:19"), dark: L(4.3, 222.6, "11:10") } },
@@ -143,6 +146,8 @@ export interface StartingLevel {
     readings: number;
     /** Set when the profile's lightest or darkest level is as near as it gets. */
     reach?: "lightest" | "darkest";
+    /** Set when the target lies beyond the profile's labelled levels and the level is the labelled one nearest it (never with readings). */
+    beyondLabels?: { side: "lighter" | "darker"; agtron: number };
   };
 }
 
@@ -172,11 +177,24 @@ export function altitudeBand(m: number | undefined): "0-1200m" | "1200-1500m" | 
 
 /**
  * The Agtron assumed for the levels Kaffelogic labels, until the roaster's own readings say otherwise. The basis: the
- * Robusta profile's file calls its filter-labelled level "Light/Medium", its espresso-labelled one "Medium" (its default
- * roast) and its dark-labelled one "Medium Dark", and those are the SCA tiles 65, 55 and 45. The other profiles are
- * assumed to name their levels alike. This is not measured, and the answer says so.
+ * profile files call their filter-labelled level "Medium/Light" (the Robusta file "Light/Medium"), their espresso-labelled
+ * one "Medium" (the default roast) and their dark-labelled one "Medium/Dark", and those are taken as the middle of the
+ * common roast levels' bands light-medium (65 to 75), medium (55 to 65) and moderately dark (45 to 55): 70, 60 and 50,
+ * the same middle a roaster's word "medium" is taken at (ROAST_WORDS). A profile whose file says otherwise has
+ * `labelledAgtron`. The words are Kaffelogic's, the match to the Agtron scale is ours, and none of it is measured; the
+ * answer says so.
  */
-export const LABELLED_LEVEL_AGTRON: Partial<Record<Goal, number>> = { filter: 65, espresso: 55, dark: 45 };
+export const LABELLED_LEVEL_AGTRON: Partial<Record<Goal, number>> = { filter: 70, espresso: ROAST_WORDS.medium, dark: 50 };
+
+/** A profile's labelled levels as points on its ladder, lightest first: the end temperature and the Agtron taken for it. */
+function labelledPoints(profile: StockProfile): { endTempC: number; agtron: number }[] {
+  return Object.entries(LABELLED_LEVEL_AGTRON)
+    .flatMap(([label, agtron]) => {
+      const level = profile.levels[label as Goal];
+      return level ? [{ endTempC: level.endTemp, agtron: profile.labelledAgtron?.[label as Goal] ?? agtron! }] : [];
+    })
+    .sort((x, y) => y.agtron - x.agtron);
+}
 
 /** How a profile's end temperature relates to Agtron for this roaster, and where that came from; undefined when the profile has none. */
 interface ColourScale {
@@ -189,17 +207,12 @@ interface ColourScale {
 function colourScale(profile: StockProfile, readings: readonly ColourReading[]): ColourScale | undefined {
   const own = fitColourLine(readings.filter((r) => r.profile === profile.name));
   if (own) return { endTempFor: (agtron) => endTempForAgtron(own, agtron), basis: "readings", readings: own.readings };
-  // Through the profile's labelled levels, exactly at each of them, and along the nearest stretch beyond them.
-  const anchors = Object.entries(LABELLED_LEVEL_AGTRON)
-    .flatMap(([label, agtron]) => {
-      const level = profile.levels[label as Goal];
-      return level ? [{ endTempC: level.endTemp, agtron: agtron! }] : [];
-    })
-    .sort((x, y) => y.agtron - x.agtron);
-  if (anchors.length < 2 || anchors.some((anchor, i) => i > 0 && anchor.endTempC <= anchors[i - 1].endTempC)) return undefined;
+  // Through the profile's labelled levels, exactly at each of them and along the stretch between two. Nothing beyond the
+  // lightest and darkest of them: no file says what is there, so levelForAgtron stops at them.
+  const anchors = labelledPoints(profile);
+  if (anchors.length < 2 || anchors.some((anchor, i) => i > 0 && (anchor.endTempC <= anchors[i - 1].endTempC || anchor.agtron >= anchors[i - 1].agtron))) return undefined;
   return {
     endTempFor: (agtron) => {
-      // The stretch between two anchors that holds the number, or the lightest or darkest stretch when it lies beyond them.
       const lighter = anchors.findIndex((anchor) => agtron >= anchor.agtron);
       const i = lighter === -1 ? anchors.length - 2 : Math.min(Math.max(lighter - 1, 0), anchors.length - 2);
       const [from, to] = [anchors[i], anchors[i + 1]];
@@ -236,11 +249,16 @@ function levelNearEndTemp(roastLevels: number[], endTempC: number): { level: num
 export function levelForAgtron(profile: StockProfile, agtron: number, readings: readonly ColourReading[] = []): StartingLevel | undefined {
   const scale = colourScale(profile, readings);
   if (!scale) return undefined;
-  const darkestLabelled = Math.min(...Object.entries(LABELLED_LEVEL_AGTRON).filter(([label]) => profile.levels[label as Goal]).map(([, value]) => value!));
+  const points = labelledPoints(profile);
+  const [lightestLabelled, darkestLabelled] = [points[0].agtron, points[points.length - 1].agtron];
   if (!profile.levels.dark && agtron < darkestLabelled) return undefined;
-  const { level, reach } = levelNearEndTemp(profile.roastLevels, scale.endTempFor(agtron));
+  // Without readings the placement stays inside the labelled levels: past them the line would be a guess (a straight
+  // extension put a dark target on the last levels of a profile's ladder), so the labelled level nearest is the answer.
+  const placedAt = scale.basis === "approximation" ? Math.min(Math.max(agtron, darkestLabelled), lightestLabelled) : agtron;
+  const { level, reach } = levelNearEndTemp(profile.roastLevels, scale.endTempFor(placedAt));
   const endTemp = Math.round(levelToTemp(profile.roastLevels, level)! * 10) / 10;
-  return { level, endTemp, colour: { agtron, basis: scale.basis, readings: scale.readings, ...(reach ? { reach } : {}) } };
+  const beyondLabels = placedAt === agtron ? undefined : { side: agtron < placedAt ? ("darker" as const) : ("lighter" as const), agtron: placedAt };
+  return { level, endTemp, colour: { agtron, basis: scale.basis, readings: scale.readings, ...(reach ? { reach } : {}), ...(beyondLabels ? { beyondLabels } : {}) } };
 }
 
 /** The reasons a level was placed for an Agtron target, in plain words: the colour, what the placement rests on, and that the cup decides the steps after it. */
@@ -250,6 +268,9 @@ export function colourReasons(colour: StartingLevel["colour"]): string[] {
     colour.basis === "readings"
       ? `${shot} Your ${colour.readings} colour readings on this profile place that at this level.`
       : `${shot} The profile's file gives no Agtron, so this level is an approximation from its own labelled levels, and colour readings from your roasts on this profile replace it.`,
+    ...(colour.beyondLabels
+      ? [`The profile's file labels no level ${colour.beyondLabels.side} than Agtron ${colour.beyondLabels.agtron} (${agtronName(colour.beyondLabels.agtron)}), so this is that level: the tool does not guess past what the file labels. Colour readings from your roasts on this profile let it go further.`]
+      : []),
     ...(colour.reach ? [`The ${colour.reach} level this profile has is as near to Agtron ${colour.agtron} as it gets.`] : []),
     "The defects in the cup decide each step after the first roast.",
   ];

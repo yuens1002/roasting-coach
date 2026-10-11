@@ -5,6 +5,27 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-11
+
+- 2026-10-11 - feat(rules): take colour words at band middles, stop at a profile's labelled levels, and add dev station scenarios
+
+### Breaking
+
+- **The words light, medium and dark are now Agtron 90, 60 and 40** (the middle of their bands), not 85, 55 and 35 (the darker edge).
+  Beans already stored keep the number they hold: migration 008 stored 55 for old beans, which was then the word medium and is a
+  valid colour as it stands (say 60 with `bean:update` for the new medium).
+- **A first level never goes past the lightest or darkest level a profile's file labels** until the roaster has colour readings on
+  that profile. A straight extension of the ladder had put a dark target at level 5.9 on `1500-2000m RTD`, 3 °C past the
+  darkest level its file recommends. A colour beyond them now gets that labelled level, and the answer says so
+  (`colour.beyondLabels`). Kaffelogic's Medium/Light, Medium and Medium/Dark are taken as the middle of the common roast-level
+  bands (70, 60 and 50), and the `0-1200m Rest` file's "Dark" as 40. The rulebook states which parts are Kaffelogic's words, which
+  are our reading of them, and that none of it is measured.
+
+### Added
+
+- Dev station scenarios: `npm run station:new-bean`, `station:follow-up` and `station:three-changes` record the earlier roasts of
+  a story, print what to say and what to watch for, and start Claude Code on it. `station:check` runs each of them headless.
+
 ## [0.3.0] - 2026-10-10
 
 - 2026-10-10 - feat(rules): read the cup from uncooked to scorched, hold a clean cup, count three level changes, add the bean's table and state to try a different profile, converting stored data

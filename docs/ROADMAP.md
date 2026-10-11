@@ -100,15 +100,20 @@ that colour instead of every bean starting at the profile's default. The level i
 method: Kaffelogic's labels (filter, espresso, dark) are read only as three points on a profile's own ladder of levels.
 Kaffelogic publishes no level-to-Agtron table (its levels are end temperatures), so the tie is made two ways. Until the
 roaster has two colour readings on a profile at end temperatures 3 °C or more apart (the roast form's `colour` is an Agtron
-reading now), those three points are taken as Agtron 65, 55 and 45 (`LABELLED_LEVEL_AGTRON`; the basis is the Robusta file
-calling them Light/Medium, Medium and Medium Dark, assumed alike on the other profiles, not measured) and the level is found
-between and beyond them; the answer says it is an approximation. With the readings, the level comes from the least-squares line
+reading now), the three levels a profile's file labels (Medium/Light, Medium, Medium/Dark) are taken as Agtron 70, 60 and
+50 (`LABELLED_LEVEL_AGTRON`; 40 for the `0-1200m Rest` file's "Dark", `labelledAgtron`): the middle of the common roast-level
+bands, the same middle a roaster's word is taken at (light 90, medium 60, dark 40; `ROAST_WORDS`). The bands follow LeBrew's lab
+chart (one lab, one meter). The match of Kaffelogic's words to the bands is our reading, not measured, and the answer says so.
+**Changed 2026-10-11:** the level is found between the labelled levels and goes no further (a colour beyond the lightest or
+darkest labelled level gets that level, `colour.beyondLabels`, and the answer says so): a straight extension of the ladder put
+a dark target (Agtron 35) at level 5.9 on 1500-2000m RTD, 3 °C past the file's darkest recommendation and at the end of the
+profile's ladder, and no file or measurement says what lies there. With readings, the level comes from the least-squares line
 through them for that profile (`loadColourReadings`), across all the roaster's beans. A profile whose labelled levels reach
-no darker than Agtron 55 (KL Washed, KL Natural) hands a darker target to the altitude profile; a colour beyond the
-profile's lightest or darkest level gets that level and the answer says so. After the first roast the defects in the cup
+no darker than Agtron 60 (KL Washed, KL Natural) hands a darker target to the altitude profile; with readings, a colour beyond
+the profile's lightest or darkest level gets that level and the answer says so. After the first roast the defects in the cup
 decide every step. The roaster can restate the colour at any time (`bean:update`); it is their aim, not a measurement. Open: the
 advice does not use the colour readings yet (a roast read lighter or darker than its target says nothing to the rules);
-the readings are fitted per profile, not per bean or per density. Earlier "Brewing for" answers are dropped (column `goal`, removed by migration 008). What changes for the roaster: a washed or natural bean now starts on KL Washed or KL Natural
+the readings are fitted per profile, not per bean or per density. Open: whether a level is the same colour across the altitude, Robusta and Decaf profiles (the roaster's observation on the machine; the files' wording fits it except the KL profiles, whose medium is 1.2) so one level-to-Agtron curve could take every reading, which only a colour meter can show; beans stored by migration 008 hold Agtron 55, which was then the word medium (now 60) and is a valid colour as it stands. Earlier "Brewing for" answers are dropped (column `goal`, removed by migration 008). What changes for the roaster: a washed or natural bean now starts on KL Washed or KL Natural
 (at 0.8 and 1.4 then, that profile's own recommendation) whatever it was brewed for. Open: no model turns bean
 properties (density, moisture, age) into a starting level; only the profile choice uses altitude and process.
 The "Cupping" stock profile is never picked now; it stays in the table.
@@ -222,7 +227,9 @@ What each change does, and where it stands. The reason is there when it was set 
 - **Dev station** (`npm run station`, `station:check`, `station:beans`, `station:reset`; `scripts/station.ts`): a
   throwaway database and scratch folders; `npm run station` empties it and starts Claude Code on it with a new user's
   data (read by a person against a printed list; the session still loads the person's own settings and notes), and
-  `station:check` replays a scripted session through the real CLI with each answer checked. It never touches the
+  `station:new-bean`, `station:follow-up` and `station:three-changes` start it on a scenario (earlier roasts already
+  recorded, a script to say, a list to watch for), and
+  `station:check` replays a scripted session and each scenario through the real CLI with each answer checked. It never touches the
   roaster's database and writes nothing to their folders; it only reads `profiles/`. Not built: running the fresh session
   headless and checking its transcript.
 - **Session interface**: `scripts/roast.ts` (JSON in, JSON out, inputs checked against the form

@@ -69,24 +69,33 @@ const EXTRA: { id: string; input: AdviceInput }[] = [
 
 /** Every reason the starting-profile choice gives, across the paths it can take. */
 const STARTING_INTAKES: Intake[] = [
-  { name: "a", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" },
-  { name: "b", species: "arabica", decaf: false, process: "washed", drinkWhen: "rest", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 1850 },
-  { name: "c", species: "arabica", decaf: false, process: "natural", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" },
-  { name: "e", species: "arabica", decaf: true, process: "unknown", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" },
-  { name: "f", species: "robusta", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover", chaffy: true },
-  { name: "g", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", agtronTarget: 55, tastingBrew: "pourover", altitudeM: 900 },
+  { name: "a", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover" },
+  { name: "b", species: "arabica", decaf: false, process: "washed", drinkWhen: "rest", agtronTarget: 60, tastingBrew: "pourover", altitudeM: 1850 },
+  { name: "c", species: "arabica", decaf: false, process: "natural", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover" },
+  { name: "e", species: "arabica", decaf: true, process: "unknown", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover" },
+  { name: "f", species: "robusta", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover", chaffy: true },
+  { name: "g", species: "arabica", decaf: false, process: "unknown", drinkWhen: "rest", agtronTarget: 60, tastingBrew: "pourover", altitudeM: 900 },
   // Other colours, and the profile whose file names no level as dark as the target.
   { name: "h", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 85, tastingBrew: "pourover" },
   { name: "i", species: "arabica", decaf: false, process: "washed", drinkWhen: "rest", altitudeM: 1850, agtronTarget: 35, tastingBrew: "pourover" },
-  { name: "j", species: "arabica", decaf: false, process: "natural", drinkWhen: "soon", agtronTarget: 55, tastingBrew: "pourover" },
+  { name: "j", species: "arabica", decaf: false, process: "natural", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover" },
   // A colour so dark that the profile's darkest level is as near as it gets.
   { name: "k", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", altitudeM: 1850, agtronTarget: 25, tastingBrew: "pourover" },
 ] as Intake[];
 /** The roaster's own colour readings on Robusta, which give the line a starting level is placed on. */
 const STARTING_READINGS = [{ profile: "Robusta", endTempC: 219.3, agtron: 70 }, { profile: "Robusta", endTempC: 224.4, agtron: 50 }];
 const READINGS_INTAKE = { name: "m", species: "robusta", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover" } as Intake;
-const EXPECTED_WHY_LINES = 18;
-const WHY_LINES = [...new Set([...STARTING_INTAKES.flatMap((intake) => selectStartingProfile(intake).why), ...selectStartingProfile(READINGS_INTAKE, STARTING_READINGS).why])];
+/** Readings that put Agtron 25 past the last level of 1500-2000m RTD, the only way a profile's darkest level is "as near as it gets". */
+const REACH_READINGS = [{ profile: "1500-2000m RTD", endTempC: 220, agtron: 70 }, { profile: "1500-2000m RTD", endTempC: 224, agtron: 50 }];
+const REACH_INTAKE = { name: "n", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", altitudeM: 1850, agtronTarget: 25, tastingBrew: "pourover" } as Intake;
+const EXPECTED_WHY_LINES = 21;
+const WHY_LINES = [
+  ...new Set([
+    ...STARTING_INTAKES.flatMap((intake) => selectStartingProfile(intake).why),
+    ...selectStartingProfile(READINGS_INTAKE, STARTING_READINGS).why,
+    ...selectStartingProfile(REACH_INTAKE, REACH_READINGS).why,
+  ]),
+];
 
 /** The data warnings the roast features give for a colour change that cannot be used: out of range, and too close to first crack. */
 /** The note added to an answer when earlier roasts were without a rated tasting in the coffee's tasting brew: one roast, and several, in a filter brew and in espresso. */
@@ -98,7 +107,7 @@ const SET_ASIDE_NOTES = [1, 2].flatMap((roasts) =>
 );
 /** What the level-for command says: placed on the profile's labelled levels, placed from the roaster's readings, and at the end of a profile's range. */
 const PLACEMENT_SAYS = [
-  placeColour("Robusta", 65),
+  placeColour("Robusta", 70),
   placeColour("Robusta", 60, STARTING_READINGS),
   placeColour("1500-2000m RTD", 25),
 ].map((placed) => {

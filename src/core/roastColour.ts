@@ -18,8 +18,18 @@ export const SCA_TILES: readonly { agtron: number; name: string }[] = [
   { agtron: 25, name: "extremely dark" },
 ];
 
-/** The name of the tile nearest an Agtron number, e.g. 78 is "moderately light". */
-export const agtronName = (agtron: number): string => SCA_TILES.reduce((best, tile) => (Math.abs(tile.agtron - agtron) < Math.abs(best.agtron - agtron) ? tile : best)).name;
+/**
+ * The common roast-level chart reads each tile as a band of ten: a tile's number is the band's darker edge (medium is 55 to
+ * 65, dark is 35 to 45). The name of the band an Agtron number is in, e.g. 78 is "moderately light" (75 to 85) and 60 is
+ * "medium"; a number sitting on an edge belongs to the band it starts, so 55 is "medium". Below 25 is "extremely dark".
+ */
+export const agtronName = (agtron: number): string => (SCA_TILES.find((tile) => agtron >= tile.agtron) ?? SCA_TILES[SCA_TILES.length - 1]).name;
+
+/**
+ * What the words light, medium and dark mean as an Agtron number: the middle of their band, not its edge (light 85 to 95
+ * is 90, medium 55 to 65 is 60, dark 35 to 45 is 40), so a roaster who only says a word is aimed at the centre of it.
+ */
+export const ROAST_WORDS = { light: 90, medium: 60, dark: 40 } as const;
 
 /** A colour reading on a roast, with the bean temperature that roast ended at. */
 export interface ColourPoint {
