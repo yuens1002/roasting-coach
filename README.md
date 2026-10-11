@@ -197,8 +197,9 @@ What each part means:
 **Version and revision.** The version counts steps: every time a change is recorded for the next roast, a different level or a
 different profile, the bean gets the next version. The revision says whether the curve itself changed: it stays the same while
 only the level changes, and takes the next number when the bean moves to a different curve. Going back to an earlier curve gives
-that curve's revision again. Curve edits are not built yet, so today the revision moves only when a bean switches to another
-profile. An example, the Yirgacheffe roasted on `2000-2700m RTD`:
+that curve's revision again. The tool cannot edit a curve yet, so today the revision moves when a bean switches to another
+profile, or when you roast a curve you changed yourself (in Kaffelogic Studio): a roast on a changed curve is recorded as a new
+version, and it gets the next revision. An example, the Yirgacheffe roasted on `2000-2700m RTD`:
 
 | Step | What is recorded | Short name |
 |---|---|---|
