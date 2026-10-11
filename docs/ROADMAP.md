@@ -270,9 +270,11 @@ Order is a suggestion; the roaster picks.
    `parent_id` hold the file and the tree, and a changed body is a different profile to `sameProfileBody`.
    - **Decided:** "about the same thermal dose" is within **3%**, and it is enforced: the error of the matched level is
      computed (`levelForThermalDose` returns the nearest level whatever the error), and an edit whose best level is more than
-     3% off is reduced or refused, never written or described as holding the thermal dose. In the steep parts of a ladder one
-     0.1 level step is itself more than 3% (Robusta, 2.6 to 3.0, adds about 15%, so about 3.7% a step), so some edits cannot be
-     matched that closely; in flat parts the grid is finer than 3%. The direction of a shape edit is the roaster's choice; the tool ranks
+     3% off is reduced or refused, never written or described as holding the thermal dose. The worst miss between two adjacent
+     levels is half the gap between them, so it can pass 3% only where adjacent 0.1 levels are more than 6% apart. Measured on
+     the stock files (2026-10-11), the largest such gap on each profile a bean can start on is 6.4% to 16.0%, and it sits at
+     the lightest levels (1.0 or lighter) or the darkest (5.1 or darker); between them the grid is finer than 3% (Robusta, 2.6
+     to 3.0, adds about 15% over four steps). A target the new curve cannot reach at any level is refused the same way. The direction of a shape edit is the roaster's choice; the tool ranks
      nothing and records each edit as an experiment (the edit, the defect before, the defect after), which is the evidence a
      direction rule would need later. A written file never leaves the roaster's machine (sharing is undecided, see below).
    - **The mechanism:** edit the curve, then find the level on the new curve whose *predicted* thermal dose (the curve's own
@@ -286,16 +288,18 @@ Order is a suggestion; the roaster picks.
      engine says "try a different profile"; when it has no other profile to name (or it was tried), it offers a shape edit.
      The case for it is strongest when one cup shows both defects (`mixed-signals`): the same total heat gives both, so
      the level is not the lever. (2) *Engine-offered, clean but flat (quality 3):* `keep-as-is` says a better cup needs
-     another profile or an edited curve; the roaster can take the edit at the clean roast's measured thermal dose, which is
+     another profile or an edited curve; the roaster can take the edit at the predicted thermal dose of the clean roast's profile and level, which is
      the lever for a quality of 4 or better. (3) *Roaster-asked:* "the same roast on a different profile", through a preview
      command (like `level-for`, it records nothing until they say yes).
    - **Known thermal doses.** Each roast stores its measured thermal dose, its version stores the profile and level, and each
      tasting its words. So the tool knows a clean roast, the bracket around it (the uncooked roast of highest thermal dose and
-     the scorched one of lowest), and the *predicted* thermal dose of each, which is what a match uses. On the same profile the
-     offset is the same on both sides of the match, so the 3% holds. A switch to another profile after cup evidence should place
-     the level by predicted thermal dose, not by the colour target as the first level is, but the 3% then holds on predicted
-     figures only: the two profiles' offsets can differ by several points (6 to 12.5% above), more than the tolerance. The
-     answer says so until the roaster has a measured offset on both profiles, and then corrects by the ratio of the two.
+     the scorched one of lowest), and the *predicted* thermal dose of each, which is what a match uses. The 3% is a
+     claim about the curve's predictions, on the same profile as on another: the only two same-profile observations (1500-2000m
+     RTD, levels 1.9 and 3.3: +11% and +12.5%) differ by 1.4 points, whether the offset belongs to the profile or to the bean is
+     open, and an edit changes the profile's shape. A switch to another profile after cup evidence should place the level by
+     predicted thermal dose, not by the colour target as the first level is, and there the offsets can differ by several points
+     (6 to 12.5% above), more than the tolerance. The answer states the match as predicted until the roaster has measured
+     offsets to correct with (by their ratio); the protocol below is what checks the measured thermal dose.
    - **First edit family:** development time at about the same thermal dose: reshape the stretch after first crack (against
      the drying and Maillard stretches), then re-level to hold the thermal dose. The research says the early phase adds almost no
      thermal dose, so holding the thermal dose while moving it between phases mostly changes the hot end.
@@ -325,6 +329,11 @@ Order is a suggestion; the roaster picks.
      are 6% and 12.5% above their predictions would both look right against that band while their measured thermal doses
      differ by about 6%), the offset of each roast is recorded, and the tasting is recorded. Real results enter the code as
      derived numbers only, never the files.
+   - **The organizing idea (roaster, 2026-10-11).** The thermal dose says how much heat a roast needs; the bean's properties
+     (moisture, density) and the roaster's philosophy decide the shape that delivers it. So one thermal dose maps to different
+     profiles, and a profile is a thermal dose plus a shape. A hypothesis, not a finding: the research supports moisture
+     changing the timing and the drying phase far more than the total ([research.md](research.md), "Heat transfer"), and says
+     nothing yet about how much for a Nano.
    - **Bean properties, recorded and unused (moisture, density).** The intake already takes `moisturePct`, `densityGL`,
      `chaffy`, altitude, process and crop date as optional answers; only altitude and process reach a rule (the profile choice).
      They are the candidates for what the tool cannot predict: the offset of a roast's measured thermal dose from its curve's
