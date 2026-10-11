@@ -16,6 +16,9 @@ import { PCT_EPSILON, sameProfile } from "./levers.js";
 /** How many level changes the tool aims to get a roast right in. The count starts at the first level change it recommends. */
 export const LEVEL_CHANGE_BUDGET = 3;
 
+/** The lowest roast quality a cup can have and be clean: 3, "clean, with little character" (QUALITY_ANCHORS in intake.ts). A clean roast is this or more with no under or over word. */
+export const CLEAN_QUALITY = 3;
+
 /** The roast quality the product aims for (docs/ROADMAP.md): clean and expressive. A clean cup below it is left alone too, with what would take it further. */
 const RIGHT_QUALITY = 4;
 
@@ -299,10 +302,10 @@ export const RULES: Rule[] = [
       const defects = [...r.under, ...r.over];
       const said = `You rated the roast quality ${latest.quality} (${qualityMeaning(latest.quality)})`;
       const fix = "Which is right? Correct whichever is wrong and I'll go on from there.";
-      if (defects.length && latest.quality >= 3) {
+      if (defects.length && latest.quality >= CLEAN_QUALITY) {
         return { kind: "ask", ruleId: "quality-vs-words", reason: `${said}, but the cup tasted ${words(defects)}, which is a roast defect. A cup with a roast defect is a 1 or 2; a clean cup is a 3 or better. ${fix}` };
       }
-      if (!defects.length && latest.quality <= 2) {
+      if (!defects.length && latest.quality < CLEAN_QUALITY) {
         return { kind: "ask", ruleId: "quality-vs-words", reason: `${said}, but ${latest.taste.length ? `none of the taste words (${words(latest.taste)})` : "no taste word"} names a roast defect (under-roasted words: ${words([...chips.under])}; over-roasted words: ${words([...chips.over])}). A 1 or 2 means a defect. ${fix}` };
       }
       return undefined;

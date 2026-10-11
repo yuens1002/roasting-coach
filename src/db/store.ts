@@ -3,6 +3,7 @@
 // roasts are addressed the way a person talks about them: bean id plus "v3".
 import { levelToTemp, parseKlog, parseKpro } from "../adapters/kaffelogic/parse.js";
 import { type ColourReading, MACHINE_ID, STOCK_PROFILES, selectStartingProfile, stockProfile, stockProfileId } from "../adapters/kaffelogic/startingProfiles.js";
+import { profileThermalDoseAtLevel } from "../adapters/kaffelogic/thermalDose.js";
 import { kaffelogicToRoastLog } from "../adapters/kaffelogic/toRoastLog.js";
 import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileBodyKey, profileExactKey, profileFromKpro, profileFromLog, sameProfileBody } from "../adapters/kaffelogic/writeProfile.js";
 import { type Meaning, type Overrides, NO_OVERRIDES, applyChange, describeCalibration, personalChanges } from "../core/calibration.js";
@@ -393,6 +394,26 @@ export async function refreshFeatures(db: Db) {
     await db.query("update roast set features = $2 where id = $1", [row.id, features]);
   }
   return { refreshed: r.rows.length };
+}
+
+/**
+ * The thermal dose the profile's curve predicts for each roast that has a log: the profile the log carries, ended where the level
+ * the roast was made at ends. Keyed by roast id. A roast whose log can't be read, or whose curve never reaches that level, has no entry.
+ */
+export async function predictedThermalDoses(db: Db): Promise<Map<number, number>> {
+  const r = await db.query<{ id: string | number; log_file: string; log_level: string | number | null }>("select id, log_file, log_level from roast where log_file is not null order by id");
+  const predicted = new Map<number, number>();
+  for (const row of r.rows) {
+    try {
+      const log = parseKlog(row.log_file);
+      const level = log.level ?? (row.log_level === null ? undefined : Number(row.log_level));
+      const atLevel = level === undefined ? undefined : profileThermalDoseAtLevel(log.profile, level);
+      if (atLevel) predicted.set(Number(row.id), atLevel.thermalDose);
+    } catch {
+      // The log was readable when it was recorded; if it is not now, the roast has no prediction rather than breaking the report.
+    }
+  }
+  return predicted;
 }
 
 /** Deletes a bean with its versions, roasts and tastings. Only when the roaster asks for it. */

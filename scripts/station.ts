@@ -473,6 +473,20 @@ const SCENARIOS: Scenario[] = [
         },
       },
       {
+        does: "asks for every bean side by side: this bean, two roasts tasted, no clean roast yet, and the bracket",
+        run: () => ({ command: "clean-zone" }),
+        check: (out, ok) => {
+          expectEqual("clean-zone succeeded", ok, true);
+          const rows = out.rows as { name: string; roastsTasted: number; firstClean?: unknown; bracket: { uncookedUpTo?: number; scorchedFrom?: number } }[];
+          expectEqual("one bean", rows.length, 1);
+          expectEqual("roasts tasted", rows[0].roastsTasted, 2);
+          expectEqual("no clean roast yet", rows[0].firstClean, undefined);
+          expectEqual("the uncooked edge of the bracket", rows[0].bracket.uncookedUpTo !== undefined, true);
+          expectEqual("the scorched edge of the bracket", rows[0].bracket.scorchedFrom !== undefined, true);
+          expectIncludes("the count", out.say, "Beans with a clean roast: 0 of 1.");
+        },
+      },
+      {
         does: "says yes: the session records version 3",
         run: (s) => ({ command: s.onYes!.command, input: s.onYes!.input }),
         check: (out, ok) => {

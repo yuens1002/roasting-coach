@@ -37,10 +37,20 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 const roundTo = (n: number, places: number) => Math.round(n * 10 ** places) / 10 ** places;
 const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n)}%`;
 
-function readsOf(words: string[], { chips }: Calibration): Reads {
+export function readsOf(words: string[], { chips }: Calibration): Reads {
   const under = words.some((w) => chips.under.includes(w));
   const over = words.some((w) => chips.over.includes(w));
   return under && over ? "uncooked and scorched" : under ? "uncooked" : over ? "scorched" : "clean";
+}
+
+/**
+ * The two edges of the bracket the tasted roasts make: the uncooked roast that went furthest (the highest thermal dose) and
+ * the scorched one that went least (the lowest). The thermal doses compared are the unrounded ones, as the advice compares them.
+ */
+export function bracketOf<T extends { tasted: { reads: Reads }; exactThermalDose: number }>(entries: readonly T[]): { furthestUncooked?: T; lightestScorched?: T } {
+  const furthestUncooked = entries.filter((r) => r.tasted.reads === "uncooked").reduce<T | undefined>((best, r) => (!best || r.exactThermalDose > best.exactThermalDose ? r : best), undefined);
+  const lightestScorched = entries.filter((r) => r.tasted.reads === "scorched").reduce<T | undefined>((best, r) => (!best || r.exactThermalDose < best.exactThermalDose ? r : best), undefined);
+  return { furthestUncooked, lightestScorched };
 }
 
 /** A bean's table and where it stands, from its recorded history. */
@@ -98,10 +108,7 @@ function standing(rows: BeanTableRow[], levelChangesMade: number | undefined, { 
   ];
   const counted = rows.filter((r): r is BeanTableRow & { tasted: NonNullable<BeanTableRow["tasted"]>; thermalDose: number; exactThermalDose: number } => r.tasted?.counted === true && r.thermalDose !== undefined && r.exactThermalDose !== undefined);
   if (!counted.length) return [...lines, "None of the tasted roasts is in the coffee's tasting brew yet."];
-  const uncooked = counted.filter((r) => r.tasted.reads === "uncooked");
-  const scorched = counted.filter((r) => r.tasted.reads === "scorched");
-  const furthestUncooked = uncooked.reduce<(typeof counted)[number] | undefined>((best, r) => (!best || r.exactThermalDose > best.exactThermalDose ? r : best), undefined);
-  const lightestScorched = scorched.reduce<(typeof counted)[number] | undefined>((best, r) => (!best || r.exactThermalDose < best.exactThermalDose ? r : best), undefined);
+  const { furthestUncooked, lightestScorched } = bracketOf(counted);
   const at = (r: (typeof counted)[number]) => `thermal dose ${r.thermalDose}, roast ${r.roast}${r.level === undefined ? "" : `, level ${r.level}`}`;
   if (furthestUncooked && lightestScorched) {
     // The advice's own test, on unrounded thermal doses: the gap is taken from the roast tasted later (the one the advice is

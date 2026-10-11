@@ -186,6 +186,9 @@ What each change does, and where it stands. The reason is there when it was set 
 
 ## Working today
 
+- **Cross-bean report** (`clean-zone`): every bean side by side: its altitude, process, moisture, density and crop date, its
+  first clean roast with the level, the predicted and measured thermal dose and the offset, and the bracket. Read-only; no advice
+  uses it. The predicted thermal dose comes from the profile each roast's log carries (`predictedThermalDoses`).
 - **Reading Kaffelogic files**: `.kpro` profiles and `.klog` logs, mapped onto a machine-independent
   `RoastLog`. A log carries its own profile, so any log rebuilds the profile it was roasted on.
 - **Roast features**: phases, development ratio (matches the machine's own figure), rate of rise,
@@ -263,7 +266,7 @@ Order is a suggestion; the roaster picks.
 2. **End-to-end session** with a real bean and log in `profiles/`: intake -> roast -> tasting ->
    next version. Note anything awkward in the forms or the skill. Cheap, and it shows which rules
    matter first; it can run before or alongside the rule core.
-2b. **Clean-zone report** (proposed 2026-10-11, awaiting the roaster's go-ahead): a read-only command that lists, per bean, the
+2b. **Clean-zone report** (built 2026-10-11: `clean-zone`, `src/core/cleanZoneReport.ts`): a read-only command that lists, per bean, the
    predicted thermal dose of its first clean roast (roast quality 3 or more and no under or over word, the definition under "Decided (2026-10-10)"; a stored tasting where the two disagree is not clean), the bracket around it, the bean's properties and each
    roast's offset from its curve's prediction. It records nothing and changes no advice; it is the data the bean-properties item
    (under item 3) waits for, and what the clean zone as a number of the roaster's own steps would need.
@@ -359,7 +362,7 @@ Order is a suggestion; the roaster picks.
      (a sample-size calculation, not a measurement); the published support is two coffees (Debona 2021) and an industry claim
      with no peer-reviewed measurement; and moisture and density need meters (altitude is on the bag). The plan: ask for altitude
      at every intake (and moisture and density when the roaster has meters), record each roast's offset beside its bean's
-     properties, and record each bean's first clean roast (the report proposed as item 2b), so the table builds as the roaster
+     properties, and record each bean's first clean roast (the report, item 2b), so the table builds as the roaster
      roasts. No rule until it shows a link.
    - **Roasting philosophies, not yet considered.** Roast masters differ on shape: how fast to dry, how steeply to approach and
      pass first crack, how long development lasts. Kaffelogic's stock profiles already state targets for some of these
