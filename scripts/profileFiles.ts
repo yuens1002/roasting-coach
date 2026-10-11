@@ -5,7 +5,7 @@ import { dirname } from "node:path";
 import { parseKpro, timeCurveReaches } from "../src/adapters/kaffelogic/parse.js";
 import { profileNames, profileRevision } from "../src/adapters/kaffelogic/profileNames.js";
 import { formatMinutesSeconds } from "../src/adapters/kaffelogic/thermalDose.js";
-import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileFromKpro, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
+import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileFromKpro, sameProfileBody, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
 import type { Intake } from "../src/core/intake.js";
 import { checkShape } from "../src/core/validate.js";
 import { type Db, InputError, addBean, beanHistory, versionProfileFile } from "../src/db/store.js";
@@ -85,6 +85,22 @@ export async function addBeanWithProfile(db: Db, input: unknown, env: ProfileFil
 }
 
 /**
+ * Each version of a bean for naming: which stock profile's curve its stored body is, checked body to body against the roaster's copy
+ * of that stock profile in the library (a version's `baseProfile` is only ancestry, so it can't say an edit from the stock curve).
+ */
+async function versionsForRevision(db: Db, beanId: number, versions: Awaited<ReturnType<typeof beanHistory>>["versions"], library: KaffelogicFile[]) {
+  return Promise.all(
+    versions.map(async (v) => {
+      const stored = await versionProfileFile(db, beanId, v.number);
+      const base = v.baseProfile ?? v.profileName;
+      const stock = stored ? findBaseProfile(library, { name: base }) : undefined;
+      const stockBody = stored && stock && sameProfileBody(profileFromKpro(stored), stock.lines) ? base : undefined;
+      return { number: v.number, profileName: v.profileName, baseProfile: v.baseProfile, profileKey: v.profileKey, stockBody };
+    }),
+  );
+}
+
+/**
  * profile:write: a .kpro for one version, to load onto the machine: the version's own profile (or the roaster's copy of its stock
  * profile) under the convention's names, with the version's level as the level the machine offers first. Curve and settings are
  * unchanged, so a roast on this file still counts as the same profile.
@@ -108,7 +124,7 @@ export async function writeVersionProfile(db: Db, input: unknown, env: ProfileFi
       origin: history.bean.origin === undefined || history.bean.origin === null ? undefined : String(history.bean.origin),
       process: history.bean.process as Intake["process"],
       version: v.number,
-      revision: profileRevision(history.versions, v.number),
+      revision: profileRevision(await versionsForRevision(db, beanId, history.versions, env.library), v.number),
     });
   } catch (e) {
     throw new InputError([(e as Error).message]);

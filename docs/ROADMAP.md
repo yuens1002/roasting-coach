@@ -394,7 +394,8 @@ Order is a suggestion; the roaster picks.
    "Ethiopia, 1900m" is ETHI), else the first four letters of the bean's name (BEAN when that has no Latin letter either). Processing: WSH, NAT, HON, ANA, WHL (wet-hulled), UNK. The bean number is the bean's id (to 999), the version is the bean's
    version number (to 99), and the revision (to 99) is which curve the bean's profile has: it bumps only when the curve changes, a
    level-only version keeps it, a return to an earlier curve takes its number back, and switching to another stock profile is a
-   different curve. `bean:add` stores the bean first so the file can carry its number; `profile:write` takes no name. Profiles already
+   different curve. A stored profile counts as a stock curve only when it matches the library's copy of that stock profile body to
+   body (a version keeps its stock base through edits, so the base alone cannot say), so an edited curve and the stock one differ. `bean:add` stores the bean first so the file can carry its number; `profile:write` takes no name. Profiles already
    written were renamed to match (one: Kron Nang's v1, now `VIET-002-1r1`). Not built: the clean-zone report and the roadmap do not
    use the names; revisions only differ once curve edits exist or a bean switches stock profile.
 

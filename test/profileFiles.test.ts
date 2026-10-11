@@ -98,6 +98,23 @@ describe("profile:write", () => {
     expect((await writeVersionProfile(db, { beanId, version: 3 }, env)).profileName).toBe("YIRG-001-3r2");
   });
 
+  it("gives a return to the stock profile the first revision when the bean's own copy is that curve unedited", async () => {
+    const db = await migratedDb();
+    const { beanId } = await addBeanWithProfile(db, YIRG, env);
+    await addVersion(db, { beanId, profileName: "2000-2700m RTD", level: 2.5, reason: "try the other profile" });
+    await addVersion(db, { beanId, profileName: "KL Washed", level: 1, reason: "back to the first" });
+    expect((await writeVersionProfile(db, { beanId, version: 3 }, env)).profileName).toBe("YIRG-001-3r1");
+  });
+
+  it("gives a stock profile a new revision when the bean's first version was edited and kept its stock base", async () => {
+    const db = await migratedDb();
+    const { beanId } = await addBeanWithProfile(db, YIRG, env);
+    // v1's curve was replaced (a roast on an edited curve under the stock name); it keeps pointing at its stock profile.
+    await db.query("update profile_version set profile_file = $2 where bean_id = $1 and number = 1", [beanId, stockFile("KL Washed", true).text]);
+    await addVersion(db, { beanId, profileName: "KL Washed", level: 1, reason: "the stock profile itself" });
+    expect((await writeVersionProfile(db, { beanId, version: 2 }, env)).profileName).toBe("YIRG-001-2r2");
+  });
+
   it("refuses to write a file twice, a version the bean does not have, a name, and a bean number past what a name has room for", async () => {
     const db = await migratedDb();
     const { beanId } = await addBeanWithProfile(db, YIRG, env);

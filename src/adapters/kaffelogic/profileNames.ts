@@ -81,24 +81,28 @@ interface RevisionVersion {
   baseProfile?: string;
   /** A fingerprint of the version's stored profile body (profileBodyKey), when it has one. */
   profileKey?: string;
+  /**
+   * The stock profile whose curve this version's stored body is, when the caller has checked it body to body against the
+   * roaster's copy of that stock profile. `baseProfile` cannot say it: a version keeps pointing at its stock profile through any
+   * number of edits.
+   */
+  stockBody?: string;
 }
 
 /**
  * Which curve a version has, counted from 1 in the order the bean first used them: the same curve keeps its number, a different
- * one takes the next, and a level-only version keeps it. A version is identified by its stored profile's fingerprint; one with no
- * stored profile yet is the stock profile it is built on, taken as the same curve as an earlier version on that stock profile.
+ * one takes the next, and a level-only version keeps it. A version whose body is a stock profile's (`stockBody`), or that has no
+ * stored profile yet and is that stock profile, is that stock curve; one with a stored body is identified by its fingerprint; one
+ * under a name of its own with no stored body is a curve of its own.
  */
 export function profileRevision(versions: readonly RevisionVersion[], number: number): number {
   const ordered = [...versions].sort((a, b) => a.number - b.number).filter((v) => v.number <= number);
   const identity = new Map<number, string>();
   const curves: string[] = [];
-  for (const [i, v] of ordered.entries()) {
+  for (const v of ordered) {
     const base = v.baseProfile ?? v.profileName;
-    const sameBase = ordered.slice(0, i).find((earlier) => (earlier.baseProfile ?? earlier.profileName) === base);
-    // A version with no stored profile is a stock profile (the same curve as an earlier version on it), or, when it has its own
-    // name, a profile of its own that nothing else shares.
     const named = v.baseProfile !== undefined && v.profileName !== v.baseProfile;
-    const id = v.profileKey ?? (named ? `name:${v.profileName}` : sameBase ? identity.get(sameBase.number)! : `stock:${base}`);
+    const id = v.stockBody !== undefined ? `stock:${v.stockBody}` : (v.profileKey ?? (named ? `name:${v.profileName}` : `stock:${base}`));
     identity.set(v.number, id);
     if (!curves.includes(id)) curves.push(id);
   }

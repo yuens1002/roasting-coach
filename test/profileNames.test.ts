@@ -78,7 +78,7 @@ describe("a profile's short name and file name", () => {
 });
 
 describe("a version's revision", () => {
-  const v = (number: number, profileKey: string | undefined, profileName = "Robusta", baseProfile?: string) => ({ number, profileKey, profileName, baseProfile });
+  const v = (number: number, profileKey: string | undefined, profileName = "Robusta", baseProfile?: string, stockBody?: string) => ({ number, profileKey, profileName, baseProfile, stockBody });
 
   it("is 1 for a bean's first curve, and a level-only version keeps it", () => {
     const versions = [v(1, "aaa"), v(2, "aaa"), v(3, "aaa")];
@@ -93,13 +93,19 @@ describe("a version's revision", () => {
   it("counts a version with no stored profile yet as its stock profile, the same curve as an earlier version on it", () => {
     const versions = [v(1, undefined, "KL Washed"), v(2, undefined, "KL Washed"), v(3, undefined, "2000-2700m RTD"), v(4, undefined, "KL Washed")];
     expect([1, 2, 3, 4].map((n) => profileRevision(versions, n))).toEqual([1, 1, 2, 1]);
-    // A version written under the bean's name is that stock profile's curve: it names its base.
-    const named = [v(1, "k1", "Yirgacheffe", "KL Washed"), v(2, undefined, "KL Washed")];
-    expect(profileRevision(named, 2)).toBe(1);
+    // A written copy whose body was checked against the library's stock copy is that stock profile's curve.
+    const checked = [v(1, "k1", "YIRG-001-1r1", "KL Washed", "KL Washed"), v(2, undefined, "KL Washed")];
+    expect(profileRevision(checked, 2)).toBe(1);
+  });
+
+  it("does not take a stored body for the stock curve because it names the stock profile as its base: an edit keeps its base", () => {
+    // v1 kept its stock base through an edit (no stockBody: its body is not the library's copy); a later stock version is another curve.
+    const edited = [v(1, "edited", "KL Washed", "KL Washed"), v(2, undefined, "KL Washed"), v(3, "edited", "KL Washed", "KL Washed")];
+    expect([1, 2, 3].map((n) => profileRevision(edited, n))).toEqual([1, 2, 1]);
   });
 
   it("counts a version recorded under a name of its own, with no stored profile, as a curve of its own", () => {
-    const versions = [v(1, "k1", "YIRG-001-1r1", "KL Washed"), v(2, undefined, "Mine", "KL Washed"), v(3, undefined, "Mine", "KL Washed"), v(4, undefined, "KL Washed")];
+    const versions = [v(1, "k1", "YIRG-001-1r1", "KL Washed", "KL Washed"), v(2, undefined, "Mine", "KL Washed"), v(3, undefined, "Mine", "KL Washed"), v(4, undefined, "KL Washed")];
     expect([1, 2, 3, 4].map((n) => profileRevision(versions, n))).toEqual([1, 2, 2, 1]);
   });
 
