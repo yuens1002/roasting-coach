@@ -1,9 +1,9 @@
 // Thermal dose of a Kaffelogic profile at a level, before roasting: the profile's own curve,
 // ended where that level ends. Level numbers are an uneven ruler (on Robusta, 2.6 -> 3.0 adds
 // about 15% thermal dose, 3.0 -> 3.4 about 3%), so a change is decided in thermal dose and turned into a level
-// for the profile at hand. Real roasts have measured 6-12.5% above the curve's figure (Robusta
-// level 3: +6.4%; 1500-2000m RTD levels 1.9 and 3.3: +11% and +12.5%; see docs/research.md), all
-// above, so this ranks levels and sizes a step well, but expect the roast to land a little further.
+// for the profile at hand. Real roasts have measured 5.3-18.5% above the curve's figure (Robusta
+// +5.3% to +7%; 1500-2000m RTD +11% and +12.5%; 2000-2700m RTD +9.1% to +18.5%; see docs/research.md), all
+// above, so this ranks levels and sizes a step between neighbouring levels well, but expect the roast to land further.
 import { thermalDose } from "../../core/features.js";
 import { type KaffelogicProfile, evalCurve, levelToTemp, timeCurveReaches } from "./parse.js";
 

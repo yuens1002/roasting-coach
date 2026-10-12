@@ -124,8 +124,11 @@ and run the command it hands you if the roaster says yes.
    given (`version:add`). Then tell them the level to set on the machine and the end temperature
    (both are in `say`). Without an `onYes`, nothing is recorded.
 4. After every answer, whether it asks, holds or changes, run `table <beanId>` and show its `say` as written: it is the bean's
-   own table (each roast, how it tasted from uncooked to scorched, the level changes made on its profile, and the bracket the
-   roasts make). It records nothing.
+   own table (each roast, how it ran against its profile, how it tasted from uncooked to scorched, the level changes made on its
+   profile, and the bracket the roasts make). It records nothing. The result also has `legend`, what each column means: say it
+   too the first time you show a table in a session, and whenever the roaster asks what a column means. Overshoot is how far above
+   its profile the bean ran in development, and offset is how far the measured thermal dose is from the one the profile's curve
+   predicts; neither is a judgment of the roast, and no rule uses them.
 5. If `say` asked the roaster something, wait for their answer.
    A wrong or missing chip is fixed with `taste:update` and `advise` is run again. A change they
    choose themselves is theirs, not the engine's: size it with `thermal-dose`

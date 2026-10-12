@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { beanTable } from "../src/core/beanTable.js";
+import { type RoastRun, TABLE_COLUMNS, beanTable, profileRanges, tableLegend } from "../src/core/beanTable.js";
 import { NO_OVERRIDES, applyChange, resolveCalibration } from "../src/core/calibration.js";
 import { LEVEL_CHANGE_BUDGET, type HistoryForAdvice, adviseFromHistory } from "../src/core/rules.js";
 
@@ -35,11 +35,11 @@ describe("the bean's table", () => {
   it("says the same in the finished text: the table, the level changes used, the bracket, and the clean roast", () => {
     expect(beanTable(LADDER).say).toBe(
       [
-        "| Roast | Version | Profile | Level | Thermal dose | Step | Tasted | Quality | Reads as |",
-        "|---|---|---|---|---|---|---|---|---|",
-        "| 1 | 1 | Robusta | 3 | 10 | - | grassy, bready | 2 | uncooked |",
-        "| 2 | 2 | Robusta | 3.8 | 11 | +10% | bitter | 2 | scorched |",
-        "| 3 | 3 | Robusta | 3.4 | 10.5 | −4.5% | sweet, balanced | 4 | clean |",
+        "| Roast | Version | Profile | Level | Thermal dose | Step | Overshoot (°C) | Offset | Tasted | Quality | Reads as |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
+        "| 1 | 1 | Robusta | 3 | 10 | - | - | - | grassy, bready | 2 | uncooked |",
+        "| 2 | 2 | Robusta | 3.8 | 11 | +10% | - | - | bitter | 2 | scorched |",
+        "| 3 | 3 | Robusta | 3.4 | 10.5 | −4.5% | - | - | sweet, balanced | 4 | clean |",
         "",
         `Level changes made on this profile: 2 of the ${LEVEL_CHANGE_BUDGET} this tool aims to get the roast right in.`,
         "Uncooked up to thermal dose 10, roast 1, level 3; scorched from thermal dose 11, roast 2, level 3.8. The roast that clears both defects lies between them.",
@@ -87,8 +87,8 @@ describe("the bean's table", () => {
     expect(rows[2]).toMatchObject({ thermalDose: undefined, tasted: undefined });
     // The step is from the last roast that was tasted, 10 to 12.
     expect(rows[3].stepPct).toBe(20);
-    expect(say).toContain("| 2 | 2 | Robusta | 3.3 | 11 | - | - | - | not tasted yet |");
-    expect(say).toContain("| 3 | 2 | Robusta | 3.3 | - | - | - | - | no measured thermal dose |");
+    expect(say).toContain("| 2 | 2 | Robusta | 3.3 | 11 | - | - | - | - | - | not tasted yet |");
+    expect(say).toContain("| 3 | 2 | Robusta | 3.3 | - | - | - | - | - | - | no measured thermal dose |");
   });
 
   it("marks a roast whose tasting is not in the coffee's tasting brew as not counted, and leaves it out of the bracket", () => {
@@ -99,7 +99,7 @@ describe("the bean's table", () => {
       ],
     };
     const { say } = beanTable(history, { tastingBrew: "pourover" });
-    expect(say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | grassy | 2 | uncooked (not counted: tasted as espresso) |");
+    expect(say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | - | - | grassy | 2 | uncooked (not counted: tasted as espresso) |");
     expect(say).toContain("Every defect so far was uncooked, up to thermal dose 11, roast 2, level 3.3.");
   });
 
@@ -161,6 +161,104 @@ describe("the bean's table", () => {
     expect(beanTable({ versions: [version(1, undefined, [roast(1, 3, 10, { words: ["sweet"], quality: 4 })])] }).rows[0].profile).toBe("Robusta");
   });
 
+  describe("how each roast ran against its profile", () => {
+    // LADDER's roasts measured 10, 11 and 10.5. What each profile's curve predicted, and how far above it the bean ran in development.
+    const runs = new Map<number, RoastRun>([
+      [1, { profile: "Robusta", predictedThermalDose: 9, measuredThermalDose: 10, overshootC: 1.9 }],
+      [2, { profile: "Robusta", predictedThermalDose: 10, measuredThermalDose: 11, overshootC: 2 }],
+      [3, { profile: "Robusta", predictedThermalDose: 9.5, measuredThermalDose: 10.5, overshootC: 3.3 }],
+    ]);
+
+    it("shows the overshoot and the offset of the measured thermal dose from the predicted one, signed", () => {
+      const { rows, say } = beanTable(LADDER, undefined, undefined, runs);
+      expect(rows.map((r) => [r.overshootC, r.offsetPct])).toEqual([[1.9, 11.1], [2, 10], [3.3, 10.5]]);
+      expect(say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | +1.9 | +11.1% | grassy, bready | 2 | uncooked |");
+      expect(say).toContain("| 2 | 2 | Robusta | 3.8 | 11 | +10% | +2.0 | +10% | bitter | 2 | scorched |");
+      const below = new Map([[1, { profile: "Robusta", predictedThermalDose: 11, measuredThermalDose: 10, overshootC: -0.4 }]]);
+      expect(beanTable(LADDER, undefined, undefined, below).say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | −0.4 | −9.1% | grassy, bready |");
+    });
+
+    it("sets the bean's roasts against every roast the roaster has had on the profile, over all their beans", () => {
+      const others = new Map<number, RoastRun>([
+        ...runs,
+        [11, { profile: "Robusta", predictedThermalDose: 10, measuredThermalDose: 10.5, overshootC: 1 }],
+        [12, { profile: "Robusta", predictedThermalDose: 10, measuredThermalDose: 10.8, overshootC: 1.5 }],
+        [21, { profile: "1500-2000m RTD", predictedThermalDose: 8, measuredThermalDose: 9, overshootC: 3 }],
+        [22, { profile: "1500-2000m RTD", predictedThermalDose: 8, measuredThermalDose: 9.2, overshootC: 3.5 }],
+      ]);
+      const { say } = beanTable(LADDER, undefined, undefined, others);
+      expect(say).toContain("Across your 5 roasts on Robusta, the measured thermal dose is +5% to +11.1% against the profile's prediction (median +10%), and your roasts ran +1.0 to +3.3 °C against the profile in development.");
+      // A profile this bean was not roasted on has no line, and a profile with one roast has none either.
+      expect(say).not.toContain("1500-2000m RTD");
+      expect(beanTable(LADDER, undefined, undefined, new Map([[1, runs.get(1)!]])).say).not.toContain("Across your");
+    });
+
+    it("leaves a dash where the log or the profile can't say, and does not count such a roast in the range", () => {
+      const partial = new Map<number, RoastRun>([
+        [1, { profile: "Robusta", measuredThermalDose: 10 }],
+        [2, { profile: "Robusta", predictedThermalDose: 10, measuredThermalDose: 11 }],
+      ]);
+      const { rows, say } = beanTable(LADDER, undefined, undefined, partial);
+      expect(rows.map((r) => [r.overshootC, r.offsetPct])).toEqual([[undefined, undefined], [undefined, 10], [undefined, undefined]]);
+      expect(say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | - | - | grassy, bready |");
+      expect(say).toContain("| 2 | 2 | Robusta | 3.8 | 11 | +10% | - | +10% | bitter |");
+      expect(say).not.toContain("Across your");
+      expect(beanTable(LADDER).rows.map((r) => [r.overshootC, r.offsetPct])).toEqual([[undefined, undefined], [undefined, undefined], [undefined, undefined]]);
+    });
+
+    it("says how many roasts the overshoot range is over when that is not the roasts of the offset range, and says nothing of it when none has an overshoot", () => {
+      const some = new Map<number, RoastRun>([
+        [1, { profile: "Robusta", predictedThermalDose: 9, measuredThermalDose: 10, overshootC: 1.9 }],
+        [2, { profile: "Robusta", predictedThermalDose: 10, measuredThermalDose: 11 }],
+        [3, { profile: "Robusta", predictedThermalDose: 9.5, measuredThermalDose: 10.5, overshootC: 3.3 }],
+      ]);
+      expect(beanTable(LADDER, undefined, undefined, some).say).toContain("and your roasts ran +1.9 to +3.3 °C against the profile in development (over 2 roasts).");
+      // A roast with an overshoot and no offset still counts in the overshoot range, and is not in the offset range.
+      const extra = new Map<number, RoastRun>([
+        [1, { profile: "Robusta", predictedThermalDose: 9, measuredThermalDose: 10, overshootC: 1.9 }],
+        [2, { profile: "Robusta", predictedThermalDose: 10, measuredThermalDose: 11, overshootC: 2 }],
+        [3, { profile: "Robusta", overshootC: 3.3 }],
+      ]);
+      expect(beanTable(LADDER, undefined, undefined, extra).say).toContain("Across your 2 roasts on Robusta, the measured thermal dose is +10% to +11.1% against the profile's prediction (median +10.6%), and your roasts ran +1.9 to +3.3 °C against the profile in development (over 3 roasts).");
+      // Offsets from fewer than two roasts make no line, whatever overshoots there are.
+      const one = new Map<number, RoastRun>([
+        [1, { profile: "Robusta", predictedThermalDose: 9, measuredThermalDose: 10, overshootC: 1.9 }],
+        [2, { profile: "Robusta", overshootC: 2 }],
+        [3, { profile: "Robusta", overshootC: 3.3 }],
+      ]);
+      expect(beanTable(LADDER, undefined, undefined, one).say).not.toContain("Across your");
+      const none = new Map<number, RoastRun>([
+        [1, { profile: "Robusta", predictedThermalDose: 9, measuredThermalDose: 10 }],
+        [2, { profile: "Robusta", predictedThermalDose: 10, measuredThermalDose: 11 }],
+      ]);
+      const say = beanTable(LADDER, undefined, undefined, none).say;
+      expect(say).toContain("Across your 2 roasts on Robusta, the measured thermal dose is +10% to +11.1% against the profile's prediction (median +10.6%).");
+      expect(say).not.toContain("your roasts ran");
+    });
+
+    it("works out a profile's range as its lowest, median and highest offset, and its overshoots, from two roasts up", () => {
+      const ranges = profileRanges([
+        { profile: "A", predictedThermalDose: 10, measuredThermalDose: 11, overshootC: 2 },
+        { profile: "A", predictedThermalDose: 10, measuredThermalDose: 12, overshootC: 3 },
+        { profile: "A", predictedThermalDose: 10, measuredThermalDose: 10.4 },
+        { profile: "B", predictedThermalDose: 10, measuredThermalDose: 11 },
+        { predictedThermalDose: 10, measuredThermalDose: 11 },
+      ]);
+      expect(ranges).toEqual([{ profile: "A", roasts: 3, offsetMinPct: 4, offsetMedianPct: 10, offsetMaxPct: 20, overshootMinC: 2, overshootMaxC: 3, overshootRoasts: 2 }]);
+      // A roast with an overshoot and no offset is in the overshoot range only.
+      expect(profileRanges([{ profile: "D", predictedThermalDose: 10, measuredThermalDose: 11, overshootC: 1 }, { profile: "D", predictedThermalDose: 10, measuredThermalDose: 12 }, { profile: "D", overshootC: 5 }])[0]).toMatchObject({ roasts: 2, overshootMinC: 1, overshootMaxC: 5, overshootRoasts: 2 });
+      expect(profileRanges([{ profile: "C", predictedThermalDose: 10, measuredThermalDose: 11 }, { profile: "C", predictedThermalDose: 10, measuredThermalDose: 13 }])[0]).toMatchObject({ offsetMedianPct: 20, overshootMinC: undefined });
+    });
+  });
+
+  describe("the description of the columns", () => {
+    it("has one for every column of the table, in the table's order, and says them in plain words", () => {
+      const headers = beanTable(LADDER).say.split("\n")[0].split("|").slice(1, -1).map((h) => h.trim());
+      expect(TABLE_COLUMNS.map((c) => c.column)).toEqual(headers);
+      expect(tableLegend().split("\n")).toEqual(["What each column means:", ...TABLE_COLUMNS.map((c) => `- ${c.column}: ${c.means}`)]);
+    });
+  });
+
   it("keeps a bar inside a profile name from splitting its row", () => {
     const { say } = beanTable({ versions: [{ ...version(1, undefined, [roast(1, 3, 10, { words: ["sweet"], quality: 4 })]), profileName: "A | B" }] });
     expect(say).toContain("| 1 | 1 | A \\| B | 3 |");
@@ -169,7 +267,7 @@ describe("the bean's table", () => {
   it("says so for a bean with no roast, and for one with roasts but no tasting", () => {
     expect(beanTable({ versions: [version(1, undefined, [])] }).say).toBe("No roast has been recorded for this bean yet.");
     const untasted = beanTable({ versions: [version(1, undefined, [roast(1, 3, 10)])] });
-    expect(untasted.say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | - | - | not tasted yet |");
+    expect(untasted.say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | - | - | - | - | not tasted yet |");
     expect(untasted.say).toContain("No roast with a measured thermal dose has been tasted yet.");
     expect(untasted.levelChangesMade).toBeUndefined();
   });

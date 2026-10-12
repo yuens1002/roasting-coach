@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseKlog } from "../src/adapters/kaffelogic/parse.js";
-import { beanTable } from "../src/core/beanTable.js";
+import { beanTable, tableLegend } from "../src/core/beanTable.js";
 import { cleanZoneReport } from "../src/core/cleanZoneReport.js";
 import { placeColour, placementSay, selectStartingProfile } from "../src/adapters/kaffelogic/startingProfiles.js";
 import { kaffelogicToRoastLog } from "../src/adapters/kaffelogic/toRoastLog.js";
 import { extractFeatures } from "../src/core/features.js";
 import type { Intake } from "../src/core/intake.js";
 import { type AdviceInput, type TastedRoast, adviceReport, advise } from "../src/core/rules.js";
-import { EXAMPLES, sayFor } from "./rulesDocExamples.js";
+import { EXAMPLES, TABLE_EXAMPLE, TABLE_EXAMPLE_RUNS, sayFor } from "./rulesDocExamples.js";
 import { syntheticLog } from "./syntheticLog.js";
 
 // The tool states what the recorded roasts and tastings show and what a rule does about it. It does not
@@ -146,6 +146,8 @@ const REPORT_SAYS = [
   ).say,
   cleanZoneReport([]).say,
 ];
+/** The table with how each roast ran against its profile, and the description of its columns. */
+const TABLE_RUN_SAYS = [beanTable(TABLE_EXAMPLE, undefined, undefined, TABLE_EXAMPLE_RUNS).say, tableLegend()];
 const COLOUR_WARNINGS = [{ colour_change: 534, first_crack: 540 }, { colour_change: 480, first_crack: 520 }].map((markers) => extractFeatures(kaffelogicToRoastLog(parseKlog(syntheticLog({ ...markers, roast_end: 600 })))).dataWarnings[0]);
 
 describe("the engine's voice", () => {
@@ -156,6 +158,7 @@ describe("the engine's voice", () => {
     ...COLOUR_WARNINGS.map((text, i) => ({ name: `colour-change warning ${i + 1}`, text })),
     ...SET_ASIDE_NOTES.map((text, i) => ({ name: `set-aside note ${i + 1}`, text })),
     ...TABLE_SAYS.map((text, i) => ({ name: `bean table ${i + 1}`, text })),
+    ...TABLE_RUN_SAYS.map((text, i) => ({ name: `bean table with runs ${i + 1}`, text })),
     ...REPORT_SAYS.map((text, i) => ({ name: `cross-bean report ${i + 1}`, text })),
     ...PLACEMENT_SAYS.map((text, i) => ({ name: `level-for answer ${i + 1}`, text })),
   ];

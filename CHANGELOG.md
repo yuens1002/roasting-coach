@@ -5,6 +5,25 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10-11
+
+- 2026-10-11 - feat(table): show how each roast ran against its profile, with the range on that profile and a description of every column
+
+### Added
+
+- The bean's table has two columns: **Overshoot (°C)**, how far above its profile the bean ran on average from first crack to the end,
+  and **Offset**, how far the measured thermal dose is from the one the profile's curve predicts. Under the table, for each profile
+  with at least two roasts, the range the roaster's roasts on it run in over all their beans. `table` also returns `legend` (and
+  `columns`): what each column signifies, quoted in the rulebook and shown by the roast skill the first time a table is shown.
+- `roastRuns` (store) and `developmentOvershoot`, `roastRunOf` (`src/adapters/kaffelogic/runStats.ts`): worked out from the logs on
+  request, nothing new is stored.
+
+### Changed
+
+- The measured-over-predicted range is now **5.3% to 18.5%** (nine real roasts), not 6-12.5% (three): the rulebook's "Check this", the
+  research notes (validation 3, with the overshoot of each roast), the roadmap and the real-log test's bound say so. A step from
+  level 2.0 to 1.7 measured what the curve predicted (-14%); a step from 2.0 to 2.5 measured +37% where it predicted +26%.
+
 ## [0.5.1] - 2026-10-11
 
 - 2026-10-11 - docs(readme): explain the profile file names, with the parts and an example of version against revision

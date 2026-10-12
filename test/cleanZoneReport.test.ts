@@ -5,7 +5,7 @@ import { profileThermalDoseAtLevel } from "../src/adapters/kaffelogic/thermalDos
 import { beanTable } from "../src/core/beanTable.js";
 import { type ReportBean, cleanZoneReport } from "../src/core/cleanZoneReport.js";
 import { CLEAN_QUALITY, type AdviceContext, type HistoryForAdvice } from "../src/core/rules.js";
-import { addBean, addRoast, addTasting, beanHistory, intakeFromBeanRow, listBeans, predictedThermalDoses } from "../src/db/store.js";
+import { addBean, addRoast, addTasting, beanHistory, intakeFromBeanRow, listBeans, predictedThermalDoses, roastRuns } from "../src/db/store.js";
 import { migratedDb } from "./pg.js";
 import { PROFILE, syntheticLog } from "./syntheticLog.js";
 
@@ -143,6 +143,21 @@ describe("the cross-bean report", () => {
   });
 });
 
+describe("how each roast ran, on a database", () => {
+  it("leaves out a roast whose stored log can't be read now, and gives a roast with no stored features no measured figure", async () => {
+    const db = await migratedDb();
+    const intake = { name: "Run bean", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover" };
+    const { beanId } = await addBean(db, intake);
+    const { roastId } = await addRoast(db, { beanId, klog: syntheticLog({ first_crack: 540, roast_end: 600 }), answers: { greenG: 120, roastedG: 101.5 } });
+    const id = Number(roastId);
+    expect((await roastRuns(db)).get(id)).toMatchObject({ profile: "Test line" });
+    await db.query("update roast set features = null where id = $1", [id]);
+    expect((await roastRuns(db)).get(id)).toMatchObject({ profile: "Test line", measuredThermalDose: undefined });
+    await db.query("update roast set log_file = 'not a Kaffelogic log' where id = $1", [id]);
+    expect((await roastRuns(db)).has(id)).toBe(false);
+  });
+});
+
 describe("the report on a database, with made-up logs", () => {
   it("predicts a roast's thermal dose from the profile its log carries, at the level the log was roasted at, and leaves a roast without a log out", async () => {
     const db = await migratedDb();
@@ -154,6 +169,17 @@ describe("the report on a database, with made-up logs", () => {
     const logged = await addRoast(db, { beanId, klog: log.replace("roasting_level:3.3", "roasting_level:2.8"), answers: { greenG: 120, roastedG: 101.5 }, reason: "Roasted at another level on the machine" });
     await addRoast(db, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
     await addTasting(db, { beanId, roastId: Number(logged.roastId), answers: { tastedOn: "2026-10-12", quality: 4, taste: ["sweet", "balanced"] } });
+
+    // How each roast ran: only the roast with a log has figures, and they come from the log and the roast's stored features.
+    const runs = await roastRuns(db);
+    expect([...runs.keys()]).toEqual([Number(logged.roastId)]);
+    const run = runs.get(Number(logged.roastId))!;
+    expect(run.profile).toBe("Test line");
+    // The measured thermal dose is the roast's stored one, the figure the offset divides.
+    const stored = (await beanHistory(db, beanId)).versions.flatMap((v) => v.roasts).find((r) => r.id === Number(logged.roastId))!.features!.thermalDose;
+    expect(run.measuredThermalDose).toBeCloseTo(stored, 10);
+    expect(run.overshootC).toBeCloseTo(0, 6);
+    expect(run.predictedThermalDose).toBeCloseTo(profileThermalDoseAtLevel(parseKpro(PROFILE), 2.8)!.thermalDose, 6);
 
     const predicted = await predictedThermalDoses(db);
     const profile = parseKpro(PROFILE);

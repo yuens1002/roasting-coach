@@ -128,9 +128,11 @@ describe.skipIf(!pairs.length)("the profile curve predicts a real roast's therma
       const roast = kaffelogicToRoastLog(parseKlog(log.text));
       const measured = extractFeatures(roast).thermalDose;
       const predicted = profileThermalDoseAtLevel(parseKpro(kpro.text), roast.nativeLevel!)!.thermalDose;
-      // Real roasts have measured 6-12.5% above their curve; within 15% is close enough to choose a level step.
+      // Real roasts have measured 5.3-18.5% above their curve (nine logs, docs/research.md), more where the machine ran further above
+      // its profile in development. This guards a gross error (a wrong curve, a unit slip), not the size of the offset, which varies by
+      // profile and by how long the development ran: the bound is not a tolerance the engine relies on.
       expect(measured / predicted, "measured is at or above the curve").toBeGreaterThan(1);
-      expect(measured / predicted - 1).toBeLessThan(0.15);
+      expect(measured / predicted - 1).toBeLessThan(0.25);
     });
   }
 });

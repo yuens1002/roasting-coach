@@ -286,7 +286,12 @@ const SCENARIO: Step[] = [
     check: (out, ok) => {
       expectEqual("table succeeded", ok, true);
       expectEqual("level changes made", out.levelChangesMade, 2);
-      expectIncludes("table", out.say, "| Roast | Version | Profile | Level | Thermal dose | Step | Tasted | Quality | Reads as |");
+      expectIncludes("table", out.say, "| Roast | Version | Profile | Level | Thermal dose | Step | Overshoot (°C) | Offset | Tasted | Quality | Reads as |");
+      // The made-up logs follow their profile's curve exactly, so the bean runs at the profile's temperature and its thermal dose is the curve's.
+      expectIncludes("the range on the profile", out.say, "Across your 3 roasts on Test line, the measured thermal dose is");
+      expectIncludes("no overshoot on a log that follows its profile", out.say, "and your roasts ran 0.0 to 0.0 °C against the profile in development.");
+      expectIncludes("what each column means", out.legend, "- Overshoot (°C): How far above its profile the bean ran");
+      expectEqual("a description for every column", (out.columns as unknown[]).length, 11);
       expectIncludes("bracket", out.say, "The roast that clears both defects lies between them.");
       expectIncludes("clean", out.say, "Clean: roast 3.");
     },

@@ -195,7 +195,7 @@ mass takes more heat per degree. No paper below measured it.
 2. **Holding total thermal dose fixed while moving it between phases (the idea in the roadmap) mostly
    means changing the hot end.** The early phase adds almost none, so an early-curve edit changes time
    and drying, not the thermal dose.
-3. **The measurable link is the curve-to-roast gap.** Real roasts measured 6 to 12.5% above their
+3. **The measurable link is the curve-to-roast gap.** Real roasts measured 5.3 to 18.5% above their
    profile's predicted thermal dose (validation 3 below). Moisture and density readings are candidate
    explanations. The intake already takes optional `moisturePct` and `densityGL`. After several beans
    with readings, the per-bean gap can be compared with them, along with drying time; one bean cannot.
@@ -279,19 +279,35 @@ variability, so these are hypotheses, not rules.
 
 ### 3. Does a profile's curve predict the roast?
 
-Comparing each real log with the profile it was roasted on, measured thermal doses came out **6-12.5%
-above** what the profile curve predicts:
+Comparing each real log with the profile it was roasted on, measured thermal doses came out **5.3-18.5%
+above** what the profile curve predicts (nine real logs, three profiles, 2026-10-11):
 
-| Roast | Measured | Curve predicts | Difference |
-|---|---|---|---|
-| Robusta, level 3.0 | 11.58 | 10.87 | +6.4% |
-| 1500-2000m RTD, level 1.9 | 5.81 | 5.23 | +11.1% |
-| 1500-2000m RTD, level 3.3 | 10.05 | 8.93 | +12.5% |
+| Roast | Measured | Curve predicts | Difference | Mean overshoot in development |
+|---|---|---|---|---|
+| Robusta, level 3.0 | 11.58 | 10.87 | +6.4% | +1.2 °C |
+| Robusta, level 2.7 | 10.43 | 9.79 | +6.5% | +1.2 °C |
+| Robusta, level 2.4 | 9.27 | 8.81 | +5.3% | +1.0 °C |
+| Robusta, level 2.1 | 8.46 | 7.91 | +7.0% | +1.3 °C |
+| 1500-2000m RTD, level 1.9 | 5.81 | 5.23 | +11.1% | +3.5 °C |
+| 1500-2000m RTD, level 3.3 | 10.05 | 8.93 | +12.5% | +3.3 °C |
+| 2000-2700m RTD, level 1.7 | 5.00 | 4.58 | +9.1% | +1.9 °C |
+| 2000-2700m RTD, level 2.0 | 5.82 | 5.33 | +9.3% | +2.0 °C |
+| 2000-2700m RTD, level 2.5 | 7.97 | 6.73 | +18.5% | +3.3 °C |
 
-Good enough to rank levels and size a step. All three are above, and the two RTD roasts sit
-together well above the Robusta one, so the offset may be per profile rather than one constant;
-worth modelling once there are more logs. A synthetic log that tracks a curve exactly
-matches its prediction to within 1% (an always-on test).
+The overshoot is the mean of the bean temperature minus the profile's, from first crack to the end of the roast. Every roast ran
+above its profile in development (92-100% of the samples) and, after the first minute, a little below it before first crack (a mean
+of 0.5-1.3 °C), at batch sizes of 100, 110, 120 and 150 g. The offsets were larger where the machine ran further above the profile:
+ranked by overshoot, the nine roasts rank almost as they do by offset (rank correlation about 0.95). One roast breaks the pattern:
+the 1500-2000m RTD level 1.9 roast had the largest overshoot (+3.5 °C) and a middle offset (+11.1%). Within Robusta the four
+overshoots differ by 0.24 °C, which is the probe's resolution (0.25 °C steps), so those four say nothing about a relation inside
+one profile. The offset also differs by profile: 3.3 °C of overshoot gave +12.5% on 1500-2000m RTD and +18.5% on 2000-2700m RTD.
+Each batch size comes with one profile in these logs (150 g Robusta, 110 and 120 g 1500-2000m RTD, 100 g 2000-2700m RTD), so they
+cannot say whether batch size changes how large the overshoot is.
+
+Good enough to rank levels and size a step between neighbouring levels: on 2000-2700m RTD a step from level 2.0 to 1.7 was
+predicted at -14% and measured at -14%. It is not good enough across a wider step: from level 2.0 to 2.5 the curve predicts +26%
+and the roasts measured +37%, where the longer development also ran further above the profile. A synthetic log that tracks a curve
+exactly matches its prediction to within 1% (an always-on test).
 
 ### 4. Level numbers are an uneven ruler
 
@@ -330,8 +346,9 @@ nothing here ties a Kaffelogic level to an Agtron number: that tie is our readin
 
 ## Open questions
 
-- Is the 6-12.5% curve-to-roast offset a property of each profile (the two RTD roasts agree), and
-  how does it vary with batch size and ambient temperature?
+- Is the 5.3-18.5% curve-to-roast offset a property of each profile, or of the overshoot in development (which was larger in
+  longer developments and differs by profile)? Batch size (100, 120 and 150 g) is tied to the profile in the logs so far, so
+  how it varies with batch size, and with ambient temperature, is not separated.
 - Where on the thermal dose scale do aroma markers (aldehydes, esters) peak, across species and roasters?
   Needs the per-minute data from the volatile studies.
 - Which curve-shape features, beyond thermal dose, separate good cups from bad on the Nano?

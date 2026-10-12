@@ -1,5 +1,6 @@
 // The worked examples quoted in docs/RULES.md. The engine's own words are checked against the doc
 // (test/rulesDoc.test.ts), so an example there can't drift from what the engine really says.
+import type { RoastRun } from "../src/core/beanTable.js";
 import { type AdviceContext, type AdviceInput, type HistoryForAdvice, type OutcomeId, TASTE_CHIPS, type TastedRoast, adviceReport, advise } from "../src/core/rules.js";
 
 const DEFECTS: readonly string[] = [...TASTE_CHIPS.under, ...TASTE_CHIPS.over];
@@ -88,6 +89,12 @@ const tableRoast = (id: number, level: number, thermalDose: number, taste: strin
   features: { thermalDose },
   tastings: [{ id, tastedOn: `2026-10-1${id}`, quality, taste, brew: "pourover" }],
 });
+/** How the example's roasts ran against their profile (Robusta): what its curve predicted, what was measured, and the overshoot in development. */
+export const TABLE_EXAMPLE_RUNS = new Map<number, RoastRun>([
+  [1, { profile: "Robusta", predictedThermalDose: 9.4, measuredThermalDose: 10, overshootC: 1.2 }],
+  [2, { profile: "Robusta", predictedThermalDose: 10.3, measuredThermalDose: 11, overshootC: 1.3 }],
+  [3, { profile: "Robusta", predictedThermalDose: 9.9, measuredThermalDose: 10.5, overshootC: 1.1 }],
+]);
 export const TABLE_EXAMPLE: HistoryForAdvice = {
   versions: [
     { number: 1, profileName: "Robusta", roasts: [tableRoast(1, 3.0, 10, ["grassy", "bready"], 2)] },
