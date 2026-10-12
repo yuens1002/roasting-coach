@@ -206,13 +206,27 @@ describe("the bean's table", () => {
       expect(beanTable(LADDER).rows.map((r) => [r.overshootC, r.offsetPct])).toEqual([[undefined, undefined], [undefined, undefined], [undefined, undefined]]);
     });
 
-    it("says how many roasts the overshoot range is over when some have no overshoot, and says nothing of it when none has", () => {
+    it("says how many roasts the overshoot range is over when that is not the roasts of the offset range, and says nothing of it when none has an overshoot", () => {
       const some = new Map<number, RoastRun>([
         [1, { profile: "Robusta", predictedThermalDose: 9, measuredThermalDose: 10, overshootC: 1.9 }],
         [2, { profile: "Robusta", predictedThermalDose: 10, measuredThermalDose: 11 }],
         [3, { profile: "Robusta", predictedThermalDose: 9.5, measuredThermalDose: 10.5, overshootC: 3.3 }],
       ]);
-      expect(beanTable(LADDER, undefined, undefined, some).say).toContain("and your roasts ran +1.9 to +3.3 °C against the profile in development (2 of the 3 roasts).");
+      expect(beanTable(LADDER, undefined, undefined, some).say).toContain("and your roasts ran +1.9 to +3.3 °C against the profile in development (over 2 roasts).");
+      // A roast with an overshoot and no offset still counts in the overshoot range, and is not in the offset range.
+      const extra = new Map<number, RoastRun>([
+        [1, { profile: "Robusta", predictedThermalDose: 9, measuredThermalDose: 10, overshootC: 1.9 }],
+        [2, { profile: "Robusta", predictedThermalDose: 10, measuredThermalDose: 11, overshootC: 2 }],
+        [3, { profile: "Robusta", overshootC: 3.3 }],
+      ]);
+      expect(beanTable(LADDER, undefined, undefined, extra).say).toContain("Across your 2 roasts on Robusta, the measured thermal dose is +10% to +11.1% against the profile's prediction (median +10.6%), and your roasts ran +1.9 to +3.3 °C against the profile in development (over 3 roasts).");
+      // Offsets from fewer than two roasts make no line, whatever overshoots there are.
+      const one = new Map<number, RoastRun>([
+        [1, { profile: "Robusta", predictedThermalDose: 9, measuredThermalDose: 10, overshootC: 1.9 }],
+        [2, { profile: "Robusta", overshootC: 2 }],
+        [3, { profile: "Robusta", overshootC: 3.3 }],
+      ]);
+      expect(beanTable(LADDER, undefined, undefined, one).say).not.toContain("Across your");
       const none = new Map<number, RoastRun>([
         [1, { profile: "Robusta", predictedThermalDose: 9, measuredThermalDose: 10 }],
         [2, { profile: "Robusta", predictedThermalDose: 10, measuredThermalDose: 11 }],
@@ -231,6 +245,8 @@ describe("the bean's table", () => {
         { predictedThermalDose: 10, measuredThermalDose: 11 },
       ]);
       expect(ranges).toEqual([{ profile: "A", roasts: 3, offsetMinPct: 4, offsetMedianPct: 10, offsetMaxPct: 20, overshootMinC: 2, overshootMaxC: 3, overshootRoasts: 2 }]);
+      // A roast with an overshoot and no offset is in the overshoot range only.
+      expect(profileRanges([{ profile: "D", predictedThermalDose: 10, measuredThermalDose: 11, overshootC: 1 }, { profile: "D", predictedThermalDose: 10, measuredThermalDose: 12 }, { profile: "D", overshootC: 5 }])[0]).toMatchObject({ roasts: 2, overshootMinC: 1, overshootMaxC: 5, overshootRoasts: 2 });
       expect(profileRanges([{ profile: "C", predictedThermalDose: 10, measuredThermalDose: 11 }, { profile: "C", predictedThermalDose: 10, measuredThermalDose: 13 }])[0]).toMatchObject({ offsetMedianPct: 20, overshootMinC: undefined });
     });
   });

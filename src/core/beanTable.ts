@@ -60,20 +60,24 @@ export interface ProfileRange {
   offsetMaxPct: number;
   overshootMinC?: number;
   overshootMaxC?: number;
-  /** How many of the roasts have an overshoot (a log with no first-crack or end mark has none): the range is over these. */
+  /** How many roasts have an overshoot (a log with no first-crack or end mark has none, and a roast with no offset can still have one): the overshoot range is over these. */
   overshootRoasts?: number;
 }
 
 const offsetOf = (run: RoastRun) => (run.predictedThermalDose && run.measuredThermalDose !== undefined ? (run.measuredThermalDose / run.predictedThermalDose - 1) * 100 : undefined);
 
-/** For each profile with at least two roasts that have both figures, the range of their offsets (and of their overshoots), so a roast can be set against the roaster's own. */
+/**
+ * For each profile with at least two roasts that have an offset, the range of those offsets, and the range of the overshoots of every
+ * roast on the profile that has one (a roast can have an overshoot and no offset, or the other way round), so a roast can be set
+ * against the roaster's own.
+ */
 export function profileRanges(runs: Iterable<RoastRun>): ProfileRange[] {
   const byProfile = new Map<string, { offsets: number[]; overshoots: number[] }>();
   for (const run of runs) {
-    const offset = offsetOf(run);
-    if (run.profile === undefined || offset === undefined) continue;
+    if (run.profile === undefined) continue;
     const group = byProfile.get(run.profile) ?? { offsets: [], overshoots: [] };
-    group.offsets.push(offset);
+    const offset = offsetOf(run);
+    if (offset !== undefined) group.offsets.push(offset);
     if (run.overshootC !== undefined) group.overshoots.push(run.overshootC);
     byProfile.set(run.profile, group);
   }
@@ -189,8 +193,8 @@ const signedC = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n)
 /** One line for each profile the bean was roasted on that the roaster has roasted at least twice: where this roast sits among their own. */
 function rangeLines(ranges: ProfileRange[]): string[] {
   return ranges.map((r) => {
-    // Over all the roaster's beans, so "your roasts"; and over only those with an overshoot, which the line says when that is fewer than all.
-    const some = r.overshootRoasts !== undefined && r.overshootRoasts < r.roasts ? ` (${r.overshootRoasts} of the ${r.roasts} roasts)` : "";
+    // Over all the roaster's beans, so "your roasts"; the overshoot is over the roasts that have one, which the line says when that is not the roasts of the offset range.
+    const some = r.overshootRoasts !== undefined && r.overshootRoasts !== r.roasts ? ` (over ${r.overshootRoasts} roasts)` : "";
     const overshoot = r.overshootMinC === undefined || r.overshootMaxC === undefined ? "" : `, and your roasts ran ${signedC(r.overshootMinC)} to ${signedC(r.overshootMaxC)} °C against the profile in development${some}`;
     return `Across your ${r.roasts} roasts on ${r.profile}, the measured thermal dose is ${signed(r.offsetMinPct)} to ${signed(r.offsetMaxPct)} against the profile's prediction (median ${signed(r.offsetMedianPct)})${overshoot}.`;
   });
