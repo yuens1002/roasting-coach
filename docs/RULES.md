@@ -54,7 +54,8 @@ to try a different profile (`level-changes-used`, below).
 the measured thermal dose, the step in thermal dose from the roast tasted before it, how the roast ran against its own profile
 (the overshoot above the profile in development, and the offset of the measured thermal dose from the one the profile's curve
 predicts), the taste words, the roast quality, and how the cup reads from uncooked to scorched. Under it come the range the
-roaster's roasts on each of those profiles run in, over all their beans (for a profile with at least two roasts), the level
+roaster's roasts on each of those profiles run in, over all their beans (for a profile with at least two roasts; roasts are
+grouped by the profile name the machine logged, so a profile written for the bean counts apart from its stock profile), the level
 changes made, the bracket the roasts make (uncooked up to here, scorched from there, so the right roast lies between), and the
 clean roasts (no under or over word and a roast quality of 3 or more). It reads the roasts the way the advice does: a tasting
 outside the coffee's tasting brew is marked as not counted and left out of the bracket, and the words are read as the roaster's
@@ -79,7 +80,7 @@ What each column means (`table` hands the same text to the session with the tabl
 ```
 What each column means:
 - Roast: The bean's roasts, numbered in the order roasted.
-- Version: The step in the bean's journey the roast was made on. A new version is recorded for every change to the level or the profile.
+- Version: The step in the bean's journey the roast was made on. Each recorded change to the level or the profile is a new version.
 - Profile: The profile the roast was made on. A profile written for the bean shows the stock profile it is built on in brackets.
 - Level: The level set on the machine.
 - Thermal dose: How much heat-driven roasting the roast got, worked out from its log as equivalent minutes at 200 °C. It compares one bean's roasts fairly across levels and profiles. It is not a time.
@@ -131,7 +132,7 @@ level you roasted, and measures its thermal dose. It changes that by the step, t
 nearest level gives a different change than the step (rounded to a whole percent), the engine says
 so, for example "The nearest level on this profile gives about 6% less roasting, not 10%".
 
-⚠ **Check this:** real roasts measured 5.3 to 18.5% *above* what their profile's curve predicts (eight
+⚠ **Check this:** real roasts measured 5.3 to 18.5% *above* what their profile's curve predicts (nine
 logs, three profiles). The engine assumes a step on the curve is the same proportion on the real roast. That held for a step
 from level 2.0 to 1.7 on one profile (predicted -14%, measured -14%) and did not for a step from 2.0 to 2.5 on it
 (predicted +26%, measured +37%), where the machine ran further above its profile through a longer development. It is an

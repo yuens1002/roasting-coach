@@ -96,7 +96,7 @@ export function profileRanges(runs: Iterable<RoastRun>): ProfileRange[] {
 /** What each column of the table signifies, in plain words. docs/RULES.md quotes these exactly, and `table` hands them to the session with the table. */
 export const TABLE_COLUMNS: readonly { column: string; means: string }[] = [
   { column: "Roast", means: "The bean's roasts, numbered in the order roasted." },
-  { column: "Version", means: "The step in the bean's journey the roast was made on. A new version is recorded for every change to the level or the profile." },
+  { column: "Version", means: "The step in the bean's journey the roast was made on. Each recorded change to the level or the profile is a new version." },
   { column: "Profile", means: "The profile the roast was made on. A profile written for the bean shows the stock profile it is built on in brackets." },
   { column: "Level", means: "The level set on the machine." },
   { column: "Thermal dose", means: "How much heat-driven roasting the roast got, worked out from its log as equivalent minutes at 200 °C. It compares one bean's roasts fairly across levels and profiles. It is not a time." },

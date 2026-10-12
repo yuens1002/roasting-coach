@@ -280,31 +280,33 @@ variability, so these are hypotheses, not rules.
 ### 3. Does a profile's curve predict the roast?
 
 Comparing each real log with the profile it was roasted on, measured thermal doses came out **5.3-18.5%
-above** what the profile curve predicts (eight logs with a first-crack mark, three profiles, 2026-10-12; the 1500-2000m RTD
-level 1.9 roast is an earlier one with no log in the folder):
+above** what the profile curve predicts (nine real logs, three profiles, 2026-10-11):
 
 | Roast | Measured | Curve predicts | Difference | Mean overshoot in development |
 |---|---|---|---|---|
 | Robusta, level 3.0 | 11.58 | 10.87 | +6.4% | +1.2 °C |
 | Robusta, level 2.7 | 10.43 | 9.79 | +6.5% | +1.2 °C |
-| Robusta, level 2.4 | 9.27 | 8.81 | +5.3% | +1.1 °C |
+| Robusta, level 2.4 | 9.27 | 8.81 | +5.3% | +1.0 °C |
 | Robusta, level 2.1 | 8.46 | 7.91 | +7.0% | +1.3 °C |
-| 1500-2000m RTD, level 1.9 | 5.81 | 5.23 | +11.1% | not logged |
+| 1500-2000m RTD, level 1.9 | 5.81 | 5.23 | +11.1% | +3.5 °C |
 | 1500-2000m RTD, level 3.3 | 10.05 | 8.93 | +12.5% | +3.3 °C |
 | 2000-2700m RTD, level 1.7 | 5.00 | 4.58 | +9.1% | +1.9 °C |
 | 2000-2700m RTD, level 2.0 | 5.82 | 5.33 | +9.3% | +2.0 °C |
 | 2000-2700m RTD, level 2.5 | 7.97 | 6.73 | +18.5% | +3.3 °C |
 
 The overshoot is the mean of the bean temperature minus the profile's, from first crack to the end of the roast. Every roast ran
-above its profile in development (92-100% of the samples) and a little below it before first crack (0.5-1.3 °C), at batch sizes of
-100, 120 and 150 g. The offset follows the overshoot: the more the machine ran above the profile, the further the measured
-thermal dose is from the prediction. It also differs by profile: 3.3 °C of overshoot gave +12.5% on 1500-2000m RTD and +18.5% on
-2000-2700m RTD. Each batch size comes with one profile in these logs (150 g Robusta, 120 g 1500-2000m RTD, 100 g 2000-2700m RTD),
-so they cannot say whether batch size changes how large the overshoot is.
+above its profile in development (92-100% of the samples) and, after the first minute, a little below it before first crack (a mean
+of 0.5-1.3 °C), at batch sizes of 100, 110, 120 and 150 g. The offsets were larger where the machine ran further above the profile:
+ranked by overshoot, the nine roasts rank almost as they do by offset (rank correlation about 0.95). One roast breaks the pattern:
+the 1500-2000m RTD level 1.9 roast had the largest overshoot (+3.5 °C) and a middle offset (+11.1%). Within Robusta the four
+overshoots differ by 0.24 °C, which is the probe's resolution (0.25 °C steps), so those four say nothing about a relation inside
+one profile. The offset also differs by profile: 3.3 °C of overshoot gave +12.5% on 1500-2000m RTD and +18.5% on 2000-2700m RTD.
+Each batch size comes with one profile in these logs (150 g Robusta, 110 and 120 g 1500-2000m RTD, 100 g 2000-2700m RTD), so they
+cannot say whether batch size changes how large the overshoot is.
 
 Good enough to rank levels and size a step between neighbouring levels: on 2000-2700m RTD a step from level 2.0 to 1.7 was
 predicted at -14% and measured at -14%. It is not good enough across a wider step: from level 2.0 to 2.5 the curve predicts +26%
-and the roasts measured +37%, because the longer development ran further above the profile. A synthetic log that tracks a curve
+and the roasts measured +37%, where the longer development also ran further above the profile. A synthetic log that tracks a curve
 exactly matches its prediction to within 1% (an always-on test).
 
 ### 4. Level numbers are an uneven ruler
@@ -344,8 +346,8 @@ nothing here ties a Kaffelogic level to an Agtron number: that tie is our readin
 
 ## Open questions
 
-- Is the 5.3-18.5% curve-to-roast offset a property of each profile, or of the overshoot in development (which is larger in
-  a longer development and differs by profile)? Batch size (100, 120 and 150 g) is tied to the profile in the logs so far, so
+- Is the 5.3-18.5% curve-to-roast offset a property of each profile, or of the overshoot in development (which was larger in
+  longer developments and differs by profile)? Batch size (100, 120 and 150 g) is tied to the profile in the logs so far, so
   how it varies with batch size, and with ambient temperature, is not separated.
 - Where on the thermal dose scale do aroma markers (aldehydes, esters) peak, across species and roasters?
   Needs the per-minute data from the volatile studies.

@@ -143,6 +143,21 @@ describe("the cross-bean report", () => {
   });
 });
 
+describe("how each roast ran, on a database", () => {
+  it("leaves out a roast whose stored log can't be read now, and gives a roast with no stored features no measured figure", async () => {
+    const db = await migratedDb();
+    const intake = { name: "Run bean", species: "arabica", decaf: false, process: "washed", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover" };
+    const { beanId } = await addBean(db, intake);
+    const { roastId } = await addRoast(db, { beanId, klog: syntheticLog({ first_crack: 540, roast_end: 600 }), answers: { greenG: 120, roastedG: 101.5 } });
+    const id = Number(roastId);
+    expect((await roastRuns(db)).get(id)).toMatchObject({ profile: "Test line" });
+    await db.query("update roast set features = null where id = $1", [id]);
+    expect((await roastRuns(db)).get(id)).toMatchObject({ profile: "Test line", measuredThermalDose: undefined });
+    await db.query("update roast set log_file = 'not a Kaffelogic log' where id = $1", [id]);
+    expect((await roastRuns(db)).has(id)).toBe(false);
+  });
+});
+
 describe("the report on a database, with made-up logs", () => {
   it("predicts a roast's thermal dose from the profile its log carries, at the level the log was roasted at, and leaves a roast without a log out", async () => {
     const db = await migratedDb();
@@ -160,7 +175,9 @@ describe("the report on a database, with made-up logs", () => {
     expect([...runs.keys()]).toEqual([Number(logged.roastId)]);
     const run = runs.get(Number(logged.roastId))!;
     expect(run.profile).toBe("Test line");
-    expect(run.measuredThermalDose).toBeGreaterThan(0);
+    // The measured thermal dose is the roast's stored one, the figure the offset divides.
+    const stored = (await beanHistory(db, beanId)).versions.flatMap((v) => v.roasts).find((r) => r.id === Number(logged.roastId))!.features!.thermalDose;
+    expect(run.measuredThermalDose).toBeCloseTo(stored, 10);
     expect(run.overshootC).toBeCloseTo(0, 6);
     expect(run.predictedThermalDose).toBeCloseTo(profileThermalDoseAtLevel(parseKpro(PROFILE), 2.8)!.thermalDose, 6);
 

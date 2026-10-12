@@ -5,9 +5,9 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
-## [0.5.2] - 2026-10-12
+## [0.5.2] - 2026-10-11
 
-- 2026-10-12 - feat(table): show how each roast ran against its profile, with the range on that profile and a description of every column
+- 2026-10-11 - feat(table): show how each roast ran against its profile, with the range on that profile and a description of every column
 
 ### Added
 
@@ -20,7 +20,7 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ### Changed
 
-- The measured-over-predicted range is now **5.3% to 18.5%** (eight real roasts), not 6-12.5% (three): the rulebook's "Check this", the
+- The measured-over-predicted range is now **5.3% to 18.5%** (nine real roasts), not 6-12.5% (three): the rulebook's "Check this", the
   research notes (validation 3, with the overshoot of each roast), the roadmap and the real-log test's bound say so. A step from
   level 2.0 to 1.7 measured what the curve predicted (-14%); a step from 2.0 to 2.5 measured +37% where it predicted +26%.
 

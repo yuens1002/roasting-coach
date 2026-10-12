@@ -190,7 +190,7 @@ What each change does, and where it stands. The reason is there when it was set 
   overshoot (the mean of the bean temperature minus the profile's, from first crack to the end) and the offset of the measured
   thermal dose from the one the profile's curve predicts, with the range of the roaster's roasts on that profile over all their
   beans, and a description of every column (`legend`, quoted in docs/RULES.md). Measured, and no rule uses it. The first data
-  (eight real roasts) is in [research.md](research.md), validation 3.
+  (nine real roasts) is in [research.md](research.md), validation 3.
 - **Cross-bean report** (`clean-zone`): every bean side by side: its altitude, process, moisture, density and crop date, its
   first clean roast with the level, the predicted and measured thermal dose and the offset, and the bracket. Read-only; no advice
   uses it. The predicted thermal dose comes from the profile each roast's log carries (`predictedThermalDoses`).
@@ -299,7 +299,7 @@ Order is a suggestion; the roaster picks.
    - **The mechanism:** edit the curve, then find the level on the new curve whose *predicted* thermal dose (the curve's own
      figure, `profileThermalDoseAtLevel`) matches the predicted thermal dose of the roast being held. A thermal dose
      measured on a roast is never passed to that search: real roasts ran 5.3 to 18.5% above their curve's prediction (Robusta +5.3% to +7%;
-     1500-2000m RTD +11% and +12.5%; 2000-2700m RTD +9.1% to +18.5%), and the offset follows the overshoot in development and differs by profile, so a measured figure would pick a
+     1500-2000m RTD +11% and +12.5%; 2000-2700m RTD +9.1% to +18.5%), and the offset was larger where the bean ran further above the profile in development and differs by profile, so a measured figure would pick a
      level with too much predicted heat. The answer is a plain-words account in measured terms: thermal dose held, end temperature
      against the old one, minutes in each phase, development ratio, rate of rise at first crack. It cannot say the roast will be
      clean; the cup decides.
@@ -314,7 +314,7 @@ Order is a suggestion; the roaster picks.
      tasting its words. So the tool knows a clean roast, the bracket around it (the uncooked roast of highest thermal dose and
      the scorched one of lowest), and the *predicted* thermal dose of each, which is what a match uses. The 3% is a
      claim about the curve's predictions, on the same profile as on another: roasts on one profile differ by up to 9.4 points
-     (2000-2700m RTD: +9.1%, +9.3% and +18.5%), the offset follows the overshoot in development, whether it belongs to the profile
+     (2000-2700m RTD: +9.1%, +9.3% and +18.5%), the offset was larger where the overshoot in development was, whether it belongs to the profile
      or to the bean is open, and an edit changes the profile's shape. A switch to another profile after cup evidence should place the level by
      predicted thermal dose, not by the colour target as the first level is, and there the offsets can differ by several points
      (5.3 to 18.5% above), more than the tolerance. The answer states the match as predicted until the roaster has measured
@@ -428,5 +428,5 @@ Order is a suggestion; the roaster picks.
   shareable unmodified.
 - **Kaleido M1** through its own adapter.
 - **Per-profile curve-to-roast thermal dose offset** (measured thermal doses run 5.3-18.5% above the curve's
-  prediction, more the further the bean runs above the profile in development). Worth modelling once there are more logs; see the open questions in
+  prediction, mostly more where the bean runs further above the profile in development: nine roasts, one exception). Worth modelling once there are more logs; see the open questions in
   [research.md](research.md).

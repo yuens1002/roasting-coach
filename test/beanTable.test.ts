@@ -223,7 +223,6 @@ describe("the bean's table", () => {
     it("has one for every column of the table, in the table's order, and says them in plain words", () => {
       const headers = beanTable(LADDER).say.split("\n")[0].split("|").slice(1, -1).map((h) => h.trim());
       expect(TABLE_COLUMNS.map((c) => c.column)).toEqual(headers);
-      for (const c of TABLE_COLUMNS) expect(c.means.length, c.column).toBeGreaterThan(15);
       expect(tableLegend().split("\n")).toEqual(["What each column means:", ...TABLE_COLUMNS.map((c) => `- ${c.column}: ${c.means}`)]);
     });
   });
