@@ -60,6 +60,8 @@ export interface ProfileRange {
   offsetMaxPct: number;
   overshootMinC?: number;
   overshootMaxC?: number;
+  /** How many of the roasts have an overshoot (a log with no first-crack or end mark has none): the range is over these. */
+  overshootRoasts?: number;
 }
 
 const offsetOf = (run: RoastRun) => (run.predictedThermalDose && run.measuredThermalDose !== undefined ? (run.measuredThermalDose / run.predictedThermalDose - 1) * 100 : undefined);
@@ -89,6 +91,7 @@ export function profileRanges(runs: Iterable<RoastRun>): ProfileRange[] {
         offsetMaxPct: round1(sorted[sorted.length - 1]),
         overshootMinC: g.overshoots.length ? round1(Math.min(...g.overshoots)) : undefined,
         overshootMaxC: g.overshoots.length ? round1(Math.max(...g.overshoots)) : undefined,
+        overshootRoasts: g.overshoots.length || undefined,
       };
     });
 }
@@ -186,7 +189,9 @@ const signedC = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n)
 /** One line for each profile the bean was roasted on that the roaster has roasted at least twice: where this roast sits among their own. */
 function rangeLines(ranges: ProfileRange[]): string[] {
   return ranges.map((r) => {
-    const overshoot = r.overshootMinC === undefined || r.overshootMaxC === undefined ? "" : `, and the bean ran ${signedC(r.overshootMinC)} to ${signedC(r.overshootMaxC)} °C against the profile in development`;
+    // Over all the roaster's beans, so "your roasts"; and over only those with an overshoot, which the line says when that is fewer than all.
+    const some = r.overshootRoasts !== undefined && r.overshootRoasts < r.roasts ? ` (${r.overshootRoasts} of the ${r.roasts} roasts)` : "";
+    const overshoot = r.overshootMinC === undefined || r.overshootMaxC === undefined ? "" : `, and your roasts ran ${signedC(r.overshootMinC)} to ${signedC(r.overshootMaxC)} °C against the profile in development${some}`;
     return `Across your ${r.roasts} roasts on ${r.profile}, the measured thermal dose is ${signed(r.offsetMinPct)} to ${signed(r.offsetMaxPct)} against the profile's prediction (median ${signed(r.offsetMedianPct)})${overshoot}.`;
   });
 }

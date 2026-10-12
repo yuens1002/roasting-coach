@@ -69,7 +69,7 @@ and no rule uses them.
 | 2 | 2 | Robusta | 3.8 | 11 | +10% | +1.3 | +6.8% | bitter | 2 | scorched |
 | 3 | 3 | Robusta | 3.4 | 10.5 | −4.5% | +1.1 | +6.1% | sweet, balanced | 4 | clean |
 
-Across your 3 roasts on Robusta, the measured thermal dose is +6.1% to +6.8% against the profile's prediction (median +6.4%), and the bean ran +1.1 to +1.3 °C against the profile in development.
+Across your 3 roasts on Robusta, the measured thermal dose is +6.1% to +6.8% against the profile's prediction (median +6.4%), and your roasts ran +1.1 to +1.3 °C against the profile in development.
 Level changes made on this profile: 2 of the 3 this tool aims to get the roast right in.
 Uncooked up to thermal dose 10, roast 1, level 3; scorched from thermal dose 11, roast 2, level 3.8. The roast that clears both defects lies between them.
 Clean: roast 3. The best, roast 3, was rated 4 (clean and expressive).
