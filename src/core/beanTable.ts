@@ -1,6 +1,8 @@
 // The bean's own table: one row per roast, built as the roasts come in. It shows where the bean stands: what each
 // roast was (level, thermal dose, the step from the roast before), what it tasted like from uncooked to scorched, and
-// the quality it was rated. Under it, in a few plain lines, the bracket the roasts make (uncooked up to here, scorched
+// the quality it was rated; and how each roast ran against its own profile (the overshoot above the profile in development, and
+// the offset of the measured thermal dose from the one the profile's curve predicts), with the range the roaster's roasts on that
+// profile run in. Under it, in a few plain lines, the bracket the roasts make (uncooked up to here, scorched
 // from there), the clean roasts, and how many of the three level changes are used. It reads the roasts the way the
 // rules do (tastedRoastsOf), so what the table shows is what the advice went on. Nothing here is a judgment of the coffee.
 import { qualityMeaning } from "./intake.js";
@@ -21,6 +23,10 @@ export interface BeanTableRow {
   exactThermalDose?: number;
   /** The change in thermal dose from the roast before it that was tasted, in %. Absent for the first. */
   stepPct?: number;
+  /** How far above its profile the bean ran on average from first crack to the end, in °C (negative: below it). Absent when the log can't say. */
+  overshootC?: number;
+  /** How far the measured thermal dose is above the one the profile's curve predicts at the level, in % (negative: below). Absent when either is missing. */
+  offsetPct?: number;
   /** Absent for a roast not tasted yet, or without a measured thermal dose. */
   tasted?: { words: string[]; quality: number; reads: Reads; brew: string; counted: boolean };
 }
@@ -32,6 +38,78 @@ export interface BeanTable {
   /** The table and the lines under it, as the finished text to show the roaster. */
   say: string;
 }
+
+/** What a roast's log and its profile say about how the roast ran, worked out by the machine's adapter. */
+export interface RoastRun {
+  /** The profile the log was roasted on (its short name): roasts on one profile are compared with each other. */
+  profile?: string;
+  /** The thermal dose the profile's curve predicts at the level the roast was made at. */
+  predictedThermalDose?: number;
+  /** The roast's measured thermal dose. */
+  measuredThermalDose?: number;
+  /** How far above the profile the bean ran on average from first crack to the end, in °C (negative: below it). */
+  overshootC?: number;
+}
+
+/** The range one profile's roasts run in, over all the roaster's beans. */
+export interface ProfileRange {
+  profile: string;
+  roasts: number;
+  offsetMinPct: number;
+  offsetMedianPct: number;
+  offsetMaxPct: number;
+  overshootMinC?: number;
+  overshootMaxC?: number;
+}
+
+const offsetOf = (run: RoastRun) => (run.predictedThermalDose && run.measuredThermalDose !== undefined ? (run.measuredThermalDose / run.predictedThermalDose - 1) * 100 : undefined);
+
+/** For each profile with at least two roasts that have both figures, the range of their offsets (and of their overshoots), so a roast can be set against the roaster's own. */
+export function profileRanges(runs: Iterable<RoastRun>): ProfileRange[] {
+  const byProfile = new Map<string, { offsets: number[]; overshoots: number[] }>();
+  for (const run of runs) {
+    const offset = offsetOf(run);
+    if (run.profile === undefined || offset === undefined) continue;
+    const group = byProfile.get(run.profile) ?? { offsets: [], overshoots: [] };
+    group.offsets.push(offset);
+    if (run.overshootC !== undefined) group.overshoots.push(run.overshootC);
+    byProfile.set(run.profile, group);
+  }
+  return [...byProfile]
+    .filter(([, g]) => g.offsets.length >= 2)
+    .map(([profile, g]) => {
+      const sorted = [...g.offsets].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+      return {
+        profile,
+        roasts: sorted.length,
+        offsetMinPct: round1(sorted[0]),
+        offsetMedianPct: round1(median),
+        offsetMaxPct: round1(sorted[sorted.length - 1]),
+        overshootMinC: g.overshoots.length ? round1(Math.min(...g.overshoots)) : undefined,
+        overshootMaxC: g.overshoots.length ? round1(Math.max(...g.overshoots)) : undefined,
+      };
+    });
+}
+
+/** What each column of the table signifies, in plain words. docs/RULES.md quotes these exactly, and `table` hands them to the session with the table. */
+export const TABLE_COLUMNS: readonly { column: string; means: string }[] = [
+  { column: "Roast", means: "The bean's roasts, numbered in the order roasted." },
+  { column: "Version", means: "The step in the bean's journey the roast was made on. A new version is recorded for every change to the level or the profile." },
+  { column: "Profile", means: "The profile the roast was made on. A profile written for the bean shows the stock profile it is built on in brackets." },
+  { column: "Level", means: "The level set on the machine." },
+  { column: "Thermal dose", means: "How much heat-driven roasting the roast got, worked out from its log as equivalent minutes at 200 °C. It compares one bean's roasts fairly across levels and profiles. It is not a time." },
+  { column: "Step", means: "How much the thermal dose changed from the roast tasted before this one, in percent." },
+  { column: "Overshoot (°C)", means: "How far above its profile the bean ran, on average, from first crack to the end of the roast. A positive number is hotter than the profile asked for." },
+  { column: "Offset", means: "How far the measured thermal dose is above (+) or below (−) the thermal dose the profile's own curve predicts at that level. A larger offset means the roast got more heat than its level suggests." },
+  { column: "Tasted", means: "The taste words you gave for the roast." },
+  { column: "Quality", means: "The roast quality you gave, 1 to 5, judged by defects." },
+  { column: "Reads as", means: "How the cup reads from uncooked to scorched, from your taste words." },
+];
+
+/** The column descriptions as the text to show the roaster. */
+export const tableLegend = (): string => ["What each column means:", ...TABLE_COLUMNS.map((c) => `- ${c.column}: ${c.means}`)].join("\n");
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 export const roundTo = (n: number, places: number) => Math.round(n * 10 ** places) / 10 ** places;
@@ -66,7 +144,7 @@ export function bracketOf<T extends { roast: number; tasted: { reads: Reads }; e
 }
 
 /** A bean's table and where it stands, from its recorded history. */
-export function beanTable(history: HistoryForAdvice, context?: AdviceContext, calibration: Calibration = DEFAULT_CALIBRATION): BeanTable {
+export function beanTable(history: HistoryForAdvice, context?: AdviceContext, calibration: Calibration = DEFAULT_CALIBRATION, runs: ReadonlyMap<number, RoastRun> = new Map()): BeanTable {
   const tasted = tastedRoastsOf(history, context);
   const byRoast = new Map(tasted.map((entry) => [entry.roast.id, entry]));
   const all = roastsInOrder(history);
@@ -83,6 +161,12 @@ export function beanTable(history: HistoryForAdvice, context?: AdviceContext, ca
       thermalDose: thermalDose === undefined ? undefined : roundTo(thermalDose, 2),
       exactThermalDose: thermalDose,
       stepPct: entry && previousDose !== undefined ? round1((entry.tasted.thermalDose / previousDose - 1) * 100) : undefined,
+      overshootC: runs.get(roast.id)?.overshootC === undefined ? undefined : round1(runs.get(roast.id)!.overshootC!),
+      offsetPct: (() => {
+        const run = runs.get(roast.id);
+        const offset = run && thermalDose !== undefined ? offsetOf({ predictedThermalDose: run.predictedThermalDose, measuredThermalDose: thermalDose }) : undefined;
+        return offset === undefined ? undefined : round1(offset);
+      })(),
       tasted: entry && { words: entry.tasting.taste, quality: entry.tasting.quality, reads: readsOf(entry.tasting.taste, calibration), brew: entry.tasting.brew, counted: entry.counted },
     };
     if (entry) previousDose = entry.tasted.thermalDose;
@@ -90,7 +174,21 @@ export function beanTable(history: HistoryForAdvice, context?: AdviceContext, ca
   });
   const newest = tasted[tasted.length - 1];
   const levelChangesMade = newest && levelChangesTo(history.versions, newest.version.number);
-  return { rows, levelChangesMade, say: render(rows, levelChangesMade, calibration) };
+  // The ranges of the profiles this bean's roasts were made on, over every roast the roaster has had on them.
+  const mine = new Set(all.map(({ roast }) => runs.get(roast.id)?.profile).filter((p): p is string => p !== undefined));
+  const ranges = profileRanges(runs.values()).filter((r) => mine.has(r.profile));
+  return { rows, levelChangesMade, say: render(rows, levelChangesMade, calibration, ranges) };
+}
+
+/** A temperature difference with its sign, to a tenth of a degree. */
+const signedC = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toFixed(1)}`;
+
+/** One line for each profile the bean was roasted on that the roaster has roasted at least twice: where this roast sits among their own. */
+function rangeLines(ranges: ProfileRange[]): string[] {
+  return ranges.map((r) => {
+    const overshoot = r.overshootMinC === undefined || r.overshootMaxC === undefined ? "" : `, and the bean ran ${signedC(r.overshootMinC)} to ${signedC(r.overshootMaxC)} °C against the profile in development`;
+    return `Across your ${r.roasts} roasts on ${r.profile}, the measured thermal dose is ${signed(r.offsetMinPct)} to ${signed(r.offsetMaxPct)} against the profile's prediction (median ${signed(r.offsetMedianPct)})${overshoot}.`;
+  });
 }
 
 export const cell = (value: string | number | undefined) => (value === undefined ? "-" : String(value));
@@ -98,14 +196,14 @@ export const cell = (value: string | number | undefined) => (value === undefined
 /** A table cell: a bar inside it would split the row. */
 export const escaped = (text: string) => text.replace(/\r\n|[\r\n]/g, " ").replace(/\|/g, "\\|");
 
-function render(rows: BeanTableRow[], levelChangesMade: number | undefined, calibration: Calibration): string {
+function render(rows: BeanTableRow[], levelChangesMade: number | undefined, calibration: Calibration, ranges: ProfileRange[]): string {
   if (!rows.length) return "No roast has been recorded for this bean yet.";
-  const head = "| Roast | Version | Profile | Level | Thermal dose | Step | Tasted | Quality | Reads as |\n|---|---|---|---|---|---|---|---|---|";
+  const head = `| ${TABLE_COLUMNS.map((c) => c.column).join(" | ")} |\n|${TABLE_COLUMNS.map(() => "---").join("|")}|`;
   const lines = rows.map((r) => {
     const reads = r.tasted ? `${r.tasted.reads}${r.tasted.counted ? "" : ` (not counted: tasted as ${r.tasted.brew})`}` : r.thermalDose === undefined ? "no measured thermal dose" : "not tasted yet";
-    return `| ${r.roast} | ${r.version} | ${escaped(r.profile)} | ${cell(r.level)} | ${cell(r.thermalDose)} | ${r.stepPct === undefined ? "-" : signed(r.stepPct)} | ${r.tasted ? escaped(r.tasted.words.join(", ")) : "-"} | ${r.tasted ? r.tasted.quality : "-"} | ${reads} |`;
+    return `| ${r.roast} | ${r.version} | ${escaped(r.profile)} | ${cell(r.level)} | ${cell(r.thermalDose)} | ${r.stepPct === undefined ? "-" : signed(r.stepPct)} | ${r.overshootC === undefined ? "-" : signedC(r.overshootC)} | ${r.offsetPct === undefined ? "-" : signed(r.offsetPct)} | ${r.tasted ? escaped(r.tasted.words.join(", ")) : "-"} | ${r.tasted ? r.tasted.quality : "-"} | ${reads} |`;
   });
-  return [head, ...lines, "", ...standing(rows, levelChangesMade, calibration)].join("\n");
+  return [head, ...lines, "", ...rangeLines(ranges), ...standing(rows, levelChangesMade, calibration)].join("\n");
 }
 
 /** The lines under the table: the level changes used, the bracket the tasted roasts make, and the clean ones. */

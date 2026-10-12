@@ -3,10 +3,11 @@
 // roasts are addressed the way a person talks about them: bean id plus "v3".
 import { levelToTemp, parseKlog, parseKpro } from "../adapters/kaffelogic/parse.js";
 import { type ColourReading, MACHINE_ID, STOCK_PROFILES, selectStartingProfile, stockProfile, stockProfileId } from "../adapters/kaffelogic/startingProfiles.js";
-import { profileThermalDoseAtLevel } from "../adapters/kaffelogic/thermalDose.js";
+import { roastRunOf } from "../adapters/kaffelogic/runStats.js";
 import { kaffelogicToRoastLog } from "../adapters/kaffelogic/toRoastLog.js";
 import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileBodyKey, profileExactKey, profileFromKpro, profileFromLog, sameProfileBody } from "../adapters/kaffelogic/writeProfile.js";
 import { type Meaning, type Overrides, NO_OVERRIDES, applyChange, describeCalibration, personalChanges } from "../core/calibration.js";
+import type { RoastRun } from "../core/beanTable.js";
 import { calendarDay, daysBetween } from "../core/dates.js";
 import { extractFeatures } from "../core/features.js";
 import { type Field, type Intake, INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../core/intake.js";
@@ -411,23 +412,31 @@ export async function refreshFeatures(db: Db) {
 }
 
 /**
- * The thermal dose the profile's curve predicts for each roast that has a log: the profile the log carries, ended where the level
- * the roast was made at ends. Keyed by roast id. A roast whose log can't be read, or whose curve never reaches that level, has no entry.
+ * How each roast that has a log ran against its own profile, keyed by roast id: the profile its log carries, the thermal dose that
+ * profile's curve predicts at the level the roast was made at, the roast's measured thermal dose, and how far above the profile the
+ * bean ran in development. A roast whose log can't be read has no entry; a figure the log can't give is left out.
  */
-export async function predictedThermalDoses(db: Db): Promise<Map<number, number>> {
-  const r = await db.query<{ id: string | number; log_file: string }>("select id, log_file from roast where log_file is not null order by id");
-  const predicted = new Map<number, number>();
+export async function roastRuns(db: Db): Promise<Map<number, RoastRun>> {
+  const r = await db.query<{ id: string | number; log_file: string; measured: string | number | null }>("select id, log_file, features->>'thermalDose' as measured from roast where log_file is not null order by id");
+  const runs = new Map<number, RoastRun>();
   for (const row of r.rows) {
     let log: ReturnType<typeof parseKlog>;
     try {
       log = parseKlog(row.log_file);
     } catch {
-      // The log was readable when it was recorded; if it is not now, the roast has no prediction rather than breaking the report.
+      // The log was readable when it was recorded; if it is not now, the roast has no figures rather than breaking the report.
       continue;
     }
-    const atLevel = log.level === undefined ? undefined : profileThermalDoseAtLevel(log.profile, log.level);
-    if (atLevel) predicted.set(Number(row.id), atLevel.thermalDose);
+    const measured = row.measured === null ? undefined : Number(row.measured);
+    runs.set(Number(row.id), { ...roastRunOf(log), measuredThermalDose: measured !== undefined && Number.isFinite(measured) ? measured : undefined });
   }
+  return runs;
+}
+
+/** The thermal dose the profile's curve predicts for each roast that has a log (see roastRuns), keyed by roast id. */
+export async function predictedThermalDoses(db: Db): Promise<Map<number, number>> {
+  const predicted = new Map<number, number>();
+  for (const [id, run] of await roastRuns(db)) if (run.predictedThermalDose !== undefined) predicted.set(id, run.predictedThermalDose);
   return predicted;
 }
 

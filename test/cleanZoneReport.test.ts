@@ -5,7 +5,7 @@ import { profileThermalDoseAtLevel } from "../src/adapters/kaffelogic/thermalDos
 import { beanTable } from "../src/core/beanTable.js";
 import { type ReportBean, cleanZoneReport } from "../src/core/cleanZoneReport.js";
 import { CLEAN_QUALITY, type AdviceContext, type HistoryForAdvice } from "../src/core/rules.js";
-import { addBean, addRoast, addTasting, beanHistory, intakeFromBeanRow, listBeans, predictedThermalDoses } from "../src/db/store.js";
+import { addBean, addRoast, addTasting, beanHistory, intakeFromBeanRow, listBeans, predictedThermalDoses, roastRuns } from "../src/db/store.js";
 import { migratedDb } from "./pg.js";
 import { PROFILE, syntheticLog } from "./syntheticLog.js";
 
@@ -154,6 +154,15 @@ describe("the report on a database, with made-up logs", () => {
     const logged = await addRoast(db, { beanId, klog: log.replace("roasting_level:3.3", "roasting_level:2.8"), answers: { greenG: 120, roastedG: 101.5 }, reason: "Roasted at another level on the machine" });
     await addRoast(db, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102 } });
     await addTasting(db, { beanId, roastId: Number(logged.roastId), answers: { tastedOn: "2026-10-12", quality: 4, taste: ["sweet", "balanced"] } });
+
+    // How each roast ran: only the roast with a log has figures, and they come from the log and the roast's stored features.
+    const runs = await roastRuns(db);
+    expect([...runs.keys()]).toEqual([Number(logged.roastId)]);
+    const run = runs.get(Number(logged.roastId))!;
+    expect(run.profile).toBe("Test line");
+    expect(run.measuredThermalDose).toBeGreaterThan(0);
+    expect(run.overshootC).toBeCloseTo(0, 6);
+    expect(run.predictedThermalDose).toBeCloseTo(profileThermalDoseAtLevel(parseKpro(PROFILE), 2.8)!.thermalDose, 6);
 
     const predicted = await predictedThermalDoses(db);
     const profile = parseKpro(PROFILE);

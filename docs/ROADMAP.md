@@ -125,7 +125,7 @@ any curve, so a new profile can hold the total thermal dose fixed and change onl
 between phases). That makes shape a clean experiment: the quality change belongs to the shape, not to a
 different amount of heat. The roaster chooses to try it; the tool reports what a change does in measured
 terms (thermal dose held, phase times, development ratio) and ranks nothing. To read first: what the curve nodes, fan and zones
-control in real logs, and how closely the machine follows an edited curve (real roasts run 6 to 12.5% above
+control in real logs, and how closely the machine follows an edited curve (real roasts run 5.3 to 18.5% above
 their curve's prediction).
 
 Measurement (thermal dose, level to end temperature, rest days) and the basic reading of a cup (ashy and
@@ -186,6 +186,11 @@ What each change does, and where it stands. The reason is there when it was set 
 
 ## Working today
 
+- **How each roast ran against its profile** (in the bean's table, `src/adapters/kaffelogic/runStats.ts`, `roastRuns`): per roast, the
+  overshoot (the mean of the bean temperature minus the profile's, from first crack to the end) and the offset of the measured
+  thermal dose from the one the profile's curve predicts, with the range of the roaster's roasts on that profile over all their
+  beans, and a description of every column (`legend`, quoted in docs/RULES.md). Measured, and no rule uses it. The first data
+  (eight real roasts) is in [research.md](research.md), validation 3.
 - **Cross-bean report** (`clean-zone`): every bean side by side: its altitude, process, moisture, density and crop date, its
   first clean roast with the level, the predicted and measured thermal dose and the offset, and the bracket. Read-only; no advice
   uses it. The predicted thermal dose comes from the profile each roast's log carries (`predictedThermalDoses`).
@@ -293,8 +298,8 @@ Order is a suggestion; the roaster picks.
      direction rule would need later. A written file never leaves the roaster's machine (sharing is undecided, see below).
    - **The mechanism:** edit the curve, then find the level on the new curve whose *predicted* thermal dose (the curve's own
      figure, `profileThermalDoseAtLevel`) matches the predicted thermal dose of the roast being held. A thermal dose
-     measured on a roast is never passed to that search: real roasts ran 6 to 12.5% above their curve's prediction (Robusta level 3 +6.4%;
-     1500-2000m RTD +11% and +12.5%), and the offset may depend on the profile and the bean, so a measured figure would pick a
+     measured on a roast is never passed to that search: real roasts ran 5.3 to 18.5% above their curve's prediction (Robusta +5.3% to +7%;
+     1500-2000m RTD +11% and +12.5%; 2000-2700m RTD +9.1% to +18.5%), and the offset follows the overshoot in development and differs by profile, so a measured figure would pick a
      level with too much predicted heat. The answer is a plain-words account in measured terms: thermal dose held, end temperature
      against the old one, minutes in each phase, development ratio, rate of rise at first crack. It cannot say the roast will be
      clean; the cup decides.
@@ -308,11 +313,11 @@ Order is a suggestion; the roaster picks.
    - **Known thermal doses.** Each roast stores its measured thermal dose, its version stores the profile and level, and each
      tasting its words. So the tool knows a clean roast, the bracket around it (the uncooked roast of highest thermal dose and
      the scorched one of lowest), and the *predicted* thermal dose of each, which is what a match uses. The 3% is a
-     claim about the curve's predictions, on the same profile as on another: the only two same-profile observations (1500-2000m
-     RTD, levels 1.9 and 3.3: +11% and +12.5%) differ by 1.4 points, whether the offset belongs to the profile or to the bean is
-     open, and an edit changes the profile's shape. A switch to another profile after cup evidence should place the level by
+     claim about the curve's predictions, on the same profile as on another: roasts on one profile differ by up to 9.4 points
+     (2000-2700m RTD: +9.1%, +9.3% and +18.5%), the offset follows the overshoot in development, whether it belongs to the profile
+     or to the bean is open, and an edit changes the profile's shape. A switch to another profile after cup evidence should place the level by
      predicted thermal dose, not by the colour target as the first level is, and there the offsets can differ by several points
-     (6 to 12.5% above), more than the tolerance. The answer states the match as predicted until the roaster has measured
+     (5.3 to 18.5% above), more than the tolerance. The answer states the match as predicted until the roaster has measured
      offsets to correct with (by their ratio); the protocol below is what checks the measured thermal dose.
    - **First edit family:** development time at about the same thermal dose: reshape the stretch after first crack (against
      the drying and Maillard stretches), then re-level to hold the thermal dose. The research says the early phase adds almost no
@@ -333,7 +338,7 @@ Order is a suggestion; the roaster picks.
      an edited profile (`stationLog` taught to embed an edited file), so edit, `version:add` with a `profileFile`,
      `roast:add` matched by body, the three-level count restarting and the engine's statements run end to end, one scenario per
      way in. (d) The made-up log follows the requested curve with a tracking error taken from the real logs (mean 2.1 °C, max 5.8
-     °C on log0040) and a thermal dose 6 to 12.5% above the curve's; it is labelled made-up and shows the pipeline copes, nothing
+     °C on log0040) and a thermal dose 5 to 18.5% above the curve's; it is labelled made-up and shows the pipeline copes, nothing
      about the Nano. (e) Each new test is shown to fail when its logic is broken. What no offline test can show, and a roaster
      must: whether Studio and the Nano accept an edited file, whether the machine follows the edited curve, and whether the cup
      improves. The protocol, written before the roasts: roast the base twice (the spread between the two is the machine's own
@@ -422,6 +427,6 @@ Order is a suggestion; the roaster picks.
   per-roast keys stripped from anything that leaves a user's database, stock profiles never
   shareable unmodified.
 - **Kaleido M1** through its own adapter.
-- **Per-profile curve-to-roast thermal dose offset** (measured thermal doses run 6-12.5% above the curve's
-  prediction). Worth modelling once there are more logs; see the open questions in
+- **Per-profile curve-to-roast thermal dose offset** (measured thermal doses run 5.3-18.5% above the curve's
+  prediction, more the further the bean runs above the profile in development). Worth modelling once there are more logs; see the open questions in
   [research.md](research.md).

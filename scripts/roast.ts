@@ -16,7 +16,7 @@
 //   npx tsx scripts/roast.ts thermal-dose '{"profile": "Robusta", "level": 3, "change": -15}'   (level for a thermal dose change, in %)
 //   npx tsx scripts/roast.ts level-for '{"profile": "Robusta", "agtron": 65}'   (the level to try for an Agtron colour; records nothing)
 //   npx tsx scripts/roast.ts advise 1   (the rule table's advice for the newest tasted roast, as a level when it is a change)
-//   npx tsx scripts/roast.ts table 1   (the bean's table: each roast, how it tasted from uncooked to scorched, and where the bean stands)
+//   npx tsx scripts/roast.ts table 1   (the bean's table: each roast, how it ran against its profile, how it tasted from uncooked to scorched, and where the bean stands; `legend` says what each column means)
 //   npx tsx scripts/roast.ts clean-zone   (every bean side by side: its properties and where its first clean roast stands in thermal dose; records nothing)
 //   npx tsx scripts/roast.ts calibration   (this roaster's settings and taste-word meanings, with the defaults)
 //   npx tsx scripts/roast.ts calibration:set '{"settings": {"stepPct": 8}, "words": {"flat": "under", "sour": null}}'   (null: back to the default)
@@ -32,7 +32,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { parseHeader, parseKpro, splitLines } from "../src/adapters/kaffelogic/parse.js";
 import { kaffelogicAdviceContext } from "../src/adapters/kaffelogic/adviceContext.js";
-import { beanTable } from "../src/core/beanTable.js";
+import { TABLE_COLUMNS, beanTable, tableLegend } from "../src/core/beanTable.js";
 import { cleanZoneReport } from "../src/core/cleanZoneReport.js";
 import { placeColour, placementSay } from "../src/adapters/kaffelogic/startingProfiles.js";
 import { type LevelThermalDose, formatMinutesSeconds, levelAfterChange, profileThermalDoseAtLevel } from "../src/adapters/kaffelogic/thermalDose.js";
@@ -41,7 +41,7 @@ import { describeCalibration, personalChanges, resolveCalibration } from "../src
 import { INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../src/core/intake.js";
 import { type LevelMove, adviceReport, adviseFromHistory } from "../src/core/rules.js";
 import { checkShape } from "../src/core/validate.js";
-import { type Db, InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, changeCalibration, intakeFromBeanRow, listBeans, loadColourReadings, loadOverrides, predictedThermalDoses, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
+import { type Db, InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, changeCalibration, intakeFromBeanRow, listBeans, loadColourReadings, loadOverrides, predictedThermalDoses, roastRuns, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
 import { asDb, connect } from "./db.js";
 import { KAFFELOGIC_DIR, KAFFELOGIC_OUT_DIR, loadLibrary } from "./library.js";
 import { addBeanWithProfile, curveReachesAt, versionBase, writeVersionProfile } from "./profileFiles.js";
@@ -160,8 +160,9 @@ async function run() {
         // The bean's own table, built from its recorded roasts and tastings the way the advice reads them.
         const history = await beanHistory(db, beanIdArg());
         const context = kaffelogicAdviceContext(intakeFromBeanRow(history.bean), await loadColourReadings(db));
-        const { rows, levelChangesMade, say } = beanTable(history, context, resolveCalibration(await loadOverrides(db)));
-        return { say, levelChangesMade, rows };
+        const { rows, levelChangesMade, say } = beanTable(history, context, resolveCalibration(await loadOverrides(db)), await roastRuns(db));
+        // `legend` says what each column signifies: shown with the table the first time in a session, and whenever the roaster asks.
+        return { say, levelChangesMade, rows, legend: tableLegend(), columns: TABLE_COLUMNS };
       }
       case "clean-zone": {
         // Every bean side by side, read the way the advice reads them. It records nothing and no advice uses it.

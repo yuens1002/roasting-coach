@@ -51,23 +51,44 @@ three are behind the roast tasted and the cup still has a defect, the next chang
 to try a different profile (`level-changes-used`, below).
 
 **The bean's table.** `table <bean>` shows the bean's roasts as they come in, one row each: the version, profile and level,
-the measured thermal dose, the step in thermal dose from the roast tasted before it, the taste words, the roast quality, and how
-the cup reads from uncooked to scorched. Under it are the level changes made, the bracket the roasts make (uncooked up to here,
-scorched from there, so the right roast lies between), and the clean roasts (no under or over word and a roast quality of 3
-or more). It reads the roasts the way the advice does: a
-tasting outside the coffee's tasting brew is marked as not counted and left out of the bracket, and the words are read as
-the roaster's own settings read them.
+the measured thermal dose, the step in thermal dose from the roast tasted before it, how the roast ran against its own profile
+(the overshoot above the profile in development, and the offset of the measured thermal dose from the one the profile's curve
+predicts), the taste words, the roast quality, and how the cup reads from uncooked to scorched. Under it come the range the
+roaster's roasts on each of those profiles run in, over all their beans (for a profile with at least two roasts), the level
+changes made, the bracket the roasts make (uncooked up to here, scorched from there, so the right roast lies between), and the
+clean roasts (no under or over word and a roast quality of 3 or more). It reads the roasts the way the advice does: a tasting
+outside the coffee's tasting brew is marked as not counted and left out of the bracket, and the words are read as the roaster's
+own settings read them. The overshoot and the offset come from the roast's log and the profile it carries; they are measured,
+and no rule uses them.
 
 ```
-| Roast | Version | Profile | Level | Thermal dose | Step | Tasted | Quality | Reads as |
-|---|---|---|---|---|---|---|---|---|
-| 1 | 1 | Robusta | 3 | 10 | - | grassy, bready | 2 | uncooked |
-| 2 | 2 | Robusta | 3.8 | 11 | +10% | bitter | 2 | scorched |
-| 3 | 3 | Robusta | 3.4 | 10.5 | −4.5% | sweet, balanced | 4 | clean |
+| Roast | Version | Profile | Level | Thermal dose | Step | Overshoot (°C) | Offset | Tasted | Quality | Reads as |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 1 | Robusta | 3 | 10 | - | +1.2 | +6.4% | grassy, bready | 2 | uncooked |
+| 2 | 2 | Robusta | 3.8 | 11 | +10% | +1.3 | +6.8% | bitter | 2 | scorched |
+| 3 | 3 | Robusta | 3.4 | 10.5 | −4.5% | +1.1 | +6.1% | sweet, balanced | 4 | clean |
 
+Across your 3 roasts on Robusta, the measured thermal dose is +6.1% to +6.8% against the profile's prediction (median +6.4%), and the bean ran +1.1 to +1.3 °C against the profile in development.
 Level changes made on this profile: 2 of the 3 this tool aims to get the roast right in.
 Uncooked up to thermal dose 10, roast 1, level 3; scorched from thermal dose 11, roast 2, level 3.8. The roast that clears both defects lies between them.
 Clean: roast 3. The best, roast 3, was rated 4 (clean and expressive).
+```
+
+What each column means (`table` hands the same text to the session with the table):
+
+```
+What each column means:
+- Roast: The bean's roasts, numbered in the order roasted.
+- Version: The step in the bean's journey the roast was made on. A new version is recorded for every change to the level or the profile.
+- Profile: The profile the roast was made on. A profile written for the bean shows the stock profile it is built on in brackets.
+- Level: The level set on the machine.
+- Thermal dose: How much heat-driven roasting the roast got, worked out from its log as equivalent minutes at 200 °C. It compares one bean's roasts fairly across levels and profiles. It is not a time.
+- Step: How much the thermal dose changed from the roast tasted before this one, in percent.
+- Overshoot (°C): How far above its profile the bean ran, on average, from first crack to the end of the roast. A positive number is hotter than the profile asked for.
+- Offset: How far the measured thermal dose is above (+) or below (−) the thermal dose the profile's own curve predicts at that level. A larger offset means the roast got more heat than its level suggests.
+- Tasted: The taste words you gave for the roast.
+- Quality: The roast quality you gave, 1 to 5, judged by defects.
+- Reads as: How the cup reads from uncooked to scorched, from your taste words.
 ```
 
 **The cross-bean report.** `clean-zone` sets every bean side by side, one row each: its altitude, process, moisture, density
@@ -110,9 +131,11 @@ level you roasted, and measures its thermal dose. It changes that by the step, t
 nearest level gives a different change than the step (rounded to a whole percent), the engine says
 so, for example "The nearest level on this profile gives about 6% less roasting, not 10%".
 
-⚠ **Check this:** real roasts measured 6 to 12.5% *above* what their profile's curve predicts (three
-logs). The engine assumes a step on the curve is the same proportion on the real roast. This is
-an assumption, checked only against those three logs.
+⚠ **Check this:** real roasts measured 5.3 to 18.5% *above* what their profile's curve predicts (eight
+logs, three profiles). The engine assumes a step on the curve is the same proportion on the real roast. That held for a step
+from level 2.0 to 1.7 on one profile (predicted -14%, measured -14%) and did not for a step from 2.0 to 2.5 on it
+(predicted +26%, measured +37%), where the machine ran further above its profile through a longer development. It is an
+assumption, checked only against those logs.
 
 ## 3. How tasting words are read
 

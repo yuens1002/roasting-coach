@@ -128,9 +128,11 @@ describe.skipIf(!pairs.length)("the profile curve predicts a real roast's therma
       const roast = kaffelogicToRoastLog(parseKlog(log.text));
       const measured = extractFeatures(roast).thermalDose;
       const predicted = profileThermalDoseAtLevel(parseKpro(kpro.text), roast.nativeLevel!)!.thermalDose;
-      // Real roasts have measured 6-12.5% above their curve; within 15% is close enough to choose a level step.
+      // Real roasts have measured 5.3-18.5% above their curve (eight logs, docs/research.md): the offset follows how far the machine
+      // ran above its profile in development, which is more in a longer development. Within 20% is close enough to choose a level
+      // step between neighbouring levels.
       expect(measured / predicted, "measured is at or above the curve").toBeGreaterThan(1);
-      expect(measured / predicted - 1).toBeLessThan(0.15);
+      expect(measured / predicted - 1).toBeLessThan(0.2);
     });
   }
 });
