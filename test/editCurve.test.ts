@@ -135,6 +135,11 @@ describe("holding the thermal dose", () => {
     expect(edit.slopeAfter).toBeLessThan(12);
   });
 
+  it("refuses a target the search only seems to reach: past the slope where the curve stops reaching the end in time", () => {
+    // At 260 °C the 2 °C/min climb never arrives within the search's 1200 s, so a huge target brackets, but no slope gives it.
+    expect(holdThermalDose(p, 260, 1e6)).toMatchObject({ ok: false, problem: expect.stringContaining("No climb between 2 and 12 °C/min") });
+  });
+
   it("says why there is no edit, in plain words", () => {
     const end = stock(3).endTemp;
     expect(holdThermalDose(p, end, stock(3).thermalDose * 3)).toMatchObject({ ok: false, problem: expect.stringContaining("No climb between 2 and 12 °C/min") });
@@ -144,6 +149,15 @@ describe("holding the thermal dose", () => {
     expect(holdThermalDose(p, 195, early)).toMatchObject({ ok: false, problem: expect.stringContaining("falls before the edited climb starts") });
     expect(holdThermalDose(p, 199, early)).toMatchObject({ ok: false, problem: expect.stringContaining("falls before the edited climb starts") });
     expect(holdThermalDose(profile(BENT_CLIMB_CURVE), end, stock(3).thermalDose)).toMatchObject({ ok: false, problem: expect.stringContaining("not one straight climb") });
+    // Handles or nodes that coincide in time have no slope: not a straight climb, and not a crash.
+    const sameTime = CLIMB_CURVE.replace("600,229,500,219", "300,229,200,219");
+    const flatHandle = CLIMB_CURVE.replace("600,229,500,219", "600,229,600,219");
+    // A final node before the second-to-last, falling with agreeing handles, has a positive chord too.
+    const reversed = CLIMB_CURVE.replace("600,229,500,219", "240,193,220,191");
+    for (const curve of [sameTime, flatHandle, reversed]) {
+      expect(lastSegmentIsStraight(profile(curve).roastCurve)).toBe(false);
+      expect(holdThermalDose(profile(curve), end, stock(3).thermalDose)).toMatchObject({ ok: false, problem: expect.stringContaining("not one straight climb") });
+    }
     const twoNodes = parseKpro(`${PROFILE}\n`);
     expect(twoNodes.roastCurve).toHaveLength(2);
     expect(holdThermalDose(twoNodes, 215, 5)).toMatchObject({ ok: false, problem: expect.stringContaining("2 nodes") });

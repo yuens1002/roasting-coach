@@ -196,6 +196,15 @@ describe("profile:edit", () => {
     expect(stored.roastCurve[stored.roastCurve.length - 1].point.v).not.toBeCloseTo(parseKpro(profileWithCurve(CLIMB_CURVE)).roastCurve[3].point.v, 1);
   });
 
+  it("treats a blank reason as none, so what it hands back is a command that version:add accepts", async () => {
+    const { db, climbEnv, beanId, level } = await setup();
+    const preview = await previewCurveEdit(db, { beanId, level: level + 1, reason: "   " }, climbEnv);
+    expect(preview.onYes.input.reason).toMatch(/^Curve edit: /);
+    expect(await addVersion(db, preview.onYes.input)).toMatchObject({ number: 2 });
+    const said = await previewCurveEdit(db, { beanId, level: level + 1, reason: "  Try a steeper finish  " }, climbEnv);
+    expect(said.onYes.input.reason).toBe("Try a steeper finish");
+  });
+
   it("describes its own reason in measured terms when the roaster gives none", async () => {
     const { db, climbEnv, beanId, level } = await setup();
     const preview = await previewCurveEdit(db, { beanId, level: level + 1 }, climbEnv);

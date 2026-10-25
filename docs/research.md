@@ -284,8 +284,8 @@ over `parseKlog`/`evalCurve`; nothing is shipped.
   `roast_end_reason` do; the fan curve; the zones.
 - **A held-thermal-dose family on this curve, computed from the curve's own prediction (a calculation, not a roast).** Replace the straight
   climb after 300 s by another slope and find the end temperature whose predicted thermal dose equals that of the stock curve at level 2.6
-  (10.80; the roasts measured 8% above: 11.72). Pre-crack nodes and the time of first crack are unchanged. Slope (°C/min), end temperature
-  (°C), first crack to end (s), roast time (s): 8 / 229.6 / 221 / 530; 6 (stock) / 225.0 / 255 / 564; 5 / 222.7 / 276 / 585; 4 / 219.8 / 303 /
+  (10.80; the roasts measured 8% above: 11.72). The curve before 300 s is unchanged. Slope (°C/min), end temperature
+  (°C), first crack (taken at its stock time) to end (s), roast time (s): 8 / 229.6 / 221 / 530; 6 (stock) / 225.0 / 255 / 564; 5 / 222.7 / 276 / 585; 4 / 219.8 / 303 /
   612; 3 / 216.3 / 338 / 647. The same shape holds at the thermal dose of levels 2.8 and 3.0. A flatter climb holds the thermal dose with a lower end
   temperature and a longer development; a steeper one with a higher end temperature and a shorter one. **Open, and the first
   question for a real roast: whether roast colour follows the end temperature (as Kaffelogic's levels do) or the thermal dose.** The two

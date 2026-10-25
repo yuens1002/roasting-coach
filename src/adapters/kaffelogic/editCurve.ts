@@ -15,6 +15,9 @@ export const SLOPE_RANGE_C_PER_MIN = [2, 12] as const;
 /** How far apart (as a fraction of the segment's own slope) the handles' slopes may be from its chord for the segment to count as straight. */
 const STRAIGHT_WITHIN = 0.1;
 
+/** How far (as a fraction of the target) the edited curve's thermal dose may be from the target for the search to count as having found it. */
+const FOUND_WITHIN = 1e-4;
+
 /** Kaffelogic writes six significant figures ("20.0000", "110.000"). */
 const figure = (x: number) => {
   const s = x.toPrecision(6);
@@ -40,7 +43,7 @@ export function lastSegmentIsStraight(nodes: CurveNode[]): boolean {
   const chord = lastSegmentSlope(nodes);
   const slopeOf = (from: { t: number; v: number }, to: { t: number; v: number }) => ((to.v - from.v) / (to.t - from.t)) * 60;
   const handles = [slopeOf(prev.point, prev.handleOut), slopeOf(last.handleIn, last.point)];
-  return chord > 0 && handles.every((s) => Number.isFinite(s) && Math.abs(s - chord) <= STRAIGHT_WITHIN * chord);
+  return last.point.t > prev.point.t && Number.isFinite(chord) && chord > 0 && handles.every((s) => Number.isFinite(s) && Math.abs(s - chord) <= STRAIGHT_WITHIN * chord);
 }
 
 /**
@@ -85,6 +88,8 @@ export interface HeldDoseEdit {
   thermalDose: number;
 }
 
+const noClimb = (endTemp: number) => `No climb between ${SLOPE_RANGE_C_PER_MIN[0]} and ${SLOPE_RANGE_C_PER_MIN[1]} °C/min gives that thermal dose ending at ${endTemp.toFixed(1)} °C.`;
+
 /** An edit, or in plain words why there is none. */
 export type HeldDoseResult = ({ ok: true } & HeldDoseEdit) | { ok: false; problem: string };
 
@@ -105,7 +110,7 @@ export function holdThermalDose(profile: KaffelogicProfile, endTemp: number, tar
   let lo: number = SLOPE_RANGE_C_PER_MIN[0];
   let hi: number = SLOPE_RANGE_C_PER_MIN[1];
   if (!(doseAt(hi) <= targetDose && targetDose <= doseAt(lo))) {
-    return { ok: false, problem: `No climb between ${lo} and ${hi} °C/min gives that thermal dose ending at ${endTemp.toFixed(1)} °C.` };
+    return { ok: false, problem: noClimb(endTemp) };
   }
   for (let i = 0; i < 60; i++) {
     const mid = (lo + hi) / 2;
@@ -114,7 +119,9 @@ export function holdThermalDose(profile: KaffelogicProfile, endTemp: number, tar
   }
   const slopeAfter = (lo + hi) / 2;
   const curve = setLastSegmentSlope(nodes, slopeAfter);
-  const edited = curveThermalDoseTo(curve, endTemp, true)!;
+  // The search can end on the slope where the curve stops reaching the end temperature in time, not on the target: check it.
+  const edited = curveThermalDoseTo(curve, endTemp, true);
+  if (!edited || !(Math.abs(edited.thermalDose - targetDose) <= FOUND_WITHIN * targetDose)) return { ok: false, problem: noClimb(endTemp) };
   return {
     ok: true,
     curve,

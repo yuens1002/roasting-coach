@@ -152,7 +152,7 @@ export async function writeVersionProfile(db: Db, input: unknown, env: ProfileFi
 export async function previewCurveEdit(db: Db, input: unknown, env: ProfileFileEnv) {
   const errors = checkShape(input, { beanId: { type: "integer", required: true }, version: { type: "integer" }, level: { type: "number", required: true }, reason: { type: "string" } });
   if (errors.length) throw new InputError(errors);
-  const { beanId, version: number, level, reason } = input as { beanId: number; version?: number; level: number; reason?: string };
+  const { beanId, version: number, level, reason: said } = input as { beanId: number; version?: number; level: number; reason?: string };
   if (!(level >= 0 && level <= 6)) throw new InputError([`Level must be between 0 and 6; got ${level}.`]);
   const history = await beanHistory(db, beanId);
   if (number === undefined && !history.versions.length) throw new InputError([`Bean ${beanId} has no versions.`]);
@@ -168,6 +168,8 @@ export async function previewCurveEdit(db: Db, input: unknown, env: ProfileFileE
   const target = curveThermalDoseTo(profile.roastCurve, from.endTemp, true)!;
   const edit = holdThermalDose(profile, endTemp, target.thermalDose);
   if (!edit.ok) throw new InputError([`v${v.number}: ${edit.problem}`]);
+  // A blank reason is no reason: version:add would refuse it, so the preview would hand back a command that fails.
+  const reason = said?.trim() || undefined;
   const file = writeKpro(withRoastCurve(base.lines, edit.curve));
   const slope = (x: number) => x.toFixed(1);
   const summary = `the climb after ${formatMinutesSeconds(edit.climbFrom.t)} (${edit.climbFrom.temp.toFixed(1)} °C) goes from ${slope(edit.slopeBefore)} to ${slope(edit.slopeAfter)} °C/min, and the roast ends at level ${level} (${endTemp.toFixed(1)} °C)`;
