@@ -193,32 +193,30 @@ read the cup, set production's answer against the dev-mode view, change the tool
 stated confidence and is never shown to a roaster as advice; it enters the tool only as a deterministic rule with a status (what it
 rests on, how many roasts agree and disagree), and the `voice` and `rulesDoc` tests apply to it.
 
-**Dev-mode findings, bean 4 (Mexico Tenejapa, washed, 792 g/L, 11% moisture), roast 1 (log0105, [KL] Classic level 3, Agtron 42.5, bitter, quality 2):**
-production said "bitter, 10% less roasting" (level 2.6). Where the dev-mode view differs:
+**First dev-mode findings (2026-10-25): a washed coffee roasted twice on one stock profile.** Production read the first cup as scorched and
+said "10% less roasting"; the next cup was clean, quality 3, and production held it (`keep-as-is`). The roaster's tasting records stay in their
+own database and are not reproduced here. Where the dev-mode view differs:
 
-1. **Colour is not an input.** The roast ended at Agtron 42.5 against a target of 45; the rules never compare the two. Colour gives
-   a direction and a size the cup words do not.
-2. **Weight loss and development ratio are not inputs.** Weight loss was 18% at Agtron 42.5 and development 46.9% of the roast, long for
-   that colour and above the development targets `startingProfiles.ts` lists for the stock profiles that have one (10 to 30%; none is listed for the Classic body itself). Dev-mode view (medium confidence): a long,
-   slow finish, so a shorter or equal development, not a longer one. Check first the first-crack press (`cracksPressedOk` was not
-   recorded), since the ratio rests on it.
-3. **The brew's water temperature is not recorded.** The two pour overs differed in it and tasted differently; the tool cannot tell a
-   roast defect from a hot brew. A candidate optional tasting field (a minor-version change under the conversion policy above).
-4. **Level is the only lever.** Shape (development time at held thermal dose) is Next, 3; roast 1 is a case for it only if a level
-   change leaves the defect. What the curve nodes do is unread (step 1 of that item).
+1. **Colour is not an input.** The first roast ended darker than the colour aimed at; the rules never compare the two. Colour gives a
+   direction and a size the cup words do not.
+2. **Weight loss and development ratio are not inputs.** Weight loss was 18% at about Agtron 42 and development 46.9% of the roast, long for
+   that colour and above the development targets `startingProfiles.ts` lists for the stock profiles that have one (10 to 30%; none is
+   listed for the Classic body itself). Dev-mode view (medium confidence): a long, slow finish, so a shorter or equal development, not a
+   longer one. Check first the first-crack press (`cracksPressedOk` was not recorded), since the ratio rests on it.
+3. **The brew's water temperature is not recorded.** The brews tasted for two roasts differed in it, and the tool cannot tell a roast defect from a
+   hot brew. A candidate optional tasting field (a minor-version change under the conversion policy above).
+4. **Level is the only lever.** Shape (development time at held thermal dose) is Next, 3; a bean is a case for it when a level change
+   leaves the defect; a clean cup the roaster wants to take further is a candidate case (item 6), which reopens "a clean cup is done".
 
-Results: roast 2 (log0106, level 2.6, thermal dose 11.72, 10.9% below roast 1's 13.15) lost 18.2% (18.0% before) with development 47.0%
-(46.9%), so the 10% step in thermal dose moved neither. Colour Agtron 47.2 (meter; roast 1 was 42.5, the target 45). Cup, tasted after
-one night of rest in a pour over: balanced, quality 3, no defect, nutty, not chocolatey. Production: `keep-as-is` (a clean cup is done; a
-better cup needs another profile or an edited curve). Roast 1 was tasted on day 0, roast 2 after a night, so rest differs between the
-two cups. Two more dev-mode findings:
+Results: a 10.9% cut in thermal dose (13.15 to 11.72) moved neither weight loss (18.0% to 18.2%) nor development (46.9% to 47.0%); the
+end temperature fell 2 °C and the colour moved 4.7 Agtron (42.5 to 47.2). Two more dev-mode findings:
 
-5. **A clean cup with no listed flavour cannot be recorded.** The chips are required and there is no neutral one or "nutty"; the
-   roaster picked `balanced` to get the tasting in. Candidates: allow no chip on a clean cup (quality 3 or more), and a free-text flavour
-   that the rules do not read.
-6. **This bean is the wall case for curve edits** (Next, 3): a clean quality 3, the level exhausted for defects, and the roaster wants
-   more (the aim was a chocolate cup). The clean zone is bracketed by roast 2 (thermal dose 11.72, clean) and roast 1 (13.15, scorched);
-   production holds, and probing between them is considered-and-not-built.
+5. **A clean cup with no listed flavour cannot be recorded.** The chips are required and there is no neutral one, so a flavour that is not
+   on the list has to be entered as a chip it was not described with. Candidates: allow no chip on a clean cup (quality 3 or more), and a
+   free-text flavour that the rules do not read.
+6. **A bean held at a clean quality 3 is the wall case for curve edits** (Next, 3): the level is exhausted for defects, and the roaster
+   wants more. The clean zone is bracketed by the clean roast (thermal dose 11.72) and the scorched one (13.15); production holds, and
+   probing between them is considered-and-not-built.
 
 **Wanted: personal defaults** (roaster, 2026-10-24). Answers a roaster gives the same way every time (not decaf, arabica, their
 tasting brew, drink soon) stored once and applied at intake without asking, with the response listing each default it used.

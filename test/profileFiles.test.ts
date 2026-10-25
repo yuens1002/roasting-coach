@@ -215,6 +215,12 @@ describe("profile:edit", () => {
     const { db, climbEnv, beanId, level } = await setup();
     await expect(previewCurveEdit(db, { beanId, version: 9, level }, climbEnv)).rejects.toThrow("Bean 1 has no v9.");
     await expect(previewCurveEdit(db, { beanId, level: 7 }, climbEnv)).rejects.toThrow("Level must be between 0 and 6; got 7.");
+    // Float noise on a grid level is the same level, and is stored and shown as such.
+    const noisy = await previewCurveEdit(db, { beanId, level: 0.1 + 0.2 }, climbEnv);
+    expect(noisy.edit.level).toBe(0.3);
+    expect(noisy.onYes.input.level).toBe(0.3);
+    await expect(previewCurveEdit(db, { beanId, level: 0.249 }, climbEnv)).rejects.toThrow("Level must be in steps of 0.1; got 0.249.");
+    await expect(previewCurveEdit(db, { beanId, level: 2.65 }, climbEnv)).rejects.toThrow("steps of 0.1");
     await expect(previewCurveEdit(db, { beanId, level, extra: 1 }, climbEnv)).rejects.toBeInstanceOf(InputError);
   });
 

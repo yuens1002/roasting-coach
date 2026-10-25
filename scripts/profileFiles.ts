@@ -152,8 +152,11 @@ export async function writeVersionProfile(db: Db, input: unknown, env: ProfileFi
 export async function previewCurveEdit(db: Db, input: unknown, env: ProfileFileEnv) {
   const errors = checkShape(input, { beanId: { type: "integer", required: true }, version: { type: "integer" }, level: { type: "number", required: true }, reason: { type: "string" } });
   if (errors.length) throw new InputError(errors);
-  const { beanId, version: number, level, reason: said } = input as { beanId: number; version?: number; level: number; reason?: string };
-  if (!(level >= 0 && level <= 6)) throw new InputError([`Level must be between 0 and 6; got ${level}.`]);
+  const { beanId, version: number, level: asked, reason: said } = input as { beanId: number; version?: number; level: number; reason?: string };
+  const level = Math.round(asked * 10) / 10;
+  if (!(asked >= 0 && asked <= 6)) throw new InputError([`Level must be between 0 and 6; got ${asked}.`]);
+  // The machine sets levels in 0.1 steps and a version stores one decimal, so the edit is for a level the machine can be set to (float noise like 0.30000000000000004 is rounded away).
+  if (Math.abs(asked * 10 - Math.round(asked * 10)) > 1e-9) throw new InputError([`Level must be in steps of 0.1; got ${asked}.`]);
   const history = await beanHistory(db, beanId);
   if (number === undefined && !history.versions.length) throw new InputError([`Bean ${beanId} has no versions.`]);
   const v = number === undefined ? history.versions[history.versions.length - 1] : history.versions.find((x) => x.number === number);

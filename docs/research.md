@@ -82,7 +82,7 @@ and are not quoted from the paper's tables.
   longer development time shifts the balance towards a more roasty, nutty, and bitter profile." The abstract does not mention chocolate; the
   summary lists "nutty+chocolate" among the long-development descriptors, which is unconfirmed until the full text is read.
 - **Reach for this project:** light roast colour (Agtron 76), a drum roaster and one coffee. The Nano is hot air, and the bean here is roasted at
-  Agtron 42 to 47. Development times of 255 to 265 s in bean 4's roasts are close to the paper's "slow" 266 s, but the colour and the machine differ, so
+  Agtron 42 to 47. Development times of 255 to 265 s in the first bean's roasts are close to the paper's "slow" 266 s, but the colour and the machine differ, so
   the size of the effect on a Nano is not known. Its use is the direction: development time moves the cup along fruity and sweet, then nutty and
   roasty, then bitter, at one colour.
 - **Companion paper, not read:** Münchow M., Alstrup J., Steen I., Giacalone D. *Roasting Conditions and Coffee Flavor: A Multi-Study Empirical
@@ -267,7 +267,7 @@ which is not total heat and cannot be sketched until edits exist.
 
 ### What the curve nodes do, from two real logs (roadmap Next, 3, step 1; measured 2026-10-25)
 
-Logs `log0105` (level 3) and `log0106` (level 2.6), both on `[KL] Classic` (the body of `1200-1500m RTD`), bean 4. Made with a throwaway script
+Two logs, at level 3 and level 2.6, both on `[KL] Classic` (the body of `1200-1500m RTD`). Made with a throwaway script
 over `parseKlog`/`evalCurve`; nothing is shipped.
 
 - **The curve is seven Bezier nodes** of requested bean temperature against time (the node values are Kaffelogic's profile and are not
