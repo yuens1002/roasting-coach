@@ -5,7 +5,7 @@
 // +5.3% to +7%; 1500-2000m RTD +11% and +12.5%; 2000-2700m RTD +9.1% to +18.5%; see docs/research.md), all
 // above, so this ranks levels and sizes a step between neighbouring levels well, but expect the roast to land further.
 import { thermalDose } from "../../core/features.js";
-import { type KaffelogicProfile, evalCurve, levelToTemp, timeCurveReaches } from "./parse.js";
+import { type CurveNode, type KaffelogicProfile, evalCurve, levelToTemp, timeCurveReaches } from "./parse.js";
 
 /** Seconds as m:ss. The whole duration is rounded first, so 599.5 s reads 10:00, not 9:60. */
 export const formatMinutesSeconds = (seconds: number): string => `${Math.floor(Math.round(seconds) / 60)}:${String(Math.round(seconds) % 60).padStart(2, "0")}`;
@@ -20,17 +20,37 @@ export interface LevelThermalDose {
   thermalDose: number;
 }
 
+/**
+ * The thermal dose of a curve ended where it first reaches `endTemp`, and when that is; undefined if it never gets there. The time is
+ * found on a half-second grid, which moves the thermal dose by up to 0.2%; `exactEnd` narrows it inside that half second, for a search that
+ * needs the thermal dose to change smoothly with the curve (editCurve).
+ */
+export function curveThermalDoseTo(curve: CurveNode[], endTemp: number, exactEnd = false): { endsAt: number; thermalDose: number } | undefined {
+  if (curve.length < 2) return undefined;
+  let endsAt = timeCurveReaches(curve, endTemp);
+  if (endsAt === undefined) return undefined;
+  if (exactEnd) {
+    let [lo, hi] = [Math.max(endsAt - 0.5, curve[0].point.t), endsAt];
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
+      if (evalCurve(curve, mid)! >= endTemp) hi = mid;
+      else lo = mid;
+    }
+    endsAt = hi;
+  }
+  // Curves can start a little after 0 s (KL Washed starts at 2.5 s).
+  const points: { t: number; temp: number }[] = [];
+  for (let t = curve[0].point.t; t < endsAt; t++) points.push({ t, temp: evalCurve(curve, t)! });
+  points.push({ t: endsAt, temp: evalCurve(curve, endsAt)! });
+  return { endsAt, thermalDose: thermalDose(points) };
+}
+
 /** The thermal dose of the profile's curve ended at this level's temperature; undefined if the curve never gets there. */
 export function profileThermalDoseAtLevel(profile: KaffelogicProfile, level: number): LevelThermalDose | undefined {
   const endTemp = levelToTemp(profile.roastLevels, level);
-  if (endTemp === undefined || profile.roastCurve.length < 2) return undefined;
-  const endsAt = timeCurveReaches(profile.roastCurve, endTemp);
-  if (endsAt === undefined) return undefined;
-  // Curves can start a little after 0 s (KL Washed starts at 2.5 s).
-  const points: { t: number; temp: number }[] = [];
-  for (let t = profile.roastCurve[0].point.t; t < endsAt; t++) points.push({ t, temp: evalCurve(profile.roastCurve, t)! });
-  points.push({ t: endsAt, temp: evalCurve(profile.roastCurve, endsAt)! });
-  return { level, endTemp, endsAt, thermalDose: thermalDose(points) };
+  if (endTemp === undefined) return undefined;
+  const reached = curveThermalDoseTo(profile.roastCurve, endTemp);
+  return reached && { level, endTemp, ...reached };
 }
 
 /**

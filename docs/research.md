@@ -66,6 +66,31 @@ Three temperature programs on an IKAWA Pro (a 50 g fluid-bed roaster, the same c
 Kaffelogic Nano), all ending near 210 °C, with SCA cup scores for two arabicas. The closest
 published analogue to the Nano we have found.
 
+### Alstrup et al. 2020: development time at one colour, with cup descriptions (direction only; abstract and summary read, not the full text)
+
+Alstrup J., Petersen M.A., Larsen F.H., Münchow M. *The Effect of Roast Development Time Modulations on the Sensory Profile and Chemical
+Composition of the Coffee Brew as Measured by NMR and DHS-GC–MS.* Beverages 6(4):70 (2020).
+[doi:10.3390/beverages6040070](https://doi.org/10.3390/beverages6040070) (open access, CC BY). Read 2026-10-25 from the publisher's page:
+the abstract and a machine-made summary of the results. **The full text has not been read**, so the figures below are as that summary gave them
+and are not quoted from the paper's tables.
+
+- **Design (summary):** one coffee roasted on four profiles that differ in development time, 90 s (fast), 143 s (medium), 266 s (slow) and
+  390 s (baked), on a Probat Probatino 1 kg drum roaster, with roast colour held at Agtron 76 ± 1 (light). End temperatures fell as development
+  lengthened, 204.1, 201.2, 198.4 and 191.1 °C. Sensory descriptive analysis, GC–MS and NMR. The summary's note that first crack came at about
+  570 s was not checked and looks odd for a 1 kg drum roast; do not use it.
+- **Finding (abstract, quoted):** "a short development time increases the fruity, sweet and acidic characteristics of the coffee, whereas a
+  longer development time shifts the balance towards a more roasty, nutty, and bitter profile." The abstract does not mention chocolate; the
+  summary lists "nutty+chocolate" among the long-development descriptors, which is unconfirmed until the full text is read.
+- **Reach for this project:** light roast colour (Agtron 76), a drum roaster and one coffee. The Nano is hot air, and the bean here is roasted at
+  Agtron 42 to 47. Development times of 255 to 265 s in bean 4's roasts are close to the paper's "slow" 266 s, but the colour and the machine differ, so
+  the size of the effect on a Nano is not known. Its use is the direction: development time moves the cup along fruity and sweet, then nutty and
+  roasty, then bitter, at one colour.
+- **Companion paper, not read:** Münchow M., Alstrup J., Steen I., Giacalone D. *Roasting Conditions and Coffee Flavor: A Multi-Study Empirical
+  Investigation.* Beverages 6(2):29 (2020), [doi:10.3390/beverages6020029](https://doi.org/10.3390/beverages6020029), listed in this paper's references.
+- **Other development-time sources, not read:** Rao S., *The Coffee Roaster's Companion* (2014), whose blog post
+  ([scottrao.com](https://www.scottrao.com/blog/2016/8/25/development-time-ratio), read) gives a development time ratio of 20 to 25% "for most roast levels", a rule of thumb that "can be broken", for medium and light-medium roasts, and says burner capacity against batch size can lower it; and Hoos R., *Modulating the Flavor Profile of Coffee* (2015), known here
+  only from a review and forum posts. Neither is evidence for a Nano, and the roadmap's rule stands: no preset without a cited source for each number.
+
 ### Volatile-compound studies (direction only, full text not yet available)
 
 - Debona D.G. et al. *Comprehensive evaluation of volatile compounds and sensory profiles of coffee
@@ -239,6 +264,34 @@ What it would take, and what is missing:
 If a link shows, the coefficient is data of the same kind as the step sizes (the roaster's calibration, shown and changeable), off
 until the roaster's beans support it. The properties could also move a phase boundary in a curve edit (how long drying lasts),
 which is not total heat and cannot be sketched until edits exist.
+
+### What the curve nodes do, from two real logs (roadmap Next, 3, step 1; measured 2026-10-25)
+
+Logs `log0105` (level 3) and `log0106` (level 2.6), both on `[KL] Classic` (the body of `1200-1500m RTD`), bean 4. Made with a throwaway script
+over `parseKlog`/`evalCurve`; nothing is shipped.
+
+- **The curve is seven Bezier nodes** of requested bean temperature against time (the node values are Kaffelogic's profile and are not
+  copied here). The last node's out-handle is zero and `evalCurve` continues in a straight line past it, so from 300 s (199 °C) the
+  request is one slope, 5.92 °C/min. **The level does not change the curve: it only picks the end temperature (`roast_levels`) where
+  the roast stops**, 227 °C at level 3 and 225 °C at 2.6. Everything after first crack is that one straight climb to the end temperature.
+- **The machine follows it.** Bean temperature runs 5 to 13 °C below the request in the first two minutes (the charge), is within 4 °C
+  from 150 s, and between −0.5 and +2.7 °C of it from 210 s to the end, in both logs. First crack came at 201.4 °C (298 s) and 200.8 °C
+  (298.5 s), the same temperature at two levels, as the curve before it is the same.
+- **The achieved rate of rise after first crack is noisy (2 to 9 °C/min) around the requested 5.9**; the average over the stretch is
+  what matters, and it matched.
+- **Development is the climb from first crack to the end temperature.** On this curve it is set by two numbers, the slope after first
+  crack and the end temperature: 4.4 min at 5.9 °C/min over 25 °C. Not read: what `roast_end_by_time_ratio` (0.333 in these logs) and
+  `roast_end_reason` (0) do; the fan curve (14,700 falling to about 13,200 rpm); the zones (all zero here).
+- **A held-thermal-dose family on this curve, computed from the curve's own prediction (a calculation, not a roast).** Replace the straight
+  climb after 300 s by another slope and find the end temperature whose predicted thermal dose equals that of the stock curve at level 2.6
+  (10.80; the roasts measured 8% above: 11.72). Pre-crack nodes and the time of first crack are unchanged. Slope (°C/min), end temperature
+  (°C), first crack to end (s), roast time (s): 8 / 229.6 / 221 / 530; 6 (stock) / 225.0 / 255 / 564; 5 / 222.7 / 276 / 585; 4 / 219.8 / 303 /
+  612; 3 / 216.3 / 338 / 647. The same shape holds at the thermal dose of levels 2.8 and 3.0. A flatter climb holds the thermal dose with a lower end
+  temperature and a longer development; a steeper one with a higher end temperature and a shorter one. **Open, and the first
+  question for a real roast: whether roast colour follows the end temperature (as Kaffelogic's levels do) or the thermal dose.** The two
+  readings (42.5 at 227 °C, 47.2 at 225 °C, a 2 °C difference giving 4.7 Agtron) cannot tell.
+- The early nodes (before 300 s) move time without moving the thermal dose (above: the thermal dose is built at the hot end), so lengthening the
+  Maillard stretch is a second, nearly free, edit at held thermal dose. Not computed here.
 
 ### Not read, or not verifiable
 

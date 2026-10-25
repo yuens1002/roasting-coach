@@ -2,9 +2,10 @@
 // names come from profileNames, never from the roaster. Files go to the output folder and never over an existing file.
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { parseKpro, timeCurveReaches } from "../src/adapters/kaffelogic/parse.js";
+import { SLOPE_RANGE_C_PER_MIN, holdThermalDose, withRoastCurve } from "../src/adapters/kaffelogic/editCurve.js";
+import { levelToTemp, parseKpro, timeCurveReaches } from "../src/adapters/kaffelogic/parse.js";
 import { profileNames, profileRevision } from "../src/adapters/kaffelogic/profileNames.js";
-import { formatMinutesSeconds } from "../src/adapters/kaffelogic/thermalDose.js";
+import { curveThermalDoseTo, formatMinutesSeconds, profileThermalDoseAtLevel } from "../src/adapters/kaffelogic/thermalDose.js";
 import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileFromKpro, sameProfileBody, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
 import type { Intake } from "../src/core/intake.js";
 import { checkShape } from "../src/core/validate.js";
@@ -141,4 +142,46 @@ export async function writeVersionProfile(db: Db, input: unknown, env: ProfileFi
   const path = outPath(names.fileName, env.outDir);
   writeFile(path, text);
   return { written: path, profileName: names.shortName, fileName: names.fileName, version: v.number, level: v.level, endTempC: v.endTempC, builtFrom: base.path };
+}
+
+/**
+ * profile:edit: a preview of a curve edit that holds a version's thermal dose and ends at another level (docs/ROADMAP.md, Next 3). It records
+ * nothing and writes no file: `onYes` is the `version:add` that stores the edited profile as the next version, and the roaster says yes first.
+ * The figures are the curve's own predictions; no roast has been made on the edited curve.
+ */
+export async function previewCurveEdit(db: Db, input: unknown, env: ProfileFileEnv) {
+  const errors = checkShape(input, { beanId: { type: "integer", required: true }, version: { type: "integer" }, level: { type: "number", required: true }, reason: { type: "string" } });
+  if (errors.length) throw new InputError(errors);
+  const { beanId, version: number, level, reason } = input as { beanId: number; version?: number; level: number; reason?: string };
+  if (!(level >= 0 && level <= 6)) throw new InputError([`Level must be between 0 and 6; got ${level}.`]);
+  const history = await beanHistory(db, beanId);
+  const v = number === undefined ? history.versions[history.versions.length - 1] : history.versions.find((x) => x.number === number);
+  if (!v) throw new InputError([`Bean ${beanId} has no v${number}.`]);
+  const base = await versionBase(db, beanId, v, env.library);
+  if (!base) throw new InputError([`v${v.number}'s profile "${v.profileName}" isn't stored and has no copy in ${env.libraryDir}, so there's no curve to edit.`]);
+  const profile = parseKpro(formatKpro(base.lines));
+  const from = profileThermalDoseAtLevel(profile, v.level);
+  const endTemp = levelToTemp(profile.roastLevels, level);
+  if (!from || endTemp === undefined) throw new InputError([`v${v.number}'s curve never reaches the end of level ${from ? level : v.level}, so there's no thermal dose to hold.`]);
+  const target = curveThermalDoseTo(profile.roastCurve, from.endTemp, true)!;
+  const edit = holdThermalDose(profile, endTemp, target.thermalDose);
+  if (!edit) {
+    const [lo, hi] = SLOPE_RANGE_C_PER_MIN;
+    throw new InputError([`No climb between ${lo} and ${hi} °C/min gives v${v.number}'s thermal dose at level ${level} (${endTemp.toFixed(1)} °C), or that end falls before the climb starts at ${formatMinutesSeconds(profile.roastCurve[profile.roastCurve.length - 2].point.t)}.`]);
+  }
+  const file = writeKpro(withRoastCurve(base.lines, edit.curve));
+  const slope = (x: number) => x.toFixed(1);
+  const summary = `the climb after ${formatMinutesSeconds(edit.climbFrom.t)} (${edit.climbFrom.temp.toFixed(1)} °C) goes from ${slope(edit.slopeBefore)} to ${slope(edit.slopeAfter)} °C/min, and the roast ends at level ${level} (${endTemp.toFixed(1)} °C)`;
+  const say = [
+    `On the same profile, ${summary}.`,
+    `The curve's predicted thermal dose stays ${target.thermalDose.toFixed(2)}, the figure for level ${v.level} (${from.endTemp.toFixed(1)} °C) on the current curve. The curve before ${formatMinutesSeconds(edit.climbFrom.t)}, and so the time of first crack, is unchanged.`,
+    `By the curve the roast ends at ${formatMinutesSeconds(edit.endsAtAfter)} instead of ${formatMinutesSeconds(target.endsAt)}, a climb of ${formatMinutesSeconds(edit.endsAtAfter - edit.climbFrom.t)} instead of ${formatMinutesSeconds(target.endsAt - edit.climbFrom.t)}.`,
+    `These are the curve's predictions: real roasts have run 5% to 18% above them, and no roast has been made on this curve yet. Shall I record it as the next version?`,
+  ].join(" ");
+  return {
+    from: { version: v.number, level: v.level, endTempC: from.endTemp, thermalDose: target.thermalDose, endsAtS: target.endsAt },
+    edit: { climbFromS: edit.climbFrom.t, climbFromTempC: edit.climbFrom.temp, slopeBeforeCPerMin: edit.slopeBefore, slopeAfterCPerMin: edit.slopeAfter, level, endTempC: endTemp, thermalDose: edit.thermalDose, endsAtS: edit.endsAtAfter },
+    say,
+    onYes: { command: "version:add", input: { beanId, parent: v.number, level, reason: reason ?? `Curve edit: ${summary}, holding the predicted thermal dose of v${v.number}.`, profileFile: file } },
+  };
 }
