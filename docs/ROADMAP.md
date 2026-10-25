@@ -5,7 +5,7 @@ someone else. Update it in the same change that moves any of these. Design ratio
 [research.md](research.md) and [thread1-notes.md](thread1-notes.md); the release history is in
 [CHANGELOG.md](../CHANGELOG.md).
 
-Last updated 2026-10-25 (0.2.x alpha).
+Last updated 2026-10-25 (0.5.x alpha).
 
 ## The goal
 
@@ -199,7 +199,7 @@ production said "bitter, 10% less roasting" (level 2.6). Where the dev-mode view
 1. **Colour is not an input.** The roast ended at Agtron 42.5 against a target of 45; the rules never compare the two. Colour gives
    a direction and a size the cup words do not.
 2. **Weight loss and development ratio are not inputs.** Weight loss was 18% at Agtron 42.5 and development 46.9% of the roast, long for
-   that colour and above the stock targets listed in `startingProfiles.ts` (10 to 30%). Dev-mode view (medium confidence): a long,
+   that colour and above the development targets `startingProfiles.ts` lists for the stock profiles that have one (10 to 30%; none is listed for the Classic body itself). Dev-mode view (medium confidence): a long,
    slow finish, so a shorter or equal development, not a longer one. Check first the first-crack press (`cracksPressedOk` was not
    recorded), since the ratio rests on it.
 3. **The brew's water temperature is not recorded.** The two pour overs differed in it and tasted differently; the tool cannot tell a
@@ -368,9 +368,9 @@ Order is a suggestion; the roaster picks.
      follows the end temperature or the thermal dose. Fan, zones and `roast_end_by_time_ratio` are unread.
    - **Step 2 built in part (2026-10-25, `editCurve.ts`, `test/editCurve.test.ts`) and a preview command (`profile:edit`):** one edit, the
      slope of the last segment of the curve, found so the curve's predicted thermal dose at another level's end temperature equals a
-     version's (bisection on the slope, 2 to 12 °C/min, the end time found exactly; refused when no slope gives it). It records
-     nothing; `onYes` is the `version:add` with the edited `profileFile`. The 3% is met by construction for the curve's prediction (the
-     test allows 1% after the file's six figures). Not built: the Maillard-stretch edit, fan and zone edits, a level search for a
+     version's (bisection on the slope, 2 to 12 °C/min, the end time found to within the search; refused when no slope gives it, when the curve has fewer than three nodes, or when its last segment is not one straight climb). It records
+     nothing; `onYes` is the `version:add` with the edited `profileFile`. The edit matches the target to within the search, and the tests
+     check the written file to 1%, inside the decided 3%. Not built: the Maillard-stretch edit, fan and zone edits, a level search for a
      chosen end rather than a chosen level, a station scenario, the engine offering an edit, a RULES.md section.
    - **Steps, each its own PR.** (1) Read first, no code shipped: compare the real logs' achieved curve with the requested one,
      what the nodes do, how the machine follows a curve, and each roast's offset from its curve's prediction (findings in [research.md](research.md), "Heat transfer"; the

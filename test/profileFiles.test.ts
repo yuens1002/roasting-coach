@@ -2,10 +2,11 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { type Db, InputError, addVersion, listBeans } from "../src/db/store.js";
-import { type ProfileFileEnv, addBeanWithProfile, writeVersionProfile } from "../scripts/profileFiles.js";
+import { parseKpro } from "../src/adapters/kaffelogic/parse.js";
+import { type Db, InputError, addVersion, beanHistory, listBeans } from "../src/db/store.js";
+import { type ProfileFileEnv, addBeanWithProfile, previewCurveEdit, writeVersionProfile } from "../scripts/profileFiles.js";
 import { migratedDb } from "./pg.js";
-import { PROFILE } from "./syntheticLog.js";
+import { BENT_CLIMB_CURVE, CLIMB_CURVE, PROFILE, profileWithCurve } from "./syntheticLog.js";
 
 // The files the tool writes for a bean, on a real (in-memory) database and a temp folder. The "stock" files are made up: the
 // made-up profile under a stock profile's name, and, for a different curve, with another fan curve.
@@ -156,5 +157,73 @@ describe("profile:write", () => {
     const { beanId } = await addBeanWithProfile(db, YIRG, { ...env, library: [] });
     await expect(writeVersionProfile(db, { beanId, version: 1 }, { ...env, library: [] })).rejects.toThrow("has no copy in the library");
     expect(existsSync(outDir) && readdirSync(outDir)).toEqual([]);
+  });
+});
+
+describe("profile:edit", () => {
+  // A library whose stock profile has a straight last climb, so there is something to reshape (the plain made-up one has two nodes).
+  const climbLibrary = (curve = CLIMB_CURVE) => [{ path: "KL Washed.kpro", text: profileWithCurve(curve).replace("profile_short_name:Test line", "profile_short_name:KL Washed") }];
+  const setup = async (curve = CLIMB_CURVE) => {
+    const db = await migratedDb();
+    const climbEnv = { ...env, library: climbLibrary(curve) };
+    const { beanId, version } = await addBeanWithProfile(db, YIRG, climbEnv);
+    return { db, climbEnv, beanId, level: version.level };
+  };
+
+  it("previews an edit that holds the version's thermal dose and records nothing, with the version:add that would store it", async () => {
+    const { db, climbEnv, beanId, level } = await setup();
+    const before = { versions: (await beanHistory(db, beanId)).versions.length, files: readdirSync(outDir) };
+    const preview = await previewCurveEdit(db, { beanId, level: level + 1 }, climbEnv);
+    expect(preview.say).toContain("Shall I record it as the next version?");
+    expect(preview.say).toContain("The curve before 5:00 is unchanged.");
+    expect(preview.say).not.toMatch(/(?<!thermal )\bdose\b/);
+    expect(preview.edit.slopeAfterCPerMin).toBeGreaterThan(preview.edit.slopeBeforeCPerMin);
+    expect(Math.abs(preview.edit.thermalDose - preview.from.thermalDose) / preview.from.thermalDose).toBeLessThan(1e-6);
+    expect(preview.onYes).toMatchObject({ command: "version:add", input: { beanId, parent: 1, level: level + 1 } });
+    // A preview stores no version and writes no file.
+    expect((await beanHistory(db, beanId)).versions).toHaveLength(before.versions);
+    expect(readdirSync(outDir)).toEqual(before.files);
+  });
+
+  it("gives an onYes that version:add stores, as a profile with the edited curve and the same levels", async () => {
+    const { db, climbEnv, beanId, level } = await setup();
+    const preview = await previewCurveEdit(db, { beanId, level: level + 1, reason: "Try a steeper finish" }, climbEnv);
+    expect(preview.onYes.input.reason).toBe("Try a steeper finish");
+    const v = await addVersion(db, preview.onYes.input);
+    expect(v).toMatchObject({ number: 2, parentNumber: 1, level: level + 1, hasProfileFile: true });
+    const stored = parseKpro(preview.onYes.input.profileFile);
+    expect(stored.roastLevels).toEqual(parseKpro(profileWithCurve(CLIMB_CURVE)).roastLevels);
+    expect(stored.roastCurve[stored.roastCurve.length - 1].point.v).not.toBeCloseTo(parseKpro(profileWithCurve(CLIMB_CURVE)).roastCurve[3].point.v, 1);
+  });
+
+  it("describes its own reason in measured terms when the roaster gives none", async () => {
+    const { db, climbEnv, beanId, level } = await setup();
+    const preview = await previewCurveEdit(db, { beanId, level: level + 1 }, climbEnv);
+    expect(preview.onYes.input.reason).toMatch(/^Curve edit: the climb after 5:00 \(199\.0 °C\) goes from 6\.0 to \d+\.\d °C\/min/);
+  });
+
+  it("refuses an unknown version, a level off the machine and an unknown key, in plain words", async () => {
+    const { db, climbEnv, beanId, level } = await setup();
+    await expect(previewCurveEdit(db, { beanId, version: 9, level }, climbEnv)).rejects.toThrow("Bean 1 has no v9.");
+    await expect(previewCurveEdit(db, { beanId, level: 7 }, climbEnv)).rejects.toThrow("Level must be between 0 and 6; got 7.");
+    await expect(previewCurveEdit(db, { beanId, level, extra: 1 }, climbEnv)).rejects.toBeInstanceOf(InputError);
+  });
+
+  it("refuses a version with no stored file and no copy of its stock profile in the library", async () => {
+    const db = await migratedDb();
+    const bare = { ...env, library: [] };
+    const { beanId, version } = await addBeanWithProfile(db, YIRG, bare);
+    await expect(previewCurveEdit(db, { beanId, level: version.level }, bare)).rejects.toThrow("so there's no curve to edit");
+  });
+
+  it("refuses a curve with only two nodes", async () => {
+    const db = await migratedDb();
+    const { beanId, version } = await addBeanWithProfile(db, YIRG, env);
+    await expect(previewCurveEdit(db, { beanId, level: version.level + 1 }, env)).rejects.toThrow("The curve has 2 nodes");
+  });
+
+  it("refuses a curve whose last segment is not one straight climb", async () => {
+    const bent = await setup(BENT_CLIMB_CURVE);
+    await expect(previewCurveEdit(bent.db, { beanId: bent.beanId, level: bent.level + 1 }, bent.climbEnv)).rejects.toThrow("not one straight climb");
   });
 });

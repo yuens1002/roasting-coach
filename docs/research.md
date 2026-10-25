@@ -271,8 +271,8 @@ Logs `log0105` (level 3) and `log0106` (level 2.6), both on `[KL] Classic` (the 
 over `parseKlog`/`evalCurve`; nothing is shipped.
 
 - **The curve is seven Bezier nodes** of requested bean temperature against time (the node values are Kaffelogic's profile and are not
-  copied here). The last node's out-handle is zero and `evalCurve` continues in a straight line past it, so from 300 s (199 °C) the
-  request is one slope, 5.92 °C/min. **The level does not change the curve: it only picks the end temperature (`roast_levels`) where
+  copied here). The last node's out-handle is zero and `evalCurve` continues in a straight line past it, so from the last interior node (300 s) the
+  request is one slope, about 5.9 °C/min. **The level does not change the curve: it only picks the end temperature (`roast_levels`) where
   the roast stops**, 227 °C at level 3 and 225 °C at 2.6. Everything after first crack is that one straight climb to the end temperature.
 - **The machine follows it.** Bean temperature runs 5 to 13 °C below the request in the first two minutes (the charge), is within 4 °C
   from 150 s, and between −0.5 and +2.7 °C of it from 210 s to the end, in both logs. First crack came at 201.4 °C (298 s) and 200.8 °C
@@ -280,8 +280,8 @@ over `parseKlog`/`evalCurve`; nothing is shipped.
 - **The achieved rate of rise after first crack is noisy (2 to 9 °C/min) around the requested 5.9**; the average over the stretch is
   what matters, and it matched.
 - **Development is the climb from first crack to the end temperature.** On this curve it is set by two numbers, the slope after first
-  crack and the end temperature: 4.4 min at 5.9 °C/min over 25 °C. Not read: what `roast_end_by_time_ratio` (0.333 in these logs) and
-  `roast_end_reason` (0) do; the fan curve (14,700 falling to about 13,200 rpm); the zones (all zero here).
+  crack and the end temperature: 4.4 min at 5.9 °C/min over 25 °C. Not read: what `roast_end_by_time_ratio` and
+  `roast_end_reason` do; the fan curve; the zones.
 - **A held-thermal-dose family on this curve, computed from the curve's own prediction (a calculation, not a roast).** Replace the straight
   climb after 300 s by another slope and find the end temperature whose predicted thermal dose equals that of the stock curve at level 2.6
   (10.80; the roasts measured 8% above: 11.72). Pre-crack nodes and the time of first crack are unchanged. Slope (°C/min), end temperature

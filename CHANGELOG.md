@@ -11,10 +11,11 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ### Added
 
-- `profile:edit` previews a curve edit and records nothing: the slope of the last segment of a version's curve (on the stock curves read so
+- `profile:edit` previews a curve edit and records nothing: the slope of the last segment of a version's curve (on the one stock curve read so
   far, the straight climb to the end) is changed so that the curve, ended at another level's temperature, has the predicted thermal dose of
-  that version. Its `onYes` is the `version:add` that stores the edited profile. `src/adapters/kaffelogic/editCurve.ts` holds the edit; a
-  slope outside 2 to 12 °C/min, or an end that falls before the climb starts, is refused.
+  that version. Its `onYes` is the `version:add` that stores the edited profile. `src/adapters/kaffelogic/editCurve.ts` holds the edit; an edit is
+  refused when the curve has fewer than three nodes, its last segment is not one straight climb, the end falls before the climb
+  starts, or no slope from 2 to 12 °C/min gives the thermal dose.
 - The research notes record what the curve nodes do (from two real logs) and the Alstrup et al. 2020 development-time paper (abstract and a
   results summary read, not the full text). The roadmap records the dev mode and production mode split and the first dev-mode findings.
 

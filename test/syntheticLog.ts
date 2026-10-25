@@ -43,3 +43,10 @@ export function syntheticLog(markers: Record<string, number>): string {
     ...rows,
   ].join("\n");
 }
+
+// A made-up curve shaped like a stock one: a fast start, then a straight climb of 6 °C/min from 300 s (199 °C) to 600 s (229 °C).
+export const CLIMB_CURVE = "0,20,0,0,60,80,120,160,90,130,160,168,300,199,240,189,360,205,600,229,500,219,0,0";
+// The same, with a last segment that is not straight: its ends climb 6 °C/min but its incoming handle is nearly flat.
+export const BENT_CLIMB_CURVE = "0,20,0,0,60,80,120,160,90,130,160,168,300,199,240,189,360,205,600,229,500,200,0,0";
+/** The made-up profile with another roast curve, and levels whose end temperatures (205 to 241 °C) the curves above reach. */
+export const profileWithCurve = (curve: string) => `${PROFILE.replace(/^roast_profile:.*$/m, `roast_profile:${curve}`).replace(/^roast_levels:.*$/m, "roast_levels:205,215,222,227,231,235,241")}\n`;
