@@ -11,6 +11,7 @@
 //   npx tsx scripts/roast.ts version:add '{"beanId": 1, "profileName": "KL Washed", "level": 1.2, "reason": "..."}'
 //   npx tsx scripts/roast.ts history 1
 //   npx tsx scripts/roast.ts profile:write '{"beanId": 1, "version": 2}'   (a .kpro for that version, its level as the recommended level, named by the profile naming convention)
+//   npx tsx scripts/roast.ts profile:edit '{"beanId": 1, "version": 2, "level": 3}'   (preview: hold that version's predicted thermal dose on a reshaped curve ending at that level; records nothing, `onYes` is the version:add)
 //   npx tsx scripts/roast.ts bean:update  '{"beanId": 1, "answers": {"sellerNotes": "..."}}'   (merged over the stored answers; null clears)
 //   npx tsx scripts/roast.ts taste:update '{"tastingId": 2, "answers": {"quality": 3, "taste": ["flat"]}}'
 //   npx tsx scripts/roast.ts thermal-dose '{"profile": "Robusta", "level": 3, "change": -15}'   (level for a thermal dose change, in %)
@@ -44,7 +45,7 @@ import { checkShape } from "../src/core/validate.js";
 import { type Db, InputError, type NewRoast, type NewVersion, addBean, addRoast, addTasting, addVersion, beanHistory, changeCalibration, intakeFromBeanRow, listBeans, loadColourReadings, loadOverrides, predictedThermalDoses, roastRuns, NEW_ROAST_SHAPE, refreshFeatures, removeBean, updateBean, updateTasting, versionProfileFile } from "../src/db/store.js";
 import { asDb, connect } from "./db.js";
 import { KAFFELOGIC_DIR, KAFFELOGIC_OUT_DIR, loadLibrary } from "./library.js";
-import { addBeanWithProfile, curveReachesAt, versionBase, writeVersionProfile } from "./profileFiles.js";
+import { addBeanWithProfile, curveReachesAt, previewCurveEdit, versionBase, writeVersionProfile } from "./profileFiles.js";
 
 const FORMS = { intake: INTAKE_FIELDS, roast: ROAST_FIELDS, tasting: TASTING_FIELDS };
 const [command, arg] = process.argv.slice(2);
@@ -210,6 +211,9 @@ async function run() {
         return await updateBean(db, json() as never);
       case "taste:update":
         return await updateTasting(db, json() as never);
+      case "profile:edit":
+        // A preview, like level-for: it records nothing, and the roaster says yes before version:add stores the edited profile.
+        return await previewCurveEdit(db, json(), profileFileEnv());
       case "profile:write":
         return await writeVersionProfile(db, json(), profileFileEnv());
       case "features:refresh":
@@ -217,7 +221,7 @@ async function run() {
       case "bean:remove":
         return await removeBean(db, beanIdArg());
       default:
-        throw new InputError([`Unknown command "${command}". Commands: fields, library, thermal-dose, level-for, advise, table, clean-zone, calibration, calibration:set, beans, profile:write, bean:add, bean:update, bean:remove, version:add, roast:add, taste:add, taste:update, history, features:refresh.`]);
+        throw new InputError([`Unknown command "${command}". Commands: fields, library, thermal-dose, level-for, advise, table, clean-zone, calibration, calibration:set, beans, profile:write, profile:edit, bean:add, bean:update, bean:remove, version:add, roast:add, taste:add, taste:update, history, features:refresh.`]);
     }
   } finally {
     await client.end();

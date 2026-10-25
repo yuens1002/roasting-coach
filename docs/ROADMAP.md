@@ -5,7 +5,7 @@ someone else. Update it in the same change that moves any of these. Design ratio
 [research.md](research.md) and [thread1-notes.md](thread1-notes.md); the release history is in
 [CHANGELOG.md](../CHANGELOG.md).
 
-Last updated 2026-10-10 (0.2.x alpha).
+Last updated 2026-10-25 (0.5.x alpha).
 
 ## The goal
 
@@ -184,6 +184,44 @@ What each change does, and where it stands. The reason is there when it was set 
 | Learn a roaster's own step size | Shortest path to the right roast per person | Not built: needs several beans |
 | Fix the count of "three roasts" | Where the count starts, how a deliberate ladder counts | **Decided (2026-10-10):** three level changes, counted from the first level change recommended; each version behind the roast tasted is one. Built: `advise` says which one it is |
 
+### Dev mode and production mode (decided 2026-10-24)
+
+Two modes, kept apart. **Production** is what a roaster meets: the shipped engine, which relays only finished text from tested rules
+and never uses a model's judgement. **Dev** is a session where Claude gives its own roasting judgement and writes down where that
+differs from what production said; each difference is a candidate rule, input or test. The loop: run production on a real roast,
+read the cup, set production's answer against the dev-mode view, change the tool, run again. A dev-mode view is an opinion with a
+stated confidence and is never shown to a roaster as advice; it enters the tool only as a deterministic rule with a status (what it
+rests on, how many roasts agree and disagree), and the `voice` and `rulesDoc` tests apply to it.
+
+**First dev-mode findings (2026-10-25): a washed coffee roasted twice on one stock profile.** Production read the first cup as scorched and
+said "10% less roasting"; the next cup was clean, quality 3, and production held it (`keep-as-is`). The roaster's tasting records stay in their
+own database and are not reproduced here. Where the dev-mode view differs:
+
+1. **Colour is not an input.** The first roast ended darker than the colour aimed at; the rules never compare the two. Colour gives a
+   direction and a size the cup words do not.
+2. **Weight loss and development ratio are not inputs.** Weight loss was 18% at about Agtron 42 and development 46.9% of the roast, long for
+   that colour and above the development targets `startingProfiles.ts` lists for the stock profiles that have one (10 to 30%; none is
+   listed for the Classic body itself). Dev-mode view (medium confidence): a long, slow finish, so a shorter or equal development, not a
+   longer one. Check first the first-crack press (`cracksPressedOk` was not recorded), since the ratio rests on it.
+3. **The brew's water temperature is not recorded.** The brews tasted for two roasts differed in it, and the tool cannot tell a roast defect from a
+   hot brew. A candidate optional tasting field (a minor-version change under the conversion policy above).
+4. **Level is the only lever.** Shape (development time at held thermal dose) is Next, 3; a bean is a case for it when a level change
+   leaves the defect; a clean cup the roaster wants to take further is a candidate case (item 6), which reopens "a clean cup is done".
+
+Results: a 10.9% cut in thermal dose (13.15 to 11.72) moved neither weight loss (18.0% to 18.2%) nor development (46.9% to 47.0%); the
+end temperature fell 2 °C and the colour moved 4.7 Agtron (42.5 to 47.2). Two more dev-mode findings:
+
+5. **A clean cup with no listed flavour cannot be recorded.** The chips are required and there is no neutral one, so a flavour that is not
+   on the list has to be entered as a chip it was not described with. Candidates: allow no chip on a clean cup (quality 3 or more), and a
+   free-text flavour that the rules do not read.
+6. **A bean held at a clean quality 3 is the wall case for curve edits** (Next, 3): the level is exhausted for defects, and the roaster
+   wants more. The clean zone is bracketed by the clean roast (thermal dose 11.72) and the scorched one (13.15); production holds, and
+   probing between them is considered-and-not-built.
+
+**Wanted: personal defaults** (roaster, 2026-10-24). Answers a roaster gives the same way every time (not decaf, arabica, their
+tasting brew, drink soon) stored once and applied at intake without asking, with the response listing each default it used.
+Not designed; fits beside `calibration` (stored in the roaster's own database).
+
 ## Working today
 
 - **How each roast ran against its profile** (in the bean's table, `src/adapters/kaffelogic/runStats.ts`, `roastRuns`): per roast, the
@@ -322,6 +360,16 @@ Order is a suggestion; the roaster picks.
    - **First edit family:** development time at about the same thermal dose: reshape the stretch after first crack (against
      the drying and Maillard stretches), then re-level to hold the thermal dose. The research says the early phase adds almost no
      thermal dose, so holding the thermal dose while moving it between phases mostly changes the hot end.
+   - **Step 1 done for the Classic curve (2026-10-25, [research.md](research.md), "What the curve nodes do"):** seven Bezier nodes, a
+     straight 5.9 °C/min climb after 300 s, the level only picks where it stops, the machine follows within a few °C. A held thermal dose
+     family (slope after first crack against end temperature) is computed; the open question for a real roast is whether colour
+     follows the end temperature or the thermal dose. Fan, zones and `roast_end_by_time_ratio` are unread.
+   - **Step 2 built in part (2026-10-25, `editCurve.ts`, `test/editCurve.test.ts`) and a preview command (`profile:edit`):** one edit, the
+     slope of the last segment of the curve, found so the curve's predicted thermal dose at another level's end temperature equals a
+     version's (bisection on the slope, 2 to 12 °C/min, the end time found to within the search; refused when no slope gives it, when the curve has fewer than three nodes, or when its last segment is not one straight climb). It records
+     nothing; `onYes` is the `version:add` with the edited `profileFile`. The edit matches the target to within the search, and the tests
+     check the written file to 1%, inside the decided 3%. Not built: the Maillard-stretch edit, fan and zone edits, a level search for a
+     chosen end rather than a chosen level, a station scenario, the engine offering an edit, a RULES.md section.
    - **Steps, each its own PR.** (1) Read first, no code shipped: compare the real logs' achieved curve with the requested one,
      what the nodes do, how the machine follows a curve, and each roast's offset from its curve's prediction (findings in [research.md](research.md), "Heat transfer"; the
      Studio check below). (2) Pure edit functions (`editCurve.ts`): phase boundaries, one reshape, the re-level that holds the thermal dose, and the
