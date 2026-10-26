@@ -243,8 +243,10 @@ Not designed; fits beside `calibration` (stored in the roaster's own database).
   to. `bean:update` and `taste:update` correct answers after the fact.
 - **Writing profile files**: the bean's own `.kpro` is written to `profiles/out/` at intake, and
   `profile:write` writes a version's file. A written file is accepted by Kaffelogic Studio and the
-  Nano. Curve, fan and zone edits are not built (see below), so a written file differs from its
-  base only in name (by the naming convention, Next 5), description and the level it offers first.
+  Nano. Fan and zone edits are not built (see below), and the one curve edit built (`profile:edit`, the slope of the last segment)
+  is a preview a roaster accepts, so a written file differs from its base in name (by the naming convention, Next 5),
+  description and the level it offers first, and, for a version whose curve was edited, in that curve and in its designer line
+  (`roasting-coach`, since the base profile's designer did not make the edited curve).
 - **Sizing a level change in thermal dose** (`thermal-dose`, `levelForThermalDose`), so "about 15% less
   roasting" becomes the right level for the profile at hand.
 - **Restating the roast colour** (`level-for`, `placeColour`): when the roaster's target colour changes, the level to try

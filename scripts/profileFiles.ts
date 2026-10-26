@@ -143,9 +143,15 @@ export async function writeVersionProfile(db: Db, input: unknown, env: ProfileFi
     throw new InputError([(e as Error).message]);
   }
   const stockName = v.baseProfile ?? v.profileName;
-  const edited = curveWasEdited(await versionProfileFile(db, beanId, v.number), stockName, env.library) === true;
+  const stored = await versionProfileFile(db, beanId, v.number);
+  // A version recorded as another stock profile keeps its ancestor as `baseProfile`, so a stored body equal to the profile the version is
+  // named for is that stock curve, not an edit of its ancestor. When neither copy is in the library the curve can't be told from a stock one.
+  const againstBase = curveWasEdited(stored, stockName, env.library);
+  const againstNamed = v.profileName === stockName ? againstBase : curveWasEdited(stored, v.profileName, env.library);
+  const edited = againstBase === true && againstNamed !== false;
+  const curveClaim = edited ? `Curve edited from ${stockName}.` : againstBase === false || againstNamed === false ? `Curve and settings are those of ${v.profileName}.` : `Curve and settings are as stored for v${v.number}.`;
   const description = [
-    `${names.shortName}: v${v.number} of ${beanName}, level ${v.level} (ends at ${v.endTempC} °C), written by roasting-coach. ${edited ? `Curve edited from ${stockName}.` : `Curve and settings are those of ${v.profileName}.`}`,
+    `${names.shortName}: v${v.number} of ${beanName}, level ${v.level} (ends at ${v.endTempC} °C), written by roasting-coach. ${curveClaim}`,
     v.changeReason ?? "",
   ]
     .filter(Boolean)
@@ -185,9 +191,10 @@ export async function previewCurveEdit(db: Db, input: unknown, env: ProfileFileE
   if (!edit.ok) throw new InputError([`v${v.number}: ${edit.problem}`]);
   // A blank reason is no reason: version:add would refuse it, so the preview would hand back a command that fails.
   const reason = said?.trim() || undefined;
-  const file = writeKpro(withRoastCurve(base.lines, edit.curve));
   const slope = (x: number) => x.toFixed(1);
   const summary = `the climb after ${formatMinutesSeconds(edit.climbFrom.t)} (${edit.climbFrom.temp.toFixed(1)} °C) goes from ${slope(edit.slopeBefore)} to ${slope(edit.slopeAfter)} °C/min, and the roast ends at level ${level} (${endTemp.toFixed(1)} °C)`;
+  // The stored file describes itself: it is no longer the base designer's curve, and "unchanged" would be false.
+  const file = writeKpro(withRoastCurve(base.lines, edit.curve), { designer: EDITED_CURVE_DESIGNER, description: `Curve edited from ${v.baseProfile ?? v.profileName}: ${summary}.` });
   const say = [
     `On the same profile, ${summary}.`,
     `The curve's predicted thermal dose stays ${target.thermalDose.toFixed(2)}, the figure for level ${v.level} (${from.endTemp.toFixed(1)} °C) on the current curve. The curve before ${formatMinutesSeconds(edit.climbFrom.t)} is unchanged.`,
