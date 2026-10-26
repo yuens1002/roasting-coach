@@ -11,14 +11,13 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ### Changed
 
-- `profile:write` on a version whose stored curve differs from its stock profile's now writes `profile_designer:roasting-coach` (the base
-  profile's designer did not make the edited curve) and the description says "Curve edited from <stock profile>." where it said "Curve and
-  settings are those of ..." (false for an edited curve). A version on the stock curve keeps the base profile's designer and the old
-  wording. A version recorded as another stock profile is checked against that profile's copy too, so its stock curve is not called an
-  edit of the profile it was recorded after. When the library has no copy of the stock profile, the description says "Curve and settings
-  are as stored for vN" instead of claiming either. The file `profile:edit` hands to `version:add` now carries the tool's credit and
-  an "edited" description itself, so it is right without the library. `writeKpro` takes an optional `designer`; the check whether a
-  stored curve was edited is shared with the profile revision number (`curveWasEdited`).
+- The file `profile:edit` hands to `version:add` now carries `profile_designer:roasting-coach` (the base profile's designer did not make the
+  edited curve, and the designer line does not name them) and a description that starts "Curve edited from vN's curve". Every later
+  version inherits that file, and `profile:write` reads the credit from the stored file: such a version is written with the tool's
+  credit and "Curve edited by roasting-coach (profile:edit)." where it said "Curve and settings are those of ..." (false for an
+  edited curve). A version nobody edited keeps the base profile's designer and the old wording, whether or not the library holds the stock
+  profile's copy. `writeKpro` takes an optional `designer`. A version stored by 0.5.3's `profile:edit` has no such credit in its stored
+  file and keeps the base designer when written.
 
 ## [0.5.3] - 2026-10-25
 
