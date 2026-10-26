@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parseKpro } from "../src/adapters/kaffelogic/parse.js";
 import { type Db, InputError, addVersion, beanHistory, listBeans } from "../src/db/store.js";
-import { type ProfileFileEnv, addBeanWithProfile, previewCurveEdit, writeVersionProfile } from "../scripts/profileFiles.js";
+import { EDITED_CURVE_DESIGNER, type ProfileFileEnv, addBeanWithProfile, previewCurveEdit, writeVersionProfile } from "../scripts/profileFiles.js";
 import { migratedDb } from "./pg.js";
 import { BENT_CLIMB_CURVE, CLIMB_CURVE, PROFILE, profileWithCurve } from "./syntheticLog.js";
 
@@ -162,7 +162,7 @@ describe("profile:write", () => {
 
 describe("profile:edit", () => {
   // A library whose stock profile has a straight last climb, so there is something to reshape (the plain made-up one has two nodes).
-  const climbLibrary = (curve = CLIMB_CURVE) => [{ path: "KL Washed.kpro", text: profileWithCurve(curve).replace("profile_short_name:Test line", "profile_short_name:KL Washed") }];
+  const climbLibrary = (curve = CLIMB_CURVE) => [{ path: "KL Washed.kpro", text: profileWithCurve(curve).replace("profile_short_name:Test line", "profile_short_name:KL Washed").replace("profile_designer:roasting-coach tests", "profile_designer:A. Designer") }];
   const setup = async (curve = CLIMB_CURVE) => {
     const db = await migratedDb();
     const climbEnv = { ...env, library: climbLibrary(curve) };
@@ -194,6 +194,63 @@ describe("profile:edit", () => {
     const stored = parseKpro(preview.onYes.input.profileFile);
     expect(stored.roastLevels).toEqual(parseKpro(profileWithCurve(CLIMB_CURVE)).roastLevels);
     expect(stored.roastCurve[stored.roastCurve.length - 1].point.v).not.toBeCloseTo(parseKpro(profileWithCurve(CLIMB_CURVE)).roastCurve[3].point.v, 1);
+  });
+
+  it("stamps the file it hands to version:add as the tool's, with a description of the edit", async () => {
+    const { db, climbEnv, beanId, level } = await setup();
+    const stored = parseKpro((await previewCurveEdit(db, { beanId, level: level + 1 }, climbEnv)).onYes.input.profileFile);
+    expect(stored.designer).toBe(EDITED_CURVE_DESIGNER);
+    expect(stored.description).toMatch(/^Curve edited from v1's curve: the climb after 5:00/);
+    expect(stored.description).not.toContain("unchanged");
+  });
+
+  it("is written by profile:write as an edited curve, from the mark in the stored file, and the credit survives later versions", async () => {
+    const { db, climbEnv, beanId, level } = await setup();
+    await addVersion(db, (await previewCurveEdit(db, { beanId, level: level + 1 }, climbEnv)).onYes.input);
+    // A level-only version after the edit inherits the edited file; a second edit stamps its own.
+    await addVersion(db, { beanId, level: level + 1.2, reason: "A level change only" });
+    await addVersion(db, (await previewCurveEdit(db, { beanId, version: 2, level: level + 1.2 }, climbEnv)).onYes.input);
+    for (const version of [2, 3, 4]) {
+      const written = parseKpro(readFileSync((await writeVersionProfile(db, { beanId, version }, climbEnv)).written, "utf8"));
+      expect(written.designer, `v${version}`).toBe(EDITED_CURVE_DESIGNER);
+      expect(written.description, `v${version}`).toContain("Curve edited by roasting-coach (profile:edit).");
+      expect(written.description, `v${version}`).not.toContain("are those of");
+    }
+  });
+
+  it("describes a version nobody edited as the unchanged curve and keeps the base designer, whatever the library holds", async () => {
+    const { db, climbEnv, beanId, level } = await setup();
+    await addVersion(db, { beanId, level: level + 1, reason: "A level change only" });
+    for (const [library, version] of [[climbEnv.library, 1], [climbEnv.library, 2], [[], 1], [[], 2]] as const) {
+      const written = parseKpro(readFileSync((await writeVersionProfile(db, { beanId, version }, { ...climbEnv, library: [...library], outDir: join(outDir, `lib${library.length}`) })).written, "utf8"));
+      expect(written.designer, `v${version}, ${library.length} library files`).toBe("A. Designer");
+      expect(written.description, `v${version}`).toContain("Curve and settings are those of");
+      expect(written.description, `v${version}`).not.toContain("Curve edited");
+    }
+  });
+
+  it("keeps the designer of a stock profile a version was recorded as, with or without its copy in the library", async () => {
+    const { db, climbEnv, beanId, level } = await setup();
+    const otherFan = profileWithCurve(CLIMB_CURVE)
+      .replace("profile_short_name:Test line", "profile_short_name:2000-2700m RTD")
+      .replace("profile_designer:roasting-coach tests", "profile_designer:B. Designer")
+      .replace("fan_profile:0,14700,0,0,100,14700,600,13200,500,13200,0,0", "fan_profile:0,12000,0,0,100,12000,600,11000,500,11000,0,0");
+    expect(otherFan).toContain("fan_profile:0,12000"); // the substitution matched, so this stock file's body differs from KL Washed's
+    await addVersion(db, { beanId, profileName: "2000-2700m RTD", profileFile: otherFan, level, reason: "Try the other stock profile" });
+    for (const library of [climbEnv.library, [...climbEnv.library, { path: "2000-2700m RTD.kpro", text: otherFan }]]) {
+      const written = parseKpro(readFileSync((await writeVersionProfile(db, { beanId, version: 2 }, { ...climbEnv, library, outDir: join(outDir, `lib${library.length}`) })).written, "utf8"));
+      expect(written.designer).toBe("B. Designer");
+      expect(written.description).toContain("Curve and settings are those of 2000-2700m RTD.");
+    }
+  });
+
+  it("describes a version built from the library's copy, with nothing stored, as that profile's curve", async () => {
+    const db = await migratedDb();
+    const { beanId } = await addBeanWithProfile(db, YIRG, { ...env, library: [] });
+    const withCopy = { ...env, library: climbLibrary() };
+    const written = parseKpro(readFileSync((await writeVersionProfile(db, { beanId, version: 1 }, withCopy)).written, "utf8"));
+    expect(written.designer).toBe("A. Designer");
+    expect(written.description).toContain("Curve and settings are those of KL Washed.");
   });
 
   it("treats a blank reason as none, so what it hands back is a command that version:add accepts", async () => {

@@ -169,6 +169,8 @@ export interface ProfileEdits {
   description?: string;
   /** The level the machine offers first when the profile is picked (a suggestion; any level can still be set). */
   recommendedLevel?: number;
+  /** Who the profile credits as its designer. Left as the base profile's own when not given; a curve we changed is no longer the base designer's work. */
+  designer?: string;
   /** Stamped as profile_modified; defaults to now. */
   modified?: Date;
 }
@@ -186,6 +188,7 @@ export function kaffelogicModified(d: Date): string {
 export function writeKpro(lines: ProfileLines, edits: ProfileEdits = {}): string {
   const set: Record<string, string> = { profile_modified: kaffelogicModified(edits.modified ?? new Date()) };
   if (edits.shortName !== undefined) set.profile_short_name = edits.shortName;
+  if (edits.designer !== undefined) set.profile_designer = edits.designer;
   if (edits.description !== undefined) set.profile_description = edits.description.replace(/\r?\n/g, "\\v");
   if (edits.recommendedLevel !== undefined) {
     if (!(edits.recommendedLevel >= 0 && edits.recommendedLevel <= 6)) throw new Error(`recommended level must be between 0 and 6; got ${edits.recommendedLevel}`);

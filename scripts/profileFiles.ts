@@ -102,9 +102,18 @@ async function versionsForRevision(db: Db, beanId: number, versions: Awaited<Ret
 }
 
 /**
+ * The designer credited on a profile whose curve `profile:edit` changed: the base designer did not make it, so their name is not left on it.
+ * It is also the mark that a stored profile was edited by the tool: the file carries it, and so does every later version, which inherits the file.
+ */
+export const EDITED_CURVE_DESIGNER = "roasting-coach";
+
+const designerOf = (lines: ProfileLines) => lines.find(([key]) => key === "profile_designer")?.[1].trim();
+
+/**
  * profile:write: a .kpro for one version, to load onto the machine: the version's own profile (or the roaster's copy of its stock
  * profile) under the convention's names, with the version's level as the level the machine offers first. Curve and settings are
- * unchanged, so a roast on this file still counts as the same profile.
+ * those of the version's profile, so a roast on this file still counts as the same profile. A version whose stored profile carries the
+ * tool's credit (`profile:edit` stamps it) is described as edited and keeps that credit, not the base profile's designer.
  */
 export async function writeVersionProfile(db: Db, input: unknown, env: ProfileFileEnv) {
   const errors = checkShape(input, { beanId: { type: "integer", required: true }, version: { type: "integer" } });
@@ -132,8 +141,9 @@ export async function writeVersionProfile(db: Db, input: unknown, env: ProfileFi
   } catch (e) {
     throw new InputError([(e as Error).message]);
   }
+  const edited = designerOf(base.lines) === EDITED_CURVE_DESIGNER;
   const description = [
-    `${names.shortName}: v${v.number} of ${beanName}, level ${v.level} (ends at ${v.endTempC} °C), written by roasting-coach. Curve and settings are those of ${v.profileName}.`,
+    `${names.shortName}: v${v.number} of ${beanName}, level ${v.level} (ends at ${v.endTempC} °C), written by roasting-coach. ${edited ? "Curve edited by roasting-coach (profile:edit)." : `Curve and settings are those of ${v.profileName}.`}`,
     v.changeReason ?? "",
   ]
     .filter(Boolean)
@@ -173,9 +183,10 @@ export async function previewCurveEdit(db: Db, input: unknown, env: ProfileFileE
   if (!edit.ok) throw new InputError([`v${v.number}: ${edit.problem}`]);
   // A blank reason is no reason: version:add would refuse it, so the preview would hand back a command that fails.
   const reason = said?.trim() || undefined;
-  const file = writeKpro(withRoastCurve(base.lines, edit.curve));
   const slope = (x: number) => x.toFixed(1);
   const summary = `the climb after ${formatMinutesSeconds(edit.climbFrom.t)} (${edit.climbFrom.temp.toFixed(1)} °C) goes from ${slope(edit.slopeBefore)} to ${slope(edit.slopeAfter)} °C/min, and the roast ends at level ${level} (${endTemp.toFixed(1)} °C)`;
+  // The stored file describes itself: it is no longer the base designer's curve, and "unchanged" would be false.
+  const file = writeKpro(withRoastCurve(base.lines, edit.curve), { designer: EDITED_CURVE_DESIGNER, description: `Curve edited from v${v.number}'s curve: ${summary}.` });
   const say = [
     `On the same profile, ${summary}.`,
     `The curve's predicted thermal dose stays ${target.thermalDose.toFixed(2)}, the figure for level ${v.level} (${from.endTemp.toFixed(1)} °C) on the current curve. The curve before ${formatMinutesSeconds(edit.climbFrom.t)} is unchanged.`,
