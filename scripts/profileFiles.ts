@@ -86,25 +86,35 @@ export async function addBeanWithProfile(db: Db, input: unknown, env: ProfileFil
 }
 
 /**
- * Each version of a bean for naming: which stock profile's curve its stored body is, checked body to body against the roaster's copy
- * of that stock profile in the library (a version's `baseProfile` is only ancestry, so it can't say an edit from the stock curve).
+ * Whether a stored profile has a different body from the roaster's copy of the stock profile it is built on, checked body to body
+ * (a version's `baseProfile` is only ancestry, so it can't say an edit from the stock curve). Undefined when it can't be told: nothing
+ * is stored, or the library has no copy of the stock profile.
  */
+function curveWasEdited(stored: string | undefined, base: string, library: KaffelogicFile[]): boolean | undefined {
+  const stock = stored ? findBaseProfile(library, { name: base }) : undefined;
+  if (!stored || !stock) return undefined;
+  return !sameProfileBody(profileFromKpro(stored), stock.lines);
+}
+
+/** Each version of a bean for naming: which stock profile's curve its stored body is (see curveWasEdited). */
 async function versionsForRevision(db: Db, beanId: number, versions: Awaited<ReturnType<typeof beanHistory>>["versions"], library: KaffelogicFile[]) {
   return Promise.all(
     versions.map(async (v) => {
-      const stored = await versionProfileFile(db, beanId, v.number);
       const base = v.baseProfile ?? v.profileName;
-      const stock = stored ? findBaseProfile(library, { name: base }) : undefined;
-      const stockBody = stored && stock && sameProfileBody(profileFromKpro(stored), stock.lines) ? base : undefined;
+      const stockBody = curveWasEdited(await versionProfileFile(db, beanId, v.number), base, library) === false ? base : undefined;
       return { number: v.number, profileName: v.profileName, baseProfile: v.baseProfile, profileKey: v.profileKey, stockBody };
     }),
   );
 }
 
+/** The designer credited on a profile whose curve we changed: the base designer did not make it, so their name is not left on it. */
+export const EDITED_CURVE_DESIGNER = "roasting-coach";
+
 /**
  * profile:write: a .kpro for one version, to load onto the machine: the version's own profile (or the roaster's copy of its stock
  * profile) under the convention's names, with the version's level as the level the machine offers first. Curve and settings are
- * unchanged, so a roast on this file still counts as the same profile.
+ * those of the version's profile, so a roast on this file still counts as the same profile. A version whose stored curve differs from
+ * its stock profile's is described as edited and credited to the tool, not to the base profile's designer.
  */
 export async function writeVersionProfile(db: Db, input: unknown, env: ProfileFileEnv) {
   const errors = checkShape(input, { beanId: { type: "integer", required: true }, version: { type: "integer" } });
@@ -132,13 +142,15 @@ export async function writeVersionProfile(db: Db, input: unknown, env: ProfileFi
   } catch (e) {
     throw new InputError([(e as Error).message]);
   }
+  const stockName = v.baseProfile ?? v.profileName;
+  const edited = curveWasEdited(await versionProfileFile(db, beanId, v.number), stockName, env.library) === true;
   const description = [
-    `${names.shortName}: v${v.number} of ${beanName}, level ${v.level} (ends at ${v.endTempC} °C), written by roasting-coach. Curve and settings are those of ${v.profileName}.`,
+    `${names.shortName}: v${v.number} of ${beanName}, level ${v.level} (ends at ${v.endTempC} °C), written by roasting-coach. ${edited ? `Curve edited from ${stockName}.` : `Curve and settings are those of ${v.profileName}.`}`,
     v.changeReason ?? "",
   ]
     .filter(Boolean)
     .join("\n");
-  const text = writeKpro(base.lines, { shortName: names.shortName, description, recommendedLevel: v.level });
+  const text = writeKpro(base.lines, { shortName: names.shortName, description, recommendedLevel: v.level, ...(edited ? { designer: EDITED_CURVE_DESIGNER } : {}) });
   const path = outPath(names.fileName, env.outDir);
   writeFile(path, text);
   return { written: path, profileName: names.shortName, fileName: names.fileName, version: v.number, level: v.level, endTempC: v.endTempC, builtFrom: base.path };

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parseKpro } from "../src/adapters/kaffelogic/parse.js";
 import { type Db, InputError, addVersion, beanHistory, listBeans } from "../src/db/store.js";
-import { type ProfileFileEnv, addBeanWithProfile, previewCurveEdit, writeVersionProfile } from "../scripts/profileFiles.js";
+import { EDITED_CURVE_DESIGNER, type ProfileFileEnv, addBeanWithProfile, previewCurveEdit, writeVersionProfile } from "../scripts/profileFiles.js";
 import { migratedDb } from "./pg.js";
 import { BENT_CLIMB_CURVE, CLIMB_CURVE, PROFILE, profileWithCurve } from "./syntheticLog.js";
 
@@ -162,7 +162,7 @@ describe("profile:write", () => {
 
 describe("profile:edit", () => {
   // A library whose stock profile has a straight last climb, so there is something to reshape (the plain made-up one has two nodes).
-  const climbLibrary = (curve = CLIMB_CURVE) => [{ path: "KL Washed.kpro", text: profileWithCurve(curve).replace("profile_short_name:Test line", "profile_short_name:KL Washed") }];
+  const climbLibrary = (curve = CLIMB_CURVE) => [{ path: "KL Washed.kpro", text: profileWithCurve(curve).replace("profile_short_name:Test line", "profile_short_name:KL Washed").replace("profile_designer:roasting-coach tests", "profile_designer:A. Designer") }];
   const setup = async (curve = CLIMB_CURVE) => {
     const db = await migratedDb();
     const climbEnv = { ...env, library: climbLibrary(curve) };
@@ -194,6 +194,20 @@ describe("profile:edit", () => {
     const stored = parseKpro(preview.onYes.input.profileFile);
     expect(stored.roastLevels).toEqual(parseKpro(profileWithCurve(CLIMB_CURVE)).roastLevels);
     expect(stored.roastCurve[stored.roastCurve.length - 1].point.v).not.toBeCloseTo(parseKpro(profileWithCurve(CLIMB_CURVE)).roastCurve[3].point.v, 1);
+  });
+
+  it("is written by profile:write as an edited curve credited to the tool, while an unedited version keeps the base designer", async () => {
+    const { db, climbEnv, beanId, level } = await setup();
+    await addVersion(db, (await previewCurveEdit(db, { beanId, level: level + 1 }, climbEnv)).onYes.input);
+    const edited = await writeVersionProfile(db, { beanId, version: 2 }, climbEnv);
+    const editedText = readFileSync(edited.written, "utf8");
+    expect(parseKpro(editedText).designer).toBe(EDITED_CURVE_DESIGNER);
+    expect(editedText).not.toContain("A. Designer");
+    expect(parseKpro(editedText).description).toContain("Curve edited from KL Washed.");
+    expect(parseKpro(editedText).description).not.toContain("Curve and settings are those of");
+    // The version one file, never edited, keeps the base profile's designer and its description of an unchanged curve.
+    const unedited = parseKpro(readFileSync(join(outDir, "KLN7-YIRG-WSH-001-1r1.kpro"), "utf8"));
+    expect(unedited.designer).toBe("A. Designer");
   });
 
   it("treats a blank reason as none, so what it hands back is a command that version:add accepts", async () => {

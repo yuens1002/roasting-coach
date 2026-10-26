@@ -5,6 +5,18 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-10-26
+
+- 2026-10-26 - fix(profiles): credit an edited curve to the tool, not to the base profile's designer, and describe it as edited
+
+### Changed
+
+- `profile:write` on a version whose stored curve differs from its stock profile's now writes `profile_designer:roasting-coach` (the base
+  profile's designer did not make the edited curve) and the description says "Curve edited from <stock profile>." where it said "Curve and
+  settings are those of ..." (false for an edited curve). A version on the stock curve keeps the base profile's designer and the old
+  wording. `writeKpro` takes an optional `designer`; the check whether a stored curve was edited is shared with the profile revision
+  number (`curveWasEdited`).
+
 ## [0.5.3] - 2026-10-25
 
 - 2026-10-25 - feat(profiles): preview a curve edit that holds a version's predicted thermal dose (profile:edit)

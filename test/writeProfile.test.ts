@@ -46,6 +46,15 @@ ${syntheticLog({ roast_end: 600 })}`))).toBe(true);
     expect(text.split("\n").map((l) => l.split(":")[0]).slice(0, 3)).toEqual(["profile_short_name", "profile_designer", "profile_description"]);
   });
 
+  it("can credit another designer, and leaves the base profile's designer alone when not asked", () => {
+    const original = profileFromKpro(PROFILE);
+    expect(parseKpro(writeKpro(original, { shortName: "Guji 2.2" })).designer).toBe("roasting-coach tests");
+    const credited = writeKpro(original, { shortName: "Guji 2.2", designer: "Someone Else" });
+    expect(parseKpro(credited).designer).toBe("Someone Else");
+    // A label only: the profile still roasts the same way.
+    expect(sameProfileBody(profileFromKpro(credited), original)).toBe(true);
+  });
+
   it("can set the level the machine offers first, which doesn't make it a different profile", () => {
     const original = profileFromKpro(PROFILE);
     const atLevel = writeKpro(original, { shortName: "Guji 2.2", recommendedLevel: 2.2 });
