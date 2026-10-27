@@ -18,6 +18,26 @@ export const SCA_TILES: readonly { agtron: number; name: string }[] = [
   { agtron: 25, name: "extremely dark" },
 ];
 
+/** How a colour reading was taken: with a colour meter, or against the roast colour card on a ground sample. */
+export type ColourMethod = "meter" | "card";
+export const COLOUR_METHODS: readonly ColourMethod[] = ["meter", "card"];
+
+/**
+ * The numbers on the roast colour card, one per SCA tile. A reading against the card is one of them, never a number between two:
+ * the eye cannot tell a tile from the half between it and its neighbour, and the card prints none.
+ */
+export const CARD_TILES: readonly number[] = SCA_TILES.map((tile) => tile.agtron);
+
+/** What is wrong, in plain words, with a roast's colour reading and the way it was read: both are given or neither, and a card reading is one of the card's tiles. */
+export function colourReadingProblems(colour: number | undefined, method: string | undefined): string[] {
+  if (colour !== undefined && method === undefined) return ["A colour reading says how it was read: with a colour meter, or against the roast colour card."];
+  if (colour === undefined && method !== undefined) return ["A colour reading's method is given without the reading: give the number too, or leave both out."];
+  if (colour !== undefined && method === "card" && !CARD_TILES.includes(colour)) {
+    return [`A reading against the roast colour card is one of the card's numbers (${CARD_TILES.slice(0, -1).join(", ")} or ${CARD_TILES[CARD_TILES.length - 1]}); got ${colour}.`];
+  }
+  return [];
+}
+
 /**
  * The common roast-level chart reads each tile as a band of ten: a tile's number is the band's darker edge (medium is 55 to
  * 65, dark is 35 to 45). The name of the band an Agtron number is in, e.g. 78 is "moderately light" (75 to 85) and 60 is

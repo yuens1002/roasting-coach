@@ -11,6 +11,7 @@ import type { RoastRun } from "../core/beanTable.js";
 import { calendarDay, daysBetween } from "../core/dates.js";
 import { extractFeatures } from "../core/features.js";
 import { type Field, type Intake, INTAKE_FIELDS, ROAST_FIELDS, TASTING_FIELDS } from "../core/intake.js";
+import { type ColourMethod, colourReadingProblems } from "../core/roastColour.js";
 import type { RoastFeatures, RoastLog } from "../core/types.js";
 import { type Answers, type Shape, checkAnswers, checkShape } from "../core/validate.js";
 
@@ -162,19 +163,19 @@ export interface StartingChoice {
 export type StartingProfileFile = (start: StartingChoice) => { profileName: string; profileFile: string } | undefined;
 
 /**
- * The roaster's colour-meter readings, each with the bean temperature its roast ended at as the log measured it: what ties a
+ * The roaster's colour readings (a colour meter's, or the roast colour card's) each with its method and the bean temperature its roast ended at as the log measured it: what ties a
  * stock profile's levels to the Agtron scale for this roaster. The measured end, not the level's table temperature, so a roast
  * on an edited curve counts for what it did. A roast with no recorded log or no reading, and a version that is not built on a
  * stock profile, is left out.
  */
 export async function loadColourReadings(db: Db): Promise<ColourReading[]> {
-  const r = await db.query<{ stock_profile_id: string; drop_temp: string | number; colour: string | number }>(
-    "select v.stock_profile_id, (r.features->>'dropTemp')::float as drop_temp, r.colour from roast r join profile_version v on v.id = r.version_id where r.colour is not null and r.features is not null and v.stock_profile_id is not null",
+  const r = await db.query<{ stock_profile_id: string; drop_temp: string | number; colour: string | number; colour_method: ColourMethod }>(
+    "select v.stock_profile_id, (r.features->>'dropTemp')::float as drop_temp, r.colour, r.colour_method from roast r join profile_version v on v.id = r.version_id where r.colour is not null and r.features is not null and v.stock_profile_id is not null",
   );
   const byId = new Map(Object.values(STOCK_PROFILES).map((p) => [stockProfileId(p.name), p.name]));
   return r.rows.flatMap((row) => {
     const profile = byId.get(row.stock_profile_id);
-    return profile ? [{ profile, endTempC: Number(row.drop_temp), agtron: Number(row.colour) }] : [];
+    return profile ? [{ profile, endTempC: Number(row.drop_temp), agtron: Number(row.colour), method: row.colour_method }] : [];
   });
 }
 
@@ -368,8 +369,8 @@ async function matchLogToVersion(db: Db, r: NewRoast, target: VersionRow, logged
  */
 export async function addRoast(db: Db, r: NewRoast, library: KaffelogicFile[] = []) {
   checkedShape(r, NEW_ROAST_SHAPE);
+  checkedRoastAnswers(checked(ROAST_FIELDS, r.answers));
   const values = checked(ROAST_FIELDS, r.answers);
-  if (Number(values.roastedG) >= Number(values.greenG)) throw new InputError(["Roasted weight must be less than green weight."]);
   if (r.roastedAt !== undefined && Number.isNaN(Date.parse(r.roastedAt))) throw new InputError([`"${r.roastedAt}" isn't a date; use e.g. 2026-10-04 or 2026-10-04T09:30:00.`]);
   return inTransaction(db, async () => {
     let version = await findVersion(db, r.beanId, r.version);
@@ -399,6 +400,27 @@ export async function addRoast(db: Db, r: NewRoast, library: KaffelogicFile[] = 
     const wl = await db.query<{ weight_loss_pct: string }>("select weight_loss_pct from roast where id = $1", [roastId]);
     return { roastId, version: version.number, versionChange, roastedAt, weightLossPct: Number(wl.rows[0].weight_loss_pct), features, warnings };
   });
+}
+
+/** The checks across a roast's answers: the roasted weight is under the green weight, and a colour reading says how it was read (a card reading is one of the card's tiles). */
+function checkedRoastAnswers(values: Answers) {
+  const errors = [
+    ...(Number(values.roastedG) >= Number(values.greenG) ? ["Roasted weight must be less than green weight."] : []),
+    ...colourReadingProblems(values.colour as number | undefined, values.colourMethod as string | undefined),
+  ];
+  if (errors.length) throw new InputError(errors);
+}
+
+export const ROAST_UPDATE_SHAPE: Shape = { roastId: { type: "integer", required: true }, answers: { type: "object", required: true } };
+
+/**
+ * Corrects or adds to a roast's result form after it was recorded: most often a colour reading and how it was read, against a
+ * sample ground after the roast. Merged over the stored answers and checked as a whole form; `null` clears an optional answer
+ * (clear a reading and its method together).
+ */
+export async function updateRoast(db: Db, input: { roastId: number; answers: Record<string, unknown> }) {
+  checkedShape(input, ROAST_UPDATE_SHAPE);
+  return updateForm(db, "roast", input.roastId, ROAST_FIELDS, input.answers, `Roast ${input.roastId} doesn't exist.`, async (_row, values) => checkedRoastAnswers(values));
 }
 
 /** Recomputes every stored roast's features from its stored log, after the parser or features improve. */
@@ -512,7 +534,7 @@ function restDays(roastedAt: string | Date, tastedOn: unknown): number {
  */
 async function updateForm(
   db: Db,
-  table: "bean" | "tasting",
+  table: "bean" | "tasting" | "roast",
   id: number,
   fields: Field[],
   changes: Record<string, unknown>,
@@ -633,7 +655,7 @@ export async function beanHistory(db: Db, beanId: number) {
   const roasts = (
     await db.query(
       `select r.id, r.version_id, r.roasted_at, r.log_profile_name, r.log_level, r.green_g, r.roasted_g, r.weight_loss_pct,
-              r.cracks_pressed_ok, r.colour, r.looks, r.features
+              r.cracks_pressed_ok, r.colour, r.colour_method, r.looks, r.features
          from roast r join profile_version v on v.id = r.version_id where v.bean_id = $1 order by r.roasted_at, r.id`,
       [beanId],
     )
@@ -665,6 +687,7 @@ export async function beanHistory(db: Db, beanId: number) {
             weightLossPct: Number(r.weight_loss_pct),
             cracksPressedOk: r.cracks_pressed_ok ?? undefined,
             colour: num(r.colour),
+            colourMethod: (r.colour_method ?? undefined) as ColourMethod | undefined,
             looks: r.looks,
             features: f
               ? { totalTime: f.totalTime, dropTemp: f.dropTemp, firstCrack: f.firstCrack, developmentRatio: f.developmentRatio, developmentDeltaT: f.developmentDeltaT, rorShape: f.ror.shape, thermalDose: f.thermalDose, dataWarnings: f.dataWarnings }

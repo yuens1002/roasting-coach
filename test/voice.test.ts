@@ -84,10 +84,10 @@ const STARTING_INTAKES: Intake[] = [
   { name: "k", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", altitudeM: 1850, agtronTarget: 25, tastingBrew: "pourover" },
 ] as Intake[];
 /** The roaster's own colour readings on Robusta, which give the line a starting level is placed on. */
-const STARTING_READINGS = [{ profile: "Robusta", endTempC: 219.3, agtron: 70 }, { profile: "Robusta", endTempC: 224.4, agtron: 50 }];
+const STARTING_READINGS = [{ profile: "Robusta", endTempC: 219.3, agtron: 70, method: "meter" as const }, { profile: "Robusta", endTempC: 224.4, agtron: 50, method: "meter" as const }];
 const READINGS_INTAKE = { name: "m", species: "robusta", decaf: false, process: "unknown", drinkWhen: "soon", agtronTarget: 60, tastingBrew: "pourover" } as Intake;
 /** Readings that put Agtron 25 past the last level of 1500-2000m RTD, the only way a profile's darkest level is "as near as it gets". */
-const REACH_READINGS = [{ profile: "1500-2000m RTD", endTempC: 220, agtron: 70 }, { profile: "1500-2000m RTD", endTempC: 224, agtron: 50 }];
+const REACH_READINGS = [{ profile: "1500-2000m RTD", endTempC: 220, agtron: 70, method: "meter" as const }, { profile: "1500-2000m RTD", endTempC: 224, agtron: 50, method: "meter" as const }];
 const REACH_INTAKE = { name: "n", species: "arabica", decaf: false, process: "unknown", drinkWhen: "soon", altitudeM: 1850, agtronTarget: 25, tastingBrew: "pourover" } as Intake;
 const EXPECTED_WHY_LINES = 21;
 const WHY_LINES = [

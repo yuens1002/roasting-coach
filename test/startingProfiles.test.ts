@@ -100,8 +100,8 @@ describe("the Agtron colour being shot for picks the first level on the profile"
 
   it("does not clamp with the roaster's own readings: the colour beyond the labels is placed on their line", () => {
     const readings: ColourReading[] = [
-      { profile: "1500-2000m RTD", endTempC: 220, agtron: 70 },
-      { profile: "1500-2000m RTD", endTempC: 224, agtron: 50 },
+      { profile: "1500-2000m RTD", endTempC: 220, agtron: 70, method: "meter" as const },
+      { profile: "1500-2000m RTD", endTempC: 224, agtron: 50, method: "meter" as const },
     ];
     const rtd = STOCK_PROFILES["1500-2000m RTD"];
     expect(levelForAgtron(rtd, 40, readings)!.colour).toMatchObject({ basis: "readings" });
@@ -120,8 +120,8 @@ describe("the Agtron colour being shot for picks the first level on the profile"
 
   it("places nothing on a profile with no labelled level, even with readings on it", () => {
     const readings: ColourReading[] = [
-      { profile: "Cupping", endTempC: 210, agtron: 70 },
-      { profile: "Cupping", endTempC: 214, agtron: 50 },
+      { profile: "Cupping", endTempC: 210, agtron: 70, method: "meter" as const },
+      { profile: "Cupping", endTempC: 214, agtron: 50, method: "meter" as const },
     ];
     expect(levelForAgtron(STOCK_PROFILES.Cupping, 60, readings)).toBeUndefined();
   });
@@ -184,8 +184,8 @@ describe("the Agtron colour being shot for picks the first level on the profile"
   it("says when the profile's lightest or darkest level is as near as it gets, which only the roaster's readings can place a colour at", () => {
     // Two roasts on 1500-2000m RTD: 220 °C read Agtron 70 and 224 °C read 50, so Agtron 25 is at 230 °C, past its last level (226 °C).
     const readings: ColourReading[] = [
-      { profile: "1500-2000m RTD", endTempC: 220, agtron: 70 },
-      { profile: "1500-2000m RTD", endTempC: 224, agtron: 50 },
+      { profile: "1500-2000m RTD", endTempC: 220, agtron: 70, method: "meter" as const },
+      { profile: "1500-2000m RTD", endTempC: 224, agtron: 50, method: "meter" as const },
     ];
     const start = selectStartingProfile({ ...base, altitudeM: 1850, agtronTarget: 25 }, readings);
     expect(start.level).toMatchObject({ level: 6, colour: { basis: "readings", reach: "darkest" } });
@@ -196,8 +196,8 @@ describe("the Agtron colour being shot for picks the first level on the profile"
   describe("with the roaster's own colour readings on the profile", () => {
     // Two roasts on Robusta: level 2 (219.3 °C) read Agtron 70 and level 4 (224.4 °C) read Agtron 50.
     const readings: ColourReading[] = [
-      { profile: "Robusta", endTempC: 219.3, agtron: 70 },
-      { profile: "Robusta", endTempC: 224.4, agtron: 50 },
+      { profile: "Robusta", endTempC: 219.3, agtron: 70, method: "meter" as const },
+      { profile: "Robusta", endTempC: 224.4, agtron: 50, method: "meter" as const },
     ];
     const at = (agtronTarget: number, found: readonly ColourReading[] = readings) => selectStartingProfile({ ...robusta, agtronTarget }, found);
 
@@ -205,7 +205,7 @@ describe("the Agtron colour being shot for picks the first level on the profile"
       // The line gives Agtron 60 at 221.85 °C, between levels 2 and 3 (219.3 and 223.4).
       expect(at(60).level.level).toBeCloseTo(2.6, 1);
       expect(at(60).level.colour).toMatchObject({ basis: "readings", readings: 2 });
-      expect(at(60).why.join(" ")).toContain("Your 2 colour readings on this profile place that at this level.");
+      expect(at(60).why.join(" ")).toContain("Your 2 colour meter readings on this profile place that at this level.");
       expect(at(70).level.level).toBe(2);
     });
 
@@ -217,8 +217,8 @@ describe("the Agtron colour being shot for picks the first level on the profile"
     it("is not used when the readings cannot give a line: one reading, readings a degree apart, or a hotter end reading lighter", () => {
       for (const found of [
         [readings[0]],
-        [readings[0], { profile: "Robusta", endTempC: 220.3, agtron: 60 }],
-        [readings[0], { profile: "Robusta", endTempC: 224.4, agtron: 80 }],
+        [readings[0], { profile: "Robusta", endTempC: 220.3, agtron: 60, method: "meter" as const }],
+        [readings[0], { profile: "Robusta", endTempC: 224.4, agtron: 80, method: "meter" as const }],
       ]) {
         expect(at(60, found).level.colour?.basis, JSON.stringify(found)).toBe("approximation");
       }
@@ -237,13 +237,13 @@ describe("the Agtron colour being shot for picks the first level on the profile"
     });
 
     it("uses the roaster's readings when they give a line, and says so", () => {
-      const readings: ColourReading[] = [{ profile: "Robusta", endTempC: 219.3, agtron: 70 }, { profile: "Robusta", endTempC: 224.4, agtron: 50 }];
+      const readings: ColourReading[] = [{ profile: "Robusta", endTempC: 219.3, agtron: 70, method: "meter" as const }, { profile: "Robusta", endTempC: 224.4, agtron: 50, method: "meter" as const }];
       const placed = placeColour("Robusta", 60, readings);
       expect(placed).toMatchObject({ ok: true, level: { colour: { basis: "readings", readings: 2 } } });
     });
 
     it("keeps a KL profile to what its file names even with the roaster's readings on it, rather than extrapolating a two-point line", () => {
-      const readings: ColourReading[] = [{ profile: "KL Washed", endTempC: 214.4, agtron: 80 }, { profile: "KL Washed", endTempC: 218.2, agtron: 62 }];
+      const readings: ColourReading[] = [{ profile: "KL Washed", endTempC: 214.4, agtron: 80, method: "meter" as const }, { profile: "KL Washed", endTempC: 218.2, agtron: 62, method: "meter" as const }];
       expect(placeColour("KL Washed", 35, readings)).toMatchObject({ ok: false });
       expect(placeColour("KL Washed", 60, readings)).toMatchObject({ ok: true, level: { colour: { basis: "readings" } } });
     });

@@ -35,11 +35,11 @@ describe("the bean's table", () => {
   it("says the same in the finished text: the table, the level changes used, the bracket, and the clean roast", () => {
     expect(beanTable(LADDER).say).toBe(
       [
-        "| Roast | Version | Profile | Level | Thermal dose | Step | Overshoot (°C) | Offset | Tasted | Quality | Reads as |",
-        "|---|---|---|---|---|---|---|---|---|---|---|",
-        "| 1 | 1 | Robusta | 3 | 10 | - | - | - | grassy, bready | 2 | uncooked |",
-        "| 2 | 2 | Robusta | 3.8 | 11 | +10% | - | - | bitter | 2 | scorched |",
-        "| 3 | 3 | Robusta | 3.4 | 10.5 | −4.5% | - | - | sweet, balanced | 4 | clean |",
+        "| Roast | Version | Profile | Level | Thermal dose | Step | Overshoot (°C) | Offset | Colour | Tasted | Quality | Reads as |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| 1 | 1 | Robusta | 3 | 10 | - | - | - | - | grassy, bready | 2 | uncooked |",
+        "| 2 | 2 | Robusta | 3.8 | 11 | +10% | - | - | - | bitter | 2 | scorched |",
+        "| 3 | 3 | Robusta | 3.4 | 10.5 | −4.5% | - | - | - | sweet, balanced | 4 | clean |",
         "",
         `Level changes made on this profile: 2 of the ${LEVEL_CHANGE_BUDGET} this tool aims to get the roast right in.`,
         "Uncooked up to thermal dose 10, roast 1, level 3; scorched from thermal dose 11, roast 2, level 3.8. The roast that clears both defects lies between them.",
@@ -87,8 +87,8 @@ describe("the bean's table", () => {
     expect(rows[2]).toMatchObject({ thermalDose: undefined, tasted: undefined });
     // The step is from the last roast that was tasted, 10 to 12.
     expect(rows[3].stepPct).toBe(20);
-    expect(say).toContain("| 2 | 2 | Robusta | 3.3 | 11 | - | - | - | - | - | not tasted yet |");
-    expect(say).toContain("| 3 | 2 | Robusta | 3.3 | - | - | - | - | - | - | no measured thermal dose |");
+    expect(say).toContain("| 2 | 2 | Robusta | 3.3 | 11 | - | - | - | - | - | - | not tasted yet |");
+    expect(say).toContain("| 3 | 2 | Robusta | 3.3 | - | - | - | - | - | - | - | no measured thermal dose |");
   });
 
   it("marks a roast whose tasting is not in the coffee's tasting brew as not counted, and leaves it out of the bracket", () => {
@@ -99,7 +99,7 @@ describe("the bean's table", () => {
       ],
     };
     const { say } = beanTable(history, { tastingBrew: "pourover" });
-    expect(say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | - | - | grassy | 2 | uncooked (not counted: tasted as espresso) |");
+    expect(say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | - | - | - | grassy | 2 | uncooked (not counted: tasted as espresso) |");
     expect(say).toContain("Every defect so far was uncooked, up to thermal dose 11, roast 2, level 3.3.");
   });
 
@@ -172,10 +172,10 @@ describe("the bean's table", () => {
     it("shows the overshoot and the offset of the measured thermal dose from the predicted one, signed", () => {
       const { rows, say } = beanTable(LADDER, undefined, undefined, runs);
       expect(rows.map((r) => [r.overshootC, r.offsetPct])).toEqual([[1.9, 11.1], [2, 10], [3.3, 10.5]]);
-      expect(say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | +1.9 | +11.1% | grassy, bready | 2 | uncooked |");
-      expect(say).toContain("| 2 | 2 | Robusta | 3.8 | 11 | +10% | +2.0 | +10% | bitter | 2 | scorched |");
+      expect(say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | +1.9 | +11.1% | - | grassy, bready | 2 | uncooked |");
+      expect(say).toContain("| 2 | 2 | Robusta | 3.8 | 11 | +10% | +2.0 | +10% | - | bitter | 2 | scorched |");
       const below = new Map([[1, { profile: "Robusta", predictedThermalDose: 11, measuredThermalDose: 10, overshootC: -0.4 }]]);
-      expect(beanTable(LADDER, undefined, undefined, below).say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | −0.4 | −9.1% | grassy, bready |");
+      expect(beanTable(LADDER, undefined, undefined, below).say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | −0.4 | −9.1% | - | grassy, bready |");
     });
 
     it("sets the bean's roasts against every roast the roaster has had on the profile, over all their beans", () => {
@@ -200,8 +200,8 @@ describe("the bean's table", () => {
       ]);
       const { rows, say } = beanTable(LADDER, undefined, undefined, partial);
       expect(rows.map((r) => [r.overshootC, r.offsetPct])).toEqual([[undefined, undefined], [undefined, 10], [undefined, undefined]]);
-      expect(say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | - | - | grassy, bready |");
-      expect(say).toContain("| 2 | 2 | Robusta | 3.8 | 11 | +10% | - | +10% | bitter |");
+      expect(say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | - | - | - | grassy, bready |");
+      expect(say).toContain("| 2 | 2 | Robusta | 3.8 | 11 | +10% | - | +10% | - | bitter |");
       expect(say).not.toContain("Across your");
       expect(beanTable(LADDER).rows.map((r) => [r.overshootC, r.offsetPct])).toEqual([[undefined, undefined], [undefined, undefined], [undefined, undefined]]);
     });
@@ -267,7 +267,7 @@ describe("the bean's table", () => {
   it("says so for a bean with no roast, and for one with roasts but no tasting", () => {
     expect(beanTable({ versions: [version(1, undefined, [])] }).say).toBe("No roast has been recorded for this bean yet.");
     const untasted = beanTable({ versions: [version(1, undefined, [roast(1, 3, 10)])] });
-    expect(untasted.say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | - | - | - | - | not tasted yet |");
+    expect(untasted.say).toContain("| 1 | 1 | Robusta | 3 | 10 | - | - | - | - | - | - | not tasted yet |");
     expect(untasted.say).toContain("No roast with a measured thermal dose has been tasted yet.");
     expect(untasted.levelChangesMade).toBeUndefined();
   });
