@@ -21,6 +21,7 @@
     "station:beans": "tsx scripts/station.ts beans",
     "station:reset": "tsx scripts/station.ts reset",
     "research": "tsx scripts/research.ts",
+    "research:sensitivity": "tsx scripts/sensitivity.ts",
     "rules:steps": "tsx scripts/step-table.ts"
   },
   "license": "AGPL-3.0-only",
