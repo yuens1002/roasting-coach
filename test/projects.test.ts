@@ -76,7 +76,8 @@ describe("tables match the forms in src/core/intake.ts", () => {
 
     it(`${table} accepts each number field's range and nothing outside it`, async () => {
       // Roasted weight must stay below green weight, so each weight is tested with the other out of the way.
-      const companion: Record<string, Row> = { greenG: { roasted_g: 30 }, roastedG: { green_g: 200 } };
+      // A colour reading comes with its method, and a method with a reading.
+      const companion: Record<string, Row> = { greenG: { roasted_g: 30 }, roastedG: { green_g: 200 }, colour: { colour_method: "meter" } };
       let checked = 0;
       for (const f of fields) {
         if (f.kind !== "number" || f.min === undefined || f.max === undefined) continue;
@@ -92,11 +93,12 @@ describe("tables match the forms in src/core/intake.ts", () => {
     });
 
     it(`${table} accepts every option and nothing else`, async () => {
+      const partner: Record<string, Row> = { colourMethod: { colour: 60 } };
       for (const f of fields) {
         if (f.kind !== "choice" && f.kind !== "chips") continue;
         const value = (v: string) => (f.kind === "chips" ? [v] : v);
-        for (const o of f.options) expect(await accepts(table, row({ [column(f.id)]: value(o.value) })), `${f.id} = ${o.value}`).toBe(true);
-        expect(await accepts(table, row({ [column(f.id)]: value("bogus") })), `${f.id} = bogus`).toBe(false);
+        for (const o of f.options) expect(await accepts(table, row({ ...partner[f.id], [column(f.id)]: value(o.value) })), `${f.id} = ${o.value}`).toBe(true);
+        expect(await accepts(table, row({ ...partner[f.id], [column(f.id)]: value("bogus") })), `${f.id} = bogus`).toBe(false);
       }
     });
   }

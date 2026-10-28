@@ -3,7 +3,7 @@
 // the rules can rely on the same ids. Anything the log already records
 // (profile, level, ambient temperature, times, temperatures) is not asked for.
 
-import { AGTRON_MAX, AGTRON_MIN, ROAST_WORDS, SCA_TILES } from "./roastColour.js";
+import { AGTRON_MAX, AGTRON_MIN, CARD_TILES, ROAST_WORDS, SCA_TILES } from "./roastColour.js";
 
 export type Field =
   | { id: string; label: string; kind: "text"; required?: boolean; help?: string; usedFor: string }
@@ -99,7 +99,24 @@ export const ROAST_FIELDS: Field[] = [
   { id: "greenG", label: "Green weight", kind: "number", unit: "g", min: 50, max: 200, required: true, help: "Weigh it; the machine's load setting isn't the actual weight.", usedFor: "Weight loss" },
   { id: "roastedG", label: "Roasted weight", kind: "number", unit: "g", min: 30, max: 200, required: true, usedFor: "Weight loss: a check on development that doesn't depend on button presses" },
   { id: "cracksPressedOk", label: "I pressed first crack when I heard it", kind: "boolean", help: "Untick if you missed it or pressed late.", usedFor: "Whether to trust development time" },
-  { id: "colour", label: "Agtron reading", kind: "number", unit: "Agtron", min: AGTRON_MIN, max: AGTRON_MAX, help: "The SCA / Agtron reading of the roasted coffee, only with a colour meter. Readings tune the first level suggested for a roast colour on that profile, when the roast's log is recorded.", usedFor: "Ties the profile's levels to the Agtron scale for this roaster" },
+  {
+    id: "colour",
+    label: "Colour reading",
+    kind: "number",
+    unit: "Agtron",
+    min: AGTRON_MIN,
+    max: AGTRON_MAX,
+    help: `The SCA / Agtron number of the roasted coffee, ground: a colour meter's reading, or the nearest tile of the roast colour card (${CARD_TILES.join(", ")}; never a number between two tiles). Say how it was read in the next answer. Readings tune the first level suggested for a roast colour on that profile.`,
+    usedFor: "Ties the profile's levels to the Agtron scale for this roaster",
+  },
+  {
+    id: "colourMethod",
+    label: "How the colour was read",
+    kind: "choice",
+    options: opts(["meter", "Colour meter (Agtron)"], ["card", "Roast colour card, against a ground sample"]),
+    help: "Needed with a colour reading, and only with one. The two do not read the same, so the tool fits readings of one method together and does not mix them.",
+    usedFor: "Which readings are fitted together",
+  },
   {
     id: "looks",
     label: "How the beans look",

@@ -6,7 +6,7 @@
 // the profile curve reaches that temperature. We refer to profiles by name only;
 // the files themselves stay on the user's machine.
 import type { Intake } from "../../core/intake.js";
-import { AGTRON_MAX, AGTRON_MIN, ROAST_WORDS, agtronName, endTempForAgtron, fitColourLine } from "../../core/roastColour.js";
+import { AGTRON_MAX, AGTRON_MIN, type ColourMethod, ROAST_WORDS, agtronName, endTempForAgtron, fitColourLine } from "../../core/roastColour.js";
 import { levelToTemp } from "./parse.js";
 
 /**
@@ -144,6 +144,8 @@ export interface StartingLevel {
     /** From the roaster's own readings on the profile, or from the profile's labelled levels until there are enough. */
     basis: "readings" | "approximation";
     readings: number;
+    /** How the readings it rests on were read; absent for the approximation. */
+    method?: ColourMethod;
     /** Set when the profile's lightest or darkest level is as near as it gets. */
     reach?: "lightest" | "darkest";
     /** Set when the target lies beyond the profile's labelled levels and the level is the labelled one nearest it (never with readings). */
@@ -160,11 +162,12 @@ export interface StartingProfile {
   why: string[];
 }
 
-/** A colour-meter reading from one of the roaster's roasts: the stock profile, the end temperature it ended at, and its Agtron number. */
+/** A colour reading from one of the roaster's roasts: the stock profile, the end temperature it ended at, its Agtron number and how it was read. */
 export interface ColourReading {
   profile: string;
   endTempC: number;
   agtron: number;
+  method: ColourMethod;
 }
 
 export function altitudeBand(m: number | undefined): "0-1200m" | "1200-1500m" | "1500-2000m" | "2000-2700m" {
@@ -202,11 +205,18 @@ interface ColourScale {
   endTempFor: (agtron: number) => number;
   basis: "readings" | "approximation";
   readings: number;
+  /** How the readings the line is fitted to were read; absent for the approximation. */
+  method?: ColourMethod;
 }
 
 function colourScale(profile: StockProfile, readings: readonly ColourReading[]): ColourScale | undefined {
-  const own = fitColourLine(readings.filter((r) => r.profile === profile.name));
-  if (own) return { endTempFor: (agtron) => endTempForAgtron(own, agtron), basis: "readings", readings: own.readings };
+  // Readings of one method are fitted together and never mixed: a meter's are finer than a card's, so a meter's line wins when it has one.
+  const fitFor = (method: ColourMethod) => {
+    const line = fitColourLine(readings.filter((r) => r.profile === profile.name && r.method === method));
+    return line && { line, method };
+  };
+  const own = fitFor("meter") ?? fitFor("card");
+  if (own) return { endTempFor: (agtron) => endTempForAgtron(own.line, agtron), basis: "readings", readings: own.line.readings, method: own.method };
   // Through the profile's labelled levels, exactly at each of them and along the stretch between two. levelForAgtron keeps
   // the numbers it asks about inside the lightest and darkest of them (no file says what is beyond), so the stretches
   // beyond are only here to keep this function total.
@@ -260,7 +270,7 @@ export function levelForAgtron(profile: StockProfile, agtron: number, readings: 
   const { level, reach } = levelNearEndTemp(profile.roastLevels, scale.endTempFor(placedAt));
   const endTemp = Math.round(levelToTemp(profile.roastLevels, level)! * 10) / 10;
   const beyondLabels = placedAt === agtron ? undefined : { side: agtron < placedAt ? ("darker" as const) : ("lighter" as const), agtron: placedAt };
-  return { level, endTemp, colour: { agtron, basis: scale.basis, readings: scale.readings, ...(reach ? { reach } : {}), ...(beyondLabels ? { beyondLabels } : {}) } };
+  return { level, endTemp, colour: { agtron, basis: scale.basis, readings: scale.readings, ...(scale.method ? { method: scale.method } : {}), ...(reach ? { reach } : {}), ...(beyondLabels ? { beyondLabels } : {}) } };
 }
 
 /** The reasons a level was placed for an Agtron target, in plain words: the colour, what the placement rests on, and that the cup decides the steps after it. */
@@ -268,7 +278,7 @@ export function colourReasons(colour: StartingLevel["colour"]): string[] {
   const shot = `You are shooting for Agtron ${colour.agtron} (${agtronName(colour.agtron)}).`;
   return [
     colour.basis === "readings"
-      ? `${shot} Your ${colour.readings} colour readings on this profile place that at this level.`
+      ? `${shot} Your ${colour.readings} ${colour.method === "card" ? "readings against the roast colour card" : "colour meter readings"} on this profile place that at this level.`
       : `${shot} The profile's file gives no Agtron, so this level is an approximation from its own labelled levels, and colour readings from your roasts on this profile replace it.`,
     ...(colour.beyondLabels
       ? [`The tool reads no level ${colour.beyondLabels.side} than Agtron ${colour.beyondLabels.agtron} (${agtronName(colour.beyondLabels.agtron)}) from this profile's file, so this is that level: it does not guess past what it can read. Colour readings from your roasts on this profile let it go further.`]

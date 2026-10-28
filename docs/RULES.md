@@ -53,21 +53,21 @@ to try a different profile (`level-changes-used`, below).
 **The bean's table.** `table <bean>` shows the bean's roasts as they come in, one row each: the version, profile and level,
 the measured thermal dose, the step in thermal dose from the roast tasted before it, how the roast ran against its own profile
 (the overshoot above the profile in development, and the offset of the measured thermal dose from the one the profile's curve
-predicts), the taste words, the roast quality, and how the cup reads from uncooked to scorched. Under it come the range the
+predicts), the colour reading you took of it, the taste words, the roast quality, and how the cup reads from uncooked to scorched. Under it come the range the
 roaster's roasts on each of those profiles run in, over all their beans (for a profile with at least two roasts; roasts are
 grouped by the profile name the machine logged, so a profile written for the bean counts apart from its stock profile), the level
 changes made, the bracket the roasts make (uncooked up to here, scorched from there, so the right roast lies between), and the
 clean roasts (no under or over word and a roast quality of 3 or more). It reads the roasts the way the advice does: a tasting
 outside the coffee's tasting brew is marked as not counted and left out of the bracket, and the words are read as the roaster's
 own settings read them. The overshoot and the offset come from the roast's log and the profile it carries; they are measured,
-and no rule uses them.
+and no rule uses them. The colour is the reading you gave, with how you read it.
 
 ```
-| Roast | Version | Profile | Level | Thermal dose | Step | Overshoot (°C) | Offset | Tasted | Quality | Reads as |
-|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 1 | Robusta | 3 | 10 | - | +1.2 | +6.4% | grassy, bready | 2 | uncooked |
-| 2 | 2 | Robusta | 3.8 | 11 | +10% | +1.3 | +6.8% | bitter | 2 | scorched |
-| 3 | 3 | Robusta | 3.4 | 10.5 | −4.5% | +1.1 | +6.1% | sweet, balanced | 4 | clean |
+| Roast | Version | Profile | Level | Thermal dose | Step | Overshoot (°C) | Offset | Colour | Tasted | Quality | Reads as |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 1 | Robusta | 3 | 10 | - | +1.2 | +6.4% | - | grassy, bready | 2 | uncooked |
+| 2 | 2 | Robusta | 3.8 | 11 | +10% | +1.3 | +6.8% | - | bitter | 2 | scorched |
+| 3 | 3 | Robusta | 3.4 | 10.5 | −4.5% | +1.1 | +6.1% | 55 card | sweet, balanced | 4 | clean |
 
 Across your 3 roasts on Robusta, the measured thermal dose is +6.1% to +6.8% against the profile's prediction (median +6.4%), and your roasts ran +1.1 to +1.3 °C against the profile in development.
 Level changes made on this profile: 2 of the 3 this tool aims to get the roast right in.
@@ -87,6 +87,7 @@ What each column means:
 - Step: How much the thermal dose changed from the roast tasted before this one, in percent.
 - Overshoot (°C): How far above its profile the bean ran, on average, from first crack to the end of the roast. A positive number is hotter than the profile asked for.
 - Offset: How far the measured thermal dose is above (+) or below (−) the thermal dose the profile's own curve predicts at that level. A larger offset means the roast got more heat than its level suggests.
+- Colour: The roast colour you read from the ground roasted coffee: a number on the SCA scale (95 lightest, 25 darkest) and how you read it, against the roast colour card or with a colour meter.
 - Tasted: The taste words you gave for the roast.
 - Quality: The roast quality you gave, 1 to 5, judged by defects.
 - Reads as: How the cup reads from uncooked to scorched, from your taste words.

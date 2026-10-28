@@ -82,10 +82,11 @@ export function sayFor(example: Example): string {
 }
 
 /** The bean's table quoted in docs/RULES.md: a ladder of three roasts, uncooked then scorched then clean. */
-const tableRoast = (id: number, level: number, thermalDose: number, taste: string[], quality: number) => ({
+const tableRoast = (id: number, level: number, thermalDose: number, taste: string[], quality: number, colour?: number) => ({
   id,
   roastedAt: `2026-10-0${id}`,
   logLevel: level,
+  ...(colour === undefined ? {} : { colour, colourMethod: "card" as const }),
   features: { thermalDose },
   tastings: [{ id, tastedOn: `2026-10-1${id}`, quality, taste, brew: "pourover" }],
 });
@@ -99,6 +100,6 @@ export const TABLE_EXAMPLE: HistoryForAdvice = {
   versions: [
     { number: 1, profileName: "Robusta", roasts: [tableRoast(1, 3.0, 10, ["grassy", "bready"], 2)] },
     { number: 2, parentNumber: 1, profileName: "Robusta", roasts: [tableRoast(2, 3.8, 11, ["bitter"], 2)] },
-    { number: 3, parentNumber: 2, profileName: "Robusta", roasts: [tableRoast(3, 3.4, 10.5, ["sweet", "balanced"], 4)] },
+    { number: 3, parentNumber: 2, profileName: "Robusta", roasts: [tableRoast(3, 3.4, 10.5, ["sweet", "balanced"], 4, 55)] },
   ],
 };
