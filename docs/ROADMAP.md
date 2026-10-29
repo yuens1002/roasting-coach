@@ -5,7 +5,7 @@ someone else. Update it in the same change that moves any of these. Design ratio
 [research.md](research.md) and [thread1-notes.md](thread1-notes.md); the release history is in
 [CHANGELOG.md](../CHANGELOG.md).
 
-Last updated 2026-10-25 (0.5.x alpha).
+Last updated 2026-10-28 (0.6.x alpha).
 
 ## The goal
 
@@ -100,7 +100,7 @@ that colour instead of every bean starting at the profile's default. The level i
 method: Kaffelogic's labels (filter, espresso, dark) are read only as three points on a profile's own ladder of levels.
 Kaffelogic publishes no level-to-Agtron table (its levels are end temperatures), so the tie is made two ways. Until the
 roaster has two colour readings on a profile at end temperatures 3 °C or more apart (the roast form's `colour` is an Agtron
-reading now), the three levels a profile's file labels (Medium/Light, Medium, Medium/Dark) are taken as Agtron 70, 60 and
+reading now, with `colourMethod` saying how it was read, see below), the three levels a profile's file labels (Medium/Light, Medium, Medium/Dark) are taken as Agtron 70, 60 and
 50 (`LABELLED_LEVEL_AGTRON`; 40 for the `0-1200m Rest` file's "Dark", `labelledAgtron`): the middle of the common roast-level
 bands, the same middle a roaster's word is taken at (light 90, medium 60, dark 40; `ROAST_WORDS`). The bands follow LeBrew's lab
 chart (one lab, one meter; `docs/research.md`). The match of Kaffelogic's words to the bands is our reading, not measured, and the
@@ -119,6 +119,16 @@ the readings are fitted per profile, not per bean or per density. Open: whether 
 (at 0.8 and 1.4 when this was written, that profile's own recommendation; since 2026-10-11 the level comes from the colour, 1.0 to 1.3) whatever it was brewed for. Open: no model turns bean
 properties (density, moisture, age) into a starting level; only the profile choice uses altitude and process.
 The "Cupping" stock profile is never picked now; it stays in the table.
+
+**Decided (2026-10-28): a colour reading says how it was read, with a colour meter or against the roast colour card (one
+method per roast).** The two do not read the same (a card reading is one of the card's tiles, 95 to 25, never a number between
+two), so `colourMethod` (`meter` or `card`) is given with `colour` and only with it (`colourReadingProblems`), and the fit of a
+profile's levels to Agtron uses the readings of one method at a time: a meter's line when the profile has one, else the card's.
+Readings of the two methods are never mixed. Migration 010 (0.6.0) marked every reading stored before as `meter`, which was
+true: the form took readings "only with a colour meter", and the three stored are not card tiles. `roast:update` adds or
+corrects a reading after the roast is recorded (a sample ground later). **Not built, on purpose:** both a card and a meter
+reading on one roast, which would map the card's tiles to meter numbers; either one is enough. Open: the advice still does
+not use the colour readings (see above).
 
 **Idea (2026-10-09), planned 2026-10-11 (Next, 3), not built: curve edits sized by thermal dose.** The thermal dose can be computed for
 any curve, so a new profile can hold the total thermal dose fixed and change only the shape (moving it
@@ -229,6 +239,9 @@ Not designed; fits beside `calibration` (stored in the roaster's own database).
   thermal dose from the one the profile's curve predicts, with the range of the roaster's roasts on that profile over all their
   beans, and a description of every column (`legend`, quoted in docs/RULES.md). Measured, and no rule uses it. The first data
   (nine real roasts) is in [research.md](research.md), validation 3.
+- **Thermal dose write-up and sensitivity check** (draft): `docs/thermal-dose-writeup.md` reports a first check of the
+  thermal dose on 75 real roasts; `npm run research:sensitivity` (`scripts/sensitivity.ts`) reproduces its numbers from the
+  roaster's own logs. Reviewed by no one but the maintainer.
 - **Cross-bean report** (`clean-zone`): every bean side by side: its altitude, process, moisture, density and crop date, its
   first clean roast with the level, the predicted and measured thermal dose and the offset, and the bracket. Read-only; no advice
   uses it. The predicted thermal dose comes from the profile each roast's log carries (`predictedThermalDoses`).

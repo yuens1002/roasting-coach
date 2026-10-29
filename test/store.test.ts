@@ -127,10 +127,10 @@ describe("store", () => {
   });
 
   /** A roast on a bean's first version with a colour reading and, when given, the log's measured end temperature. */
-  async function roastWithReading(own: PGlite, versionId: number, roastedAt: string, colour: number | null, dropTemp?: number) {
+  async function roastWithReading(own: PGlite, versionId: number, roastedAt: string, colour: number | null, dropTemp?: number, method: "meter" | "card" = "meter") {
     // Features are only stored with the log they were computed from.
     const log = dropTemp === undefined ? [null, null, null] : ["kaffelogic-klog", "log", JSON.stringify({ dropTemp })];
-    await own.query("insert into roast (version_id, roasted_at, green_g, roasted_g, colour, log_format, log_file, features) values ($1, $2, 120, 102, $3, $4, $5, $6)", [versionId, roastedAt, colour, ...log]);
+    await own.query("insert into roast (version_id, roasted_at, green_g, roasted_g, colour, colour_method, log_format, log_file, features) values ($1, $2, 120, 102, $3, $4, $5, $6, $7)", [versionId, roastedAt, colour, colour === null ? null : method, ...log]);
   }
   async function firstVersion(own: PGlite, name: string, extra: Record<string, unknown> = {}) {
     const { beanId } = await addBean(own, { ...GUJI, name, ...extra });
@@ -145,8 +145,8 @@ describe("store", () => {
     await roastWithReading(own, versionId, "2026-03-12", 40, undefined);
     await roastWithReading(own, versionId, "2026-03-14", 44.2, 227.3);
     expect(await loadColourReadings(own)).toEqual([
-      { profile: "1500-2000m Rest", endTempC: 222.1, agtron: 58.4 },
-      { profile: "1500-2000m Rest", endTempC: 227.3, agtron: 44.2 },
+      { profile: "1500-2000m Rest", endTempC: 222.1, agtron: 58.4, method: "meter" },
+      { profile: "1500-2000m Rest", endTempC: 227.3, agtron: 44.2, method: "meter" },
     ]);
   });
 
@@ -167,7 +167,7 @@ describe("store", () => {
     const next = await addBean(own, { ...GUJI, name: "Reads second", agtronTarget: 50 });
     expect(next.version.profileName).toBe("1500-2000m Rest");
     expect(next.version.level).toBeCloseTo(4.3, 1);
-    expect(next.version.changeReason).toContain("Your 2 colour readings on this profile place that at this level.");
+    expect(next.version.changeReason).toContain("Your 2 colour meter readings on this profile place that at this level.");
   });
 
   it("takes the colour reading as an Agtron number and the target as a whole one", async () => {
@@ -175,8 +175,8 @@ describe("store", () => {
     await expect(addBean(own, { ...GUJI, name: "Fraction", agtronTarget: 62.5 })).rejects.toMatchObject({ errors: ["Roast you are shooting for must be a whole number; got 62.5 Agtron."] });
     await expect(addBean(own, { ...GUJI, name: "Altitude fraction", altitudeM: 1950.5 })).rejects.toBeInstanceOf(InputError);
     const { beanId } = await addBean(own, { ...GUJI, name: "Whole" });
-    await addRoast(own, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102, colour: 62.5 } });
-    await expect(addRoast(own, { beanId, roastedAt: "2026-03-11", answers: { greenG: 120, roastedG: 102, colour: 120 } })).rejects.toBeInstanceOf(InputError);
+    await addRoast(own, { beanId, roastedAt: "2026-03-10", answers: { greenG: 120, roastedG: 102, colour: 62.5, colourMethod: "meter" } });
+    await expect(addRoast(own, { beanId, roastedAt: "2026-03-11", answers: { greenG: 120, roastedG: 102, colour: 120, colourMethod: "meter" } })).rejects.toBeInstanceOf(InputError);
   });
 
   it("refuses a tasting for a bean that does not exist, and treats a brew of null or only spaces like a brew left out", async () => {

@@ -5,6 +5,31 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-28
+
+- 2026-10-28 - docs(research): record hypotheses and rule boundaries from six roasts of one bean
+
+## [0.6.0] - 2026-10-28
+
+- 2026-10-28 - feat(colour): a colour reading says how it was read, with a colour meter or against the roast colour card
+
+### Breaking
+
+- **A colour reading on the roast form needs `colourMethod` (`meter` or `card`), and `colourMethod` needs a reading.** The two do not
+  read the same, so the fit of a profile's levels to Agtron now uses the readings of one method at a time (a meter's line when the
+  profile has one, else the card's) and never mixes them. A card reading is one of the card's numbers (95, 85, 75, 65, 55, 45, 35,
+  25), not a number between two. Migration `db/010` adds the column and marks every reading stored before as `meter`, which they
+  were: the form took readings only with a colour meter. Run `npm run db:migrate` after updating.
+
+### Added
+
+- `roast:update` adds or corrects a roast's result form after it was recorded (most often a colour reading and its method, taken
+  from a sample ground later); `null` clears an optional answer.
+- The bean's table has a **Colour** column (the number and its method), described in the legend and in `docs/RULES.md`.
+- `docs/thermal-dose-writeup.md`, a draft write-up of a first check of the thermal dose on real roasts, and
+  `npm run research:sensitivity` (`scripts/sensitivity.ts`), which reproduces its repeatability, activation-energy and probe-offset
+  numbers from the roaster's own logs. It reads only and writes nothing.
+
 ## [0.5.4] - 2026-10-26
 
 - 2026-10-26 - fix(profiles): credit an edited curve to the tool, not to the base profile's designer, and describe it as edited

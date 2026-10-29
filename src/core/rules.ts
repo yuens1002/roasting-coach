@@ -11,6 +11,7 @@
 
 import { daysBetween } from "./dates.js";
 import { brewLabel, qualityMeaning } from "./intake.js";
+import type { ColourMethod } from "./roastColour.js";
 import { PCT_EPSILON, sameProfile } from "./levers.js";
 
 /** How many level changes the tool aims to get a roast right in. The count starts at the first level change it recommends. */
@@ -378,6 +379,9 @@ export interface HistoryForAdvice {
       id: number;
       roastedAt: unknown;
       logLevel?: number;
+      /** The colour reading of the roasted coffee (an Agtron number) and how it was read, when the roaster gave one. */
+      colour?: number;
+      colourMethod?: ColourMethod;
       features?: { thermalDose: number };
       tastings: { id: number; tastedOn: string; quality: number; taste: string[]; brew: string }[];
     }[];

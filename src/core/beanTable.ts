@@ -6,6 +6,7 @@
 // from there), the clean roasts, and how many of the three level changes are used. It reads the roasts the way the
 // rules do (tastedRoastsOf), so what the table shows is what the advice went on. Nothing here is a judgment of the coffee.
 import { qualityMeaning } from "./intake.js";
+import type { ColourMethod } from "./roastColour.js";
 import { type AdviceContext, type Calibration, CLEAN_QUALITY, DEFAULT_CALIBRATION, type HistoryForAdvice, LEVEL_CHANGE_BUDGET, levelChangesTo, tastedRoastsOf } from "./rules.js";
 
 /** What a roast's tasting says about how far it went. */
@@ -27,6 +28,8 @@ export interface BeanTableRow {
   overshootC?: number;
   /** How far the measured thermal dose is above the one the profile's curve predicts at the level, in % (negative: below). Absent when either is missing. */
   offsetPct?: number;
+  /** The colour reading of the roasted coffee and how it was read, when the roaster gave one. */
+  colour?: { agtron: number; method: ColourMethod };
   /** Absent for a roast not tasted yet, or without a measured thermal dose. */
   tasted?: { words: string[]; quality: number; reads: Reads; brew: string; counted: boolean };
 }
@@ -110,6 +113,7 @@ export const TABLE_COLUMNS: readonly { column: string; means: string }[] = [
   { column: "Step", means: "How much the thermal dose changed from the roast tasted before this one, in percent." },
   { column: "Overshoot (°C)", means: "How far above its profile the bean ran, on average, from first crack to the end of the roast. A positive number is hotter than the profile asked for." },
   { column: "Offset", means: "How far the measured thermal dose is above (+) or below (−) the thermal dose the profile's own curve predicts at that level. A larger offset means the roast got more heat than its level suggests." },
+  { column: "Colour", means: "The roast colour you read from the ground roasted coffee: a number on the SCA scale (95 lightest, 25 darkest) and how you read it, against the roast colour card or with a colour meter." },
   { column: "Tasted", means: "The taste words you gave for the roast." },
   { column: "Quality", means: "The roast quality you gave, 1 to 5, judged by defects." },
   { column: "Reads as", means: "How the cup reads from uncooked to scorched, from your taste words." },
@@ -174,6 +178,7 @@ export function beanTable(history: HistoryForAdvice, context?: AdviceContext, ca
         const offset = run && thermalDose !== undefined ? offsetOf({ predictedThermalDose: run.predictedThermalDose, measuredThermalDose: thermalDose }) : undefined;
         return offset === undefined ? undefined : round1(offset);
       })(),
+      colour: roast.colour !== undefined && roast.colourMethod !== undefined ? { agtron: roast.colour, method: roast.colourMethod } : undefined,
       tasted: entry && { words: entry.tasting.taste, quality: entry.tasting.quality, reads: readsOf(entry.tasting.taste, calibration), brew: entry.tasting.brew, counted: entry.counted },
     };
     if (entry) previousDose = entry.tasted.thermalDose;
@@ -210,7 +215,7 @@ function render(rows: BeanTableRow[], levelChangesMade: number | undefined, cali
   const head = `| ${TABLE_COLUMNS.map((c) => c.column).join(" | ")} |\n|${TABLE_COLUMNS.map(() => "---").join("|")}|`;
   const lines = rows.map((r) => {
     const reads = r.tasted ? `${r.tasted.reads}${r.tasted.counted ? "" : ` (not counted: tasted as ${r.tasted.brew})`}` : r.thermalDose === undefined ? "no measured thermal dose" : "not tasted yet";
-    return `| ${r.roast} | ${r.version} | ${escaped(r.profile)} | ${cell(r.level)} | ${cell(r.thermalDose)} | ${r.stepPct === undefined ? "-" : signed(r.stepPct)} | ${r.overshootC === undefined ? "-" : signedC(r.overshootC)} | ${r.offsetPct === undefined ? "-" : signed(r.offsetPct)} | ${r.tasted ? escaped(r.tasted.words.join(", ")) : "-"} | ${r.tasted ? r.tasted.quality : "-"} | ${reads} |`;
+    return `| ${r.roast} | ${r.version} | ${escaped(r.profile)} | ${cell(r.level)} | ${cell(r.thermalDose)} | ${r.stepPct === undefined ? "-" : signed(r.stepPct)} | ${r.overshootC === undefined ? "-" : signedC(r.overshootC)} | ${r.offsetPct === undefined ? "-" : signed(r.offsetPct)} | ${r.colour ? `${r.colour.agtron} ${r.colour.method}` : "-"} | ${r.tasted ? escaped(r.tasted.words.join(", ")) : "-"} | ${r.tasted ? r.tasted.quality : "-"} | ${reads} |`;
   });
   return [head, ...lines, "", ...rangeLines(ranges), ...standing(rows, levelChangesMade, calibration)].join("\n");
 }
