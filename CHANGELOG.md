@@ -5,6 +5,10 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-28
+
+- 2026-10-28 - docs(research): record hypotheses and rule boundaries from six roasts of one bean
+
 ## [0.6.0] - 2026-10-28
 
 - 2026-10-28 - feat(colour): a colour reading says how it was read, with a colour meter or against the roast colour card
