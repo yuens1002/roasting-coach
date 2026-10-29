@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { parseKpro } from "../src/adapters/kaffelogic/parse.js";
+import { evalCurve, parseKpro, timeCurveReaches } from "../src/adapters/kaffelogic/parse.js";
 import { type Db, InputError, addVersion, beanHistory, listBeans } from "../src/db/store.js";
 import { EDITED_CURVE_DESIGNER, type ProfileFileEnv, addBeanWithProfile, previewCurveEdit, writeVersionProfile } from "../scripts/profileFiles.js";
 import { migratedDb } from "./pg.js";
@@ -177,7 +177,8 @@ describe("profile:edit", () => {
     expect(preview.say).toContain("Shall I record it as the next version?");
     expect(preview.say).toContain("The curve before 5:00 is unchanged.");
     expect(preview.say).not.toMatch(/(?<!thermal )\bdose\b/);
-    expect(preview.edit.slopeAfterCPerMin).toBeGreaterThan(preview.edit.slopeBeforeCPerMin);
+    expect(preview.edit.climb!.slopeAfterCPerMin).toBeGreaterThan(preview.edit.climb!.slopeBeforeCPerMin);
+    expect(preview.edit).not.toHaveProperty("reach");
     expect(Math.abs(preview.edit.thermalDose - preview.from.thermalDose) / preview.from.thermalDose).toBeLessThan(1e-6);
     expect(preview.onYes).toMatchObject({ command: "version:add", input: { beanId, parent: 1, level: level + 1 } });
     // A preview stores no version and writes no file.
@@ -297,5 +298,179 @@ describe("profile:edit", () => {
   it("refuses a curve whose last segment is not one straight climb", async () => {
     const bent = await setup(BENT_CLIMB_CURVE);
     await expect(previewCurveEdit(bent.db, { beanId: bent.beanId, level: bent.level + 1 }, bent.climbEnv)).rejects.toThrow("not one straight climb");
+  });
+
+  describe("retimed from checkpoints (reach)", () => {
+    // The made-up curve reaches 150 °C at 111 s and 200 °C at 310 s.
+    it("previews a curve that reaches a temperature when asked, at the version's own level, and records nothing", async () => {
+      const { db, climbEnv, beanId, level } = await setup();
+      const before = { versions: (await beanHistory(db, beanId)).versions.length, files: readdirSync(outDir) };
+      const preview = await previewCurveEdit(db, { beanId, reach: { "150": 150 } }, climbEnv);
+      expect(preview.say).toContain("the curve is retimed");
+      expect(preview.say).toContain("150 °C 1:51 to 2:30 (asked for)");
+      expect(preview.say).toContain("Shall I record it as the next version?");
+      expect(preview.say).not.toMatch(/(?<!thermal )\bdose\b/);
+      expect(preview.edit).toMatchObject({ level, reach: [{ tempC: 150, atS: 150 }] });
+      expect(preview.edit).not.toHaveProperty("climb");
+      expect(preview.onYes).toMatchObject({ command: "version:add", input: { beanId, parent: 1, level } });
+      expect((await beanHistory(db, beanId)).versions).toHaveLength(before.versions);
+      expect(readdirSync(outDir)).toEqual(before.files);
+    });
+
+    it("says how far the predicted thermal dose moved, calling it about the same only within 3%", async () => {
+      const { db, climbEnv, beanId } = await setup();
+      const small = await previewCurveEdit(db, { beanId, reach: { "150": 150 } }, climbEnv);
+      expect(Math.abs(small.edit.thermalDose / small.from.thermalDose - 1)).toBeLessThan(0.03);
+      expect(small.say).toContain("about the same");
+      const large = await previewCurveEdit(db, { beanId, reach: { "200": 370 } }, climbEnv);
+      expect(large.edit.thermalDose).toBeGreaterThan(large.from.thermalDose * 1.03);
+      expect(large.say).toMatch(/more heat than v1, not the same/);
+      expect(large.say).not.toContain("about the same");
+    });
+
+    it("says that the thermal dose counts little below 190 °C when every checkpoint is below it, and not otherwise", async () => {
+      const { db, climbEnv, beanId } = await setup();
+      expect((await previewCurveEdit(db, { beanId, reach: { "150": 150 } }, climbEnv)).say).toMatch(/counts very little below 190 °C \(\d+% of this curve's total comes before it\)/);
+      expect((await previewCurveEdit(db, { beanId, reach: { "150": 150, "200": 330 } }, climbEnv)).say).not.toContain("counts very little");
+    });
+
+    it("says where the rate of rise picks up again, and leaves it to the roaster", async () => {
+      const { db, climbEnv, beanId } = await setup();
+      const preview = await previewCurveEdit(db, { beanId, reach: { "150": 160 } }, climbEnv);
+      expect(preview.say).toMatch(/The rate of rise picks up again around \d:\d\d \(from [\d.]+ to [\d.]+ °C\/min\)/);
+      expect(preview.say).toContain("It is your choice.");
+      expect(preview.edit.rateOfRiseRisesAt).toHaveLength(1);
+      expect((await previewCurveEdit(db, { beanId, reach: { "150": 130 } }, climbEnv)).say).not.toContain("rate of rise");
+    });
+
+    it("holds the version's thermal dose when a level is given too: the retime first, then the last climb makes up the difference", async () => {
+      const { db, climbEnv, beanId, level } = await setup();
+      const preview = await previewCurveEdit(db, { beanId, reach: { "180": 250 }, level }, climbEnv);
+      expect(Math.abs(preview.edit.thermalDose - preview.from.thermalDose) / preview.from.thermalDose).toBeLessThan(1e-4);
+      expect(preview.edit.climb!.slopeAfterCPerMin).toBeGreaterThan(preview.edit.climb!.slopeBeforeCPerMin);
+      expect(preview.say).toMatch(/Then the climb after \d:\d\d .* goes from [\d.]+ to [\d.]+ °C\/min/);
+      expect(preview.say).toContain("The curve's predicted thermal dose stays");
+      expect(preview.say).not.toContain("The curve before");
+      expect(preview.onYes.input.reason).toMatch(/^Curve edit: reaches 180 °C at 4:10 instead of 3:28; the climb after .*, holding the predicted thermal dose of v1\.$/);
+    });
+
+    it("gives an onYes that version:add stores, as a curve that reaches the temperature at the second asked for", async () => {
+      const { db, climbEnv, beanId, level } = await setup();
+      const preview = await previewCurveEdit(db, { beanId, reach: { "150": 150, "180": 240 }, reason: "Slower drying" }, climbEnv);
+      expect(preview.onYes.input.reason).toBe("Slower drying");
+      expect(await addVersion(db, preview.onYes.input)).toMatchObject({ number: 2, parentNumber: 1, level, hasProfileFile: true });
+      const stored = parseKpro(preview.onYes.input.profileFile);
+      expect(evalCurve(stored.roastCurve, 150)).toBeCloseTo(150, 1);
+      expect(evalCurve(stored.roastCurve, 240)).toBeCloseTo(180, 1);
+      expect(timeCurveReaches(stored.roastCurve, 150, 0.1)).toBeCloseTo(150, 0);
+      expect(stored.roastLevels).toEqual(parseKpro(profileWithCurve(CLIMB_CURVE)).roastLevels);
+      expect(stored.designer).toBe(EDITED_CURVE_DESIGNER);
+      expect(stored.description).toContain("reaches 150 °C at 2:30 instead of 1:51, 180 °C at 4:00");
+    });
+
+    it("describes its own reason in measured terms when the roaster gives none", async () => {
+      const { db, climbEnv, beanId } = await setup();
+      const preview = await previewCurveEdit(db, { beanId, reach: { "150": 150 } }, climbEnv);
+      expect(preview.onYes.input.reason).toBe("Curve edit: reaches 150 °C at 2:30 instead of 1:51.");
+    });
+
+    it("needs no straight last climb when it only retimes, and says so when a level is asked for on a curve without one", async () => {
+      const bent = await setup(BENT_CLIMB_CURVE);
+      expect((await previewCurveEdit(bent.db, { beanId: bent.beanId, reach: { "150": 150 } }, bent.climbEnv)).edit.reach).toHaveLength(1);
+      await expect(previewCurveEdit(bent.db, { beanId: bent.beanId, reach: { "150": 150 }, level: bent.level + 1 }, bent.climbEnv)).rejects.toThrow("not one straight climb");
+    });
+
+    it("refuses a checkpoint the curve cannot have, in plain words and with the version", async () => {
+      const { db, climbEnv, beanId } = await setup();
+      await expect(previewCurveEdit(db, { beanId, reach: { "90": 40 } }, climbEnv)).rejects.toThrow("v1: A checkpoint at 90 °C is in the machine's heat-up");
+      await expect(previewCurveEdit(db, { beanId, reach: { "150": 75 } }, climbEnv)).rejects.toThrow("no stock profile climbs faster than");
+      await expect(previewCurveEdit(db, { beanId, reach: { "150": 30 } }, climbEnv)).rejects.toThrow("where the machine's start-up ends");
+      await expect(previewCurveEdit(db, { beanId, reach: { "150": 200, "180": 190 } }, climbEnv)).rejects.toThrow("a hotter temperature comes later");
+    });
+
+    it("refuses a reach that is not temperatures with seconds, and a call that edits nothing", async () => {
+      const { db, climbEnv, beanId } = await setup();
+      await expect(previewCurveEdit(db, { beanId, reach: {} }, climbEnv)).rejects.toThrow('"reach" needs a temperature and the second');
+      await expect(previewCurveEdit(db, { beanId, reach: { hot: 150 } }, climbEnv)).rejects.toThrow('"reach" takes a temperature in °C and the second the curve reaches it');
+      await expect(previewCurveEdit(db, { beanId, reach: { "150": "soon" } }, climbEnv)).rejects.toThrow('"reach" takes a temperature');
+      await expect(previewCurveEdit(db, { beanId, reach: [150, 200] }, climbEnv)).rejects.toThrow('"reach" must be an object');
+      await expect(previewCurveEdit(db, { beanId }, climbEnv)).rejects.toThrow('Say what to edit: "reach"');
+    });
+  });
+
+  describe("drawn through points (through)", () => {
+    // A made-up roast whose rate of rise falls throughout, and one that stalls and then spikes past 200 °C.
+    const ROAST = [[0, 20], [60, 110], [120, 160], [180, 186], [260, 204], [340, 214], [420, 222], [500, 229]];
+    const FLICK = [[0, 20], [60, 110], [120, 160], [180, 190], [260, 197], [320, 200], [380, 220], [440, 240]];
+
+    it("previews a whole curve through the points, at the version's own level, and records nothing", async () => {
+      const { db, climbEnv, beanId, level } = await setup();
+      const before = { versions: (await beanHistory(db, beanId)).versions.length, files: readdirSync(outDir) };
+      const preview = await previewCurveEdit(db, { beanId, through: ROAST }, climbEnv);
+      expect(preview.say).toContain("the whole curve is redrawn through 8 points, from 0:00 (20 °C) to 8:20 (229 °C)");
+      expect(preview.say).toContain("Time to each temperature, before to after:");
+      expect(preview.say).toContain("Shall I record it as the next version?");
+      expect(preview.say).not.toMatch(/(?<!thermal )\bdose\b/);
+      expect(preview.say).not.toContain("hold the thermal dose");
+      expect(preview.edit).toMatchObject({ level, through: ROAST.map(([t, v]) => ({ t, v })) });
+      expect(preview.edit).not.toHaveProperty("climb");
+      expect(preview.edit).not.toHaveProperty("reach");
+      expect(preview.onYes).toMatchObject({ command: "version:add", input: { beanId, parent: 1, level } });
+      expect((await beanHistory(db, beanId)).versions).toHaveLength(before.versions);
+      expect(readdirSync(outDir)).toEqual(before.files);
+    });
+
+    it("gives an onYes that version:add stores, as a curve through every point", async () => {
+      const { db, climbEnv, beanId, level } = await setup();
+      const preview = await previewCurveEdit(db, { beanId, through: ROAST, reason: "A slower Maillard stretch" }, climbEnv);
+      expect(await addVersion(db, preview.onYes.input)).toMatchObject({ number: 2, parentNumber: 1, level, hasProfileFile: true });
+      const stored = parseKpro(preview.onYes.input.profileFile);
+      expect(stored.roastCurve).toHaveLength(ROAST.length);
+      for (const [t, v] of ROAST) expect(evalCurve(stored.roastCurve, t)).toBeCloseTo(v, 1);
+      expect(stored.roastLevels).toEqual(parseKpro(profileWithCurve(CLIMB_CURVE)).roastLevels);
+      expect(stored.designer).toBe(EDITED_CURVE_DESIGNER);
+      expect(stored.description).toContain("redrawn through 8 points, 0:00 to 8:20, 20 to 229 °C");
+    });
+
+    it("compares the predicted thermal dose with the version's, and takes a level only to say where the roast stops", async () => {
+      const { db, climbEnv, beanId, level } = await setup();
+      const same = await previewCurveEdit(db, { beanId, through: ROAST }, climbEnv);
+      expect(same.say).toMatch(/The curve's predicted thermal dose goes from [\d.]+ to [\d.]+ \([+-][\d.]+%\)/);
+      expect(same.say).toContain(`The roast still ends at level ${level}`);
+      const hotter = await previewCurveEdit(db, { beanId, through: ROAST, level: level + 1 }, climbEnv);
+      expect(hotter.edit.level).toBe(level + 1);
+      expect(hotter.edit.endTempC).toBeGreaterThan(same.edit.endTempC);
+      expect(hotter.edit.thermalDose).toBeGreaterThan(same.edit.thermalDose);
+      expect(hotter.say).toContain(`The roast ends at level ${level + 1}`);
+      expect(hotter.onYes.input.level).toBe(level + 1);
+      expect(hotter.edit).not.toHaveProperty("climb");
+    });
+
+    it("says where the rate of rise picks up again and where the curve climbs faster late than any stock profile, and neither for a gentle one", async () => {
+      const { db, climbEnv, beanId } = await setup();
+      const gentle = await previewCurveEdit(db, { beanId, through: ROAST }, climbEnv);
+      expect(gentle.say).not.toContain("rate of rise");
+      expect(gentle.say).not.toContain("stock profile goes above");
+      expect(gentle.edit.rateOfRiseRisesAt).toEqual([]);
+      const flick = await previewCurveEdit(db, { beanId, through: FLICK }, climbEnv);
+      expect(flick.say).toMatch(/The rate of rise picks up again around \d:\d\d/);
+      expect(flick.say).toMatch(/The curve climbs at \d+ °C\/min at \d:\d\d, past 200 °C, where no stock profile goes above 13: the Nano may not keep up, and the roast would then end later than the curve says\. It is your choice\./);
+      expect(flick.edit).toMatchObject({ climbsFasterThanStock: { stockCPerMin: 13 } });
+    });
+
+    it("refuses points the curve cannot be drawn through, in plain words and with the version", async () => {
+      const { db, climbEnv, beanId } = await setup();
+      await expect(previewCurveEdit(db, { beanId, through: ROAST.slice(0, 3) }, climbEnv)).rejects.toThrow("v1: Give at least 4 points");
+      await expect(previewCurveEdit(db, { beanId, through: [[0, 20], [60, 110], [120, 100], [200, 190]] }, climbEnv)).rejects.toThrow("a roast curve rises at every point");
+      await expect(previewCurveEdit(db, { beanId, through: [[0, 20], [60, 100], [65, 160], [200, 190]] }, climbEnv)).rejects.toThrow("no stock profile climbs faster than 116");
+    });
+
+    it("refuses points that are not a second and a temperature, a list that is not a list, and reach and through together", async () => {
+      const { db, climbEnv, beanId } = await setup();
+      await expect(previewCurveEdit(db, { beanId, through: [[0, 20], [60], [120, 160], [200, 190]] }, climbEnv)).rejects.toThrow('"through" takes points, each the second and the temperature in °C');
+      await expect(previewCurveEdit(db, { beanId, through: [[0, 20], [60, "hot"], [120, 160], [200, 190]] }, climbEnv)).rejects.toThrow('"through" takes points');
+      await expect(previewCurveEdit(db, { beanId, through: { "60": 110 } }, climbEnv)).rejects.toThrow('"through" must be a list');
+      await expect(previewCurveEdit(db, { beanId, through: ROAST, reach: { "150": 150 } }, climbEnv)).rejects.toThrow('give one of them');
+    });
   });
 });

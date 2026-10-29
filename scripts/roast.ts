@@ -12,6 +12,8 @@
 //   npx tsx scripts/roast.ts history 1
 //   npx tsx scripts/roast.ts profile:write '{"beanId": 1, "version": 2}'   (a .kpro for that version, its level as the recommended level, named by the profile naming convention)
 //   npx tsx scripts/roast.ts profile:edit '{"beanId": 1, "version": 2, "level": 3}'   (preview: hold that version's predicted thermal dose on a reshaped curve ending at that level; records nothing, `onYes` is the version:add)
+//   npx tsx scripts/roast.ts profile:edit '{"beanId": 1, "version": 2, "reach": {"150": 190, "180": 260}}'   (preview: the curve reaches 150 °C at 190 s and 180 °C at 260 s; add "level" to also hold the thermal dose; records nothing)
+//   npx tsx scripts/roast.ts profile:edit '{"beanId": 1, "version": 2, "through": [[0, 20], [60, 110], [120, 158.5], [180, 178], [300, 199], [420, 218], [520, 228]]}'   (preview: the whole curve redrawn through those seconds and °C; records nothing)
 //   npx tsx scripts/roast.ts bean:update  '{"beanId": 1, "answers": {"sellerNotes": "..."}}'   (merged over the stored answers; null clears)
 //   npx tsx scripts/roast.ts taste:update '{"tastingId": 2, "answers": {"quality": 3, "taste": ["flat"]}}'
 //   npx tsx scripts/roast.ts thermal-dose '{"profile": "Robusta", "level": 3, "change": -15}'   (level for a thermal dose change, in %)
