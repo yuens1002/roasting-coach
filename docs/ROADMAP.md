@@ -238,10 +238,18 @@ Not designed; fits beside `calibration` (stored in the roaster's own database).
   overshoot (the mean of the bean temperature minus the profile's, from first crack to the end) and the offset of the measured
   thermal dose from the one the profile's curve predicts, with the range of the roaster's roasts on that profile over all their
   beans, and a description of every column (`legend`, quoted in docs/RULES.md). Measured, and no rule uses it. The first data
-  (nine real roasts) is in [research.md](research.md), validation 3.
+  (nine real roasts) is in [research.md](research.md), validation 3. Those nine all ran above their curve; the finished roasts in
+  the roaster's whole folder (checked 2026-10-29, several firmware versions) ran from about 22% below to 36% above, below on
+  several profiles, so "real roasts run above their curve" holds for the first nine and not as a rule. The advice uses changes in
+  thermal dose, not the offset, but the same-proportion assumption (`levelAfterChange`) has only been checked on the nine.
 - **Thermal dose write-up and sensitivity check** (draft): `docs/thermal-dose-writeup.md` reports a first check of the
   thermal dose on 75 real roasts; `npm run research:sensitivity` (`scripts/sensitivity.ts`) reproduces its numbers from the
   roaster's own logs. Reviewed by no one but the maintainer.
+- **Reading the folder Kaffelogic Studio syncs**: `KAFFELOGIC_DIR` and `KAFFELOGIC_OUT_DIR` already named any folder; pointing them
+  at the synced one (README, "Using the folder Kaffelogic Studio syncs") reads logs where Studio put them and writes a profile into
+  `roast-profiles/`, from where Studio sends it to the machine. Files with no profile in them (empty logs, fragments) are skipped,
+  and the real-file tests read `KAFFELOGIC_DIR` too (profiles the tool drew a curve for are left out), each stating which files
+  it applies to: finished roasts, with the keys that differ between firmware versions excused. Not yet shown: a profile written there reaching the machine through Studio.
 - **Cross-bean report** (`clean-zone`): every bean side by side: its altitude, process, moisture, density and crop date, its
   first clean roast with the level, the predicted and measured thermal dose and the offset, and the bracket. Read-only; no advice
   uses it. The predicted thermal dose comes from the profile each roast's log carries (`predictedThermalDoses`).

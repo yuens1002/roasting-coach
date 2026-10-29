@@ -150,7 +150,7 @@ and run the command it hands you if the roaster says yes.
    retaste in the coffee's tasting brew, add that tasting with `taste:add` on the same roast and run
    `advise` again; nothing new is recorded until the tasting is.
 6. If the roaster wants a file for the new version, `profile:write` (`{"beanId", "version"}`) writes a file named by the tool (the
-   result's `fileName` and `profileName`) to `profiles/out/` (or `KAFFELOGIC_OUT_DIR` when it is set): the version's profile with
+   result's `fileName` and `profileName`) to `profiles/out/` (or `KAFFELOGIC_OUT_DIR` when it is set; with the Kaffelogic Studio folder in `.env` that is its `roast-profiles/`, and Studio sends the file to the machine): the version's profile with
    its level as the level the machine offers first. Only labels change, so a roast on it still
    counts as the same profile. Remind them to check the level on the machine before roasting.
 
