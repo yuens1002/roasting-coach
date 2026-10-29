@@ -5,6 +5,10 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-10-29
+
+- 2026-10-29 - feat(library): read and write the folder Kaffelogic Studio syncs through KAFFELOGIC_DIR, skip files with no profile, and let the real-file tests read it
+
 ## [0.6.2] - 2026-10-29
 
 - 2026-10-29 - feat(profiles): retime a curve to checkpoints (reach) and draw one through points (through) in profile:edit

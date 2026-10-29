@@ -166,8 +166,28 @@ deletes the tastings that held an old overall score).
 
 Put your own `.kpro` profiles and `.klog` logs in `profiles/` (any names, any depth; git-ignored),
 or point `KAFFELOGIC_DIR` at the folder your roaster writes to. Profiles roasting-coach writes go to
-`profiles/out/`. Tests against real files run only when they are present (in `profiles/` or
-`fixtures/private/`).
+`profiles/out/`. Tests against real files run only when they are present (in `profiles/`,
+`fixtures/private/` or `KAFFELOGIC_DIR`).
+
+### Using the folder Kaffelogic Studio syncs
+
+Kaffelogic Studio keeps one folder in step with the machine: logs the machine wrote are in its
+`roast-logs-archive/`, and profiles in its `roast-profiles/` are the ones Studio sends to the machine.
+Point roasting-coach at that folder and a log is read where Studio put it, with no copying in, and a profile
+it writes lands where Studio will send it to the machine. Put this in `.env` (git-ignored), with your own path:
+
+```
+KAFFELOGIC_DIR=<the folder Studio syncs>
+KAFFELOGIC_OUT_DIR=<the same folder>/roast-profiles
+```
+
+- It reads every `.kpro` and `.klog` under `KAFFELOGIC_DIR` at any depth, by content. Empty logs and the
+  bookkeeping files Studio keeps there are skipped.
+- It only ever adds a file, named by the tool, to `KAFFELOGIC_OUT_DIR`, and refuses to overwrite one that
+  is already there. It never changes or deletes anything else in the folder.
+- Leave `KAFFELOGIC_OUT_DIR` unset and profiles go to an `out/` folder inside `KAFFELOGIC_DIR`, which
+  Studio does not send to the machine.
+- Pass `roast:add` the path of the log in that folder (`klogPath`); nothing needs to be copied.
 
 Kaffelogic's profiles and logs are not published under an open licence, so this repository never
 includes them. It refers to stock profiles by name and stores only numbers derived from them.

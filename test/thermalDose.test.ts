@@ -123,18 +123,28 @@ const pairs = PRIVATE_LOGS.flatMap((log) => {
 });
 
 describe.skipIf(!pairs.length)("the profile curve predicts a real roast's thermal dose", () => {
+  let checked = 0;
   for (const { log, kpro } of pairs) {
-    it(`${log.file} (${headerValue(log.text, "profile_short_name")?.trim()} level ${Number(headerValue(log.text, "roasting_level"))})`, () => {
+    it(`${log.file} (${headerValue(log.text, "profile_short_name")?.trim()} level ${Number(headerValue(log.text, "roasting_level"))})`, (ctx) => {
       const roast = kaffelogicToRoastLog(parseKlog(log.text));
-      const measured = extractFeatures(roast).thermalDose;
-      const predicted = profileThermalDoseAtLevel(parseKpro(kpro.text), roast.nativeLevel!)!.thermalDose;
-      // Real roasts have measured 5.3-18.5% above their curve (nine logs, docs/research.md), more where the machine ran further above
-      // its profile in development. This guards a gross error (a wrong curve, a unit slip), not the size of the offset, which varies by
-      // profile and by how long the development ran: the bound is not a tolerance the engine relies on.
-      expect(measured / predicted, "measured is at or above the curve").toBeGreaterThan(1);
-      expect(measured / predicted - 1).toBeLessThan(0.25);
+      const predicted = profileThermalDoseAtLevel(parseKpro(kpro.text), roast.nativeLevel!)!;
+      // Not skippable: the profile found for the log is the one the log carries, so the level means the same end temperature in both.
+      expect(predicted.endTemp, "the .kpro found for this log is its profile").toBeCloseTo(roast.targetEndTemp!, 1);
+      if (roast.samples.length < 100) ctx.skip(); // stopped within the first minute or so: not a roast
+      const features = extractFeatures(roast);
+      // The curve's thermal dose runs to the level's end temperature, so a roast stopped short of it (or run past it) is not the roast the curve describes.
+      if (Math.abs(features.dropTemp - predicted.endTemp) > 6) ctx.skip();
+      // Across a folder of roasts on several profiles and firmware versions the offset from the curve takes both signs and is wide, so
+      // there is no sign to assert and the bound is wider than the spread seen. It guards a unit slip or a gross parsing error (factors
+      // of 10 or more), not the size of the offset, which varies by profile and by how the machine ran against it: the engine does not rely on it.
+      expect(Math.abs(features.thermalDose / predicted.thermalDose - 1)).toBeLessThan(0.5);
+      checked++;
     });
   }
+
+  it("checked at least one finished roast", () => {
+    expect(checked).toBeGreaterThan(0);
+  });
 });
 
 // The stock Robusta profile, found by content. A roaster's own saved copy of it (same name, another

@@ -4,6 +4,7 @@
 // to KAFFELOGIC_OUT_DIR (default profiles/out/). Both are git-ignored.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { hasProfile } from "../src/adapters/kaffelogic/parse.js";
 import type { KaffelogicFile } from "../src/adapters/kaffelogic/writeProfile.js";
 import { InputError } from "../src/db/store.js";
 import { ROOT } from "./env.js";
@@ -11,13 +12,17 @@ import { ROOT } from "./env.js";
 export const KAFFELOGIC_DIR = process.env.KAFFELOGIC_DIR ?? join(ROOT, "profiles");
 export const KAFFELOGIC_OUT_DIR = process.env.KAFFELOGIC_OUT_DIR ?? join(KAFFELOGIC_DIR, "out");
 
-/** Every .kpro and .klog under KAFFELOGIC_DIR; empty if the folder doesn't exist. */
-export function loadLibrary(): KaffelogicFile[] {
-  if (!existsSync(KAFFELOGIC_DIR)) return [];
-  return (readdirSync(KAFFELOGIC_DIR, { recursive: true, encoding: "utf8" }) as string[])
+/**
+ * Every .kpro and .klog under `dir` (KAFFELOGIC_DIR); empty if the folder doesn't exist. A file with no profile in it (`hasProfile`) is
+ * left out: the machine leaves an empty log, or a bare run of readings, when a roast is stopped at the start, and neither can be a base.
+ */
+export function loadLibrary(dir: string = KAFFELOGIC_DIR): KaffelogicFile[] {
+  if (!existsSync(dir)) return [];
+  return (readdirSync(dir, { recursive: true, encoding: "utf8" }) as string[])
     .filter((f) => /\.(kpro|klog)$/i.test(f))
-    .map((f) => join(KAFFELOGIC_DIR, f))
-    .map((path) => ({ path, text: readFileSync(path, "utf8") }));
+    .map((f) => join(dir, f))
+    .map((path) => ({ path, text: readFileSync(path, "utf8") }))
+    .filter(({ text }) => hasProfile(text));
 }
 
 /** Where a new profile will be written, from its file name (profileNames). Refuses to overwrite: every written profile gets its own file. */

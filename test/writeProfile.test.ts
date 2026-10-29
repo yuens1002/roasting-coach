@@ -116,17 +116,24 @@ const pairs = PRIVATE_LOGS.flatMap((klog) => {
   return kpro ? [{ klog, kpro }] : [];
 });
 
+// A log from a newer machine carries keys that a profile saved by an older Studio lacks.
+const NEWER_FIRMWARE_KEYS = /^(ambient_cutoff_|ambient_default_temperature$|cooldown_end_|cooldown_slow_time$|zone3_)/;
+
 describe.skipIf(!pairs.length)("profile from a real log matches the real .kpro", () => {
   for (const { klog, kpro } of pairs) describe(`${klog.file} vs ${kpro.file}`, () => {
     const real = parseHeader(splitLines(kpro.text)).header;
     const fromLog = Object.fromEntries(profileFromLog(klog.text));
 
-    it("has the same keys, except the description", () => {
-      expect(Object.keys(fromLog).sort()).toEqual(Object.keys(real).filter((k) => k !== "profile_description").sort());
+    it("has the same keys, except the description, keys a newer machine adds, and keys a log never holds", () => {
+      const onlyInLog = Object.keys(fromLog).filter((k) => !(k in real));
+      const onlyInKpro = Object.keys(real).filter((k) => k !== "profile_description" && !(k in fromLog));
+      expect(onlyInLog.filter((k) => !NEWER_FIRMWARE_KEYS.test(k))).toEqual([]);
+      expect(onlyInKpro.filter((k) => !(LOG_ONLY_KEYS as readonly string[]).includes(k))).toEqual([]);
     });
 
     it("has the same values, to the 6 significant figures logs write", () => {
       for (const [k, v] of Object.entries(fromLog)) {
+        if (!(k in real)) continue;
         const a = v.split(",");
         const b = real[k].split(",");
         expect(a.length, k).toBe(b.length);

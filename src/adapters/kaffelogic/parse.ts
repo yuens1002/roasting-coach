@@ -166,6 +166,9 @@ function profileFromHeader(header: Record<string, string>): KaffelogicProfile {
   };
 }
 
+/** Whether text holds a profile's curve, as a .kpro does and a .klog embeds: an empty log, or a bare run of readings left by a stopped roast, does not. */
+export const hasProfile = (text: string): boolean => /^roast_profile:/m.test(text);
+
 export function parseKpro(text: string): KaffelogicProfile {
   const { header } = parseHeader(splitLines(text));
   if (!header.roast_profile) throw new Error("not a Kaffelogic profile: no roast_profile line");
