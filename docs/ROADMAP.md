@@ -249,7 +249,9 @@ Not designed; fits beside `calibration` (stored in the roaster's own database).
   at the synced one (README, "Using the folder Kaffelogic Studio syncs") reads logs where Studio put them and writes a profile into
   `roast-profiles/`, from where Studio sends it to the machine. Files with no profile in them (empty logs, fragments) are skipped,
   and the real-file tests read `KAFFELOGIC_DIR` too (profiles the tool drew a curve for are left out), each stating which files
-  it applies to: finished roasts, with the keys that differ between firmware versions excused. Not yet shown: a profile written there reaching the machine through Studio.
+  it applies to: finished roasts, with the keys that differ between firmware versions excused. Shown (2026-10-29): a profile written
+  straight into `roast-profiles/` in a Claude session was registered by Studio (its `.sync_base` lists the file) and roasted on the
+  machine, whose logs record the profile's file name and short name. A curve `profile:edit` redrew is a separate open question (Next, 3).
 - **Cross-bean report** (`clean-zone`): every bean side by side: its altitude, process, moisture, density and crop date, its
   first clean roast with the level, the predicted and measured thermal dose and the offset, and the bracket. Read-only; no advice
   uses it. The predicted thermal dose comes from the profile each roast's log carries (`predictedThermalDoses`).

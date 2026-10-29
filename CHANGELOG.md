@@ -5,6 +5,10 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-10-29
+
+- 2026-10-29 - docs(roadmap): record that a profile written into the Studio sync folder reached the machine
+
 ## [0.6.3] - 2026-10-29
 
 - 2026-10-29 - feat(library): read and write the folder Kaffelogic Studio syncs through KAFFELOGIC_DIR, skip files with no profile, and let the real-file tests read it
