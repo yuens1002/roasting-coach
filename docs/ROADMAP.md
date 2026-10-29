@@ -24,8 +24,8 @@ Concretely (decided 2026-10-10): get a bean's roast right in **no more than thre
 roaster which way to go each time. The count starts at the first level change the tool recommends, and counts the
 versions behind the roast tasted on its profile (each is one change, whoever chose it; a switch of profile starts the count again). "Right", for what is
 built, is a **clean cup, roast quality 3 or better**: the tool can't choose another profile for a cup that shows no
-defect to point the way, and it can't edit a curve or make a new profile yet. A quality of **4 or better** stays the
-aim for when it can. The levers are the level, then the profile and the curve. When three level changes are used and the
+defect to point the way, and no rule chooses a curve change (`profile:edit` draws one only as the roaster describes it). A quality of **4 or better** stays the
+aim for when a rule can choose the direction. The levers are the level, then the profile and the curve. When three level changes are used and the
 cup still has a defect, the answer states to try a different profile (`level-changes-used`): it names the bean's other
 profile when there is one, and otherwise asks the roaster to pick one, because the tool can't choose a profile for a bean
 that has none to suggest. The bean's own table (`table`) is built as the roasts come in and shows where it stands. Still open:

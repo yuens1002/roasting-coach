@@ -137,15 +137,15 @@ describe("keeping a clean roast", () => {
     expect(a).toMatchObject({ kind: "hold", ruleId: "keep-as-is" });
     expect(a.reason).toBe("The cup tasted sweet and balanced and the roast quality is 4 (clean and expressive). Keep this roast as it is.");
   });
-  it("holds a clean cup of quality 3 as done, and says what would take it further that this tool cannot do yet", () => {
+  it("holds a clean cup of quality 3 as done, and says what would take it further and what this tool does about it", () => {
     const a = advise(input({ taste: ["balanced"], quality: 3 }));
     expect(a).toMatchObject({ kind: "hold", ruleId: "keep-as-is" });
-    expect(a.reason).toBe("The cup tasted balanced and the roast quality is 3 (clean, with little character). A better cup would need another profile or an edited curve, which this tool can't choose or make yet. Keep this roast as it is.");
+    expect(a.reason).toBe("The cup tasted balanced and the roast quality is 3 (clean, with little character). A better cup would need another profile or an edited curve. This tool doesn't choose either for a cup with no defect to point the way, but it can draw an edited curve you describe. Keep this roast as it is.");
   });
   it("holds a clean cup with no good word too, naming no word and no defect", () => {
     const a = advise(input({ taste: ["flat", "thin"], quality: 3 }));
     expect(a).toMatchObject({ kind: "hold", ruleId: "keep-as-is" });
-    expect(a.reason).toBe("Nothing in the cup is a roast defect and the roast quality is 3 (clean, with little character). A better cup would need another profile or an edited curve, which this tool can't choose or make yet. Keep this roast as it is.");
+    expect(a.reason).toBe("Nothing in the cup is a roast defect and the roast quality is 3 (clean, with little character). A better cup would need another profile or an edited curve. This tool doesn't choose either for a cup with no defect to point the way, but it can draw an edited curve you describe. Keep this roast as it is.");
     expect(advise(input({ taste: ["flat"], quality: 4 }))).toMatchObject({ kind: "hold", ruleId: "keep-as-is" });
   });
   it("leaves sour to the rules that do not act on it: sour is not a roast defect, because it can come from the brew", () => {
@@ -613,7 +613,7 @@ describe("when the level isn't helping", () => {
     const a = run(uncooked(11), [uncooked(10)], {});
     expect(a).toMatchObject({ kind: "ask", ruleId: "level-not-helping" });
     expect(a.reason).toContain("No other stock profile is suggested for this bean.");
-    expect(a.reason).toContain("can't edit yet");
+    expect(a.reason).toContain("This tool doesn't choose a curve change, but it can draw one you describe.");
   });
   it("asks instead when the other profile has already been tried, and doesn't send them back", () => {
     const a = run(uncooked(11), [uncooked(10), uncooked(7, { profile: "KL Washed" })]);
