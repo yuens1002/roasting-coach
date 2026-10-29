@@ -130,7 +130,7 @@ corrects a reading after the roast is recorded (a sample ground later). **Not bu
 reading on one roast, which would map the card's tiles to meter numbers; either one is enough. Open: the advice still does
 not use the colour readings (see above).
 
-**Idea (2026-10-09), planned 2026-10-11 (Next, 3), not built: curve edits sized by thermal dose.** The thermal dose can be computed for
+**Idea (2026-10-09), planned 2026-10-11 (Next, 3), built in part: curve edits sized by thermal dose.** The thermal dose can be computed for
 any curve, so a new profile can hold the total thermal dose fixed and change only the shape (moving it
 between phases). That makes shape a clean experiment: the quality change belongs to the shape, not to a
 different amount of heat. The roaster chooses to try it; the tool reports what a change does in measured
@@ -183,7 +183,7 @@ What each change does, and where it stands. The reason is there when it was set 
 | Rest (days before tasting) | How the roast has settled, not the roast | **Dropped as a lever (2026-10-09):** the rest guard (rule 4) stays |
 | Brew method | How much of the roast reaches the cup, not the roast | **Dropped as a lever (2026-10-09):** every tasting of a coffee is of one brew, the roaster's own (rule 1) |
 | Another stock profile | The curve's shape | Built as a switch (`level-not-helping`), only after a defect shows the level is not the lever; only washed and natural beans (which start on KL Washed or KL Natural) have an alternative. Not built: choosing another profile for a clean cup, which has no defect to point the way |
-| Editing the curve, fan or zones | The curve's shape, tuned to the bean | Not built (see Next, 3) |
+| Editing the curve, fan or zones | The curve's shape, tuned to the bean | Curve edits built as a preview the roaster asks for (`profile:edit`); the engine does not offer one. Fan and zones not built (see Next, 3) |
 | Reference cup | What the coffee can be; stops it being written off | Built as the bean's `sellerNotes`, optional |
 | Roaster's own words and numbers | Taste-word meanings, step sizes, the noise band | Built (`calibration`) |
 | Roast quality, anchored to defects | A criterion that is about the roast, not the roaster's liking | Built (`quality`, rule 2 checks it against the words) |
@@ -256,8 +256,8 @@ Not designed; fits beside `calibration` (stored in the roaster's own database).
   to. `bean:update` and `taste:update` correct answers after the fact.
 - **Writing profile files**: the bean's own `.kpro` is written to `profiles/out/` at intake, and
   `profile:write` writes a version's file. A written file is accepted by Kaffelogic Studio and the
-  Nano. Fan and zone edits are not built (see below), and the one curve edit built (`profile:edit`, the slope of the last segment)
-  is a preview a roaster accepts, so a written file differs from its base in name (by the naming convention, Next 5),
+  Nano; a curve that `profile:edit` retimed or redrew, with the extra points that makes, is not yet shown to load (Next, 3). Fan and zone edits are not built (see below), and the curve edits built (`profile:edit`: when the curve reaches temperatures, the whole curve drawn through points, and the slope of the last segment)
+  are a preview a roaster accepts, so a written file differs from its base in name (by the naming convention, Next 5),
   description and the level it offers first, and, for a version whose curve `profile:edit` changed, in that curve and in its designer
   line (`roasting-coach`, stamped in the stored file and inherited by later versions, since the base profile's designer did not make it).
 - **Sizing a level change in thermal dose** (`thermal-dose`, `levelForThermalDose`), so "about 15% less
@@ -328,7 +328,7 @@ Order is a suggestion; the roaster picks.
    predicted thermal dose of its first clean roast (roast quality 3 or more and no under or over word, the definition under "Decided (2026-10-10)"; a stored tasting where the two disagree is not clean), the bracket around it, the bean's properties and the
    first clean roast's offset from its curve's prediction (an offset for every roast is not built). It records nothing and changes no advice; it is the data the bean-properties item
    (under item 3) waits for, and what the clean zone as a number of the roaster's own steps would need.
-3. **Curve edits and new profiles** (planned 2026-10-11, nothing built; see the proposed sequencing below). Change the curve of a base profile (the one a log
+3. **Curve edits and new profiles** (planned 2026-10-11, built in part; see the proposed sequencing below). Change the curve of a base profile (the one a log
    was roasted on, matched by name and `profile_modified`, or a stock profile chosen at intake), write it with `writeKpro`
    to `profiles/out/` (never overwrite) and store it as the version's `profile_file`, with the base as its parent.
    *Storage already exists:* `version:add` takes a `profileFile` and reads its levels, `profile_version.profile_file` and
@@ -383,7 +383,23 @@ Order is a suggestion; the roaster picks.
      slope of the last segment of the curve, found so the curve's predicted thermal dose at another level's end temperature equals a
      version's (bisection on the slope, 2 to 12 °C/min, the end time found to within the search; refused when no slope gives it, when the curve has fewer than three nodes, or when its last segment is not one straight climb). It records
      nothing; `onYes` is the `version:add` with the edited `profileFile`. The edit matches the target to within the search, and the tests
-     check the written file to 1%, inside the decided 3%. Not built: the Maillard-stretch edit, fan and zone edits, a level search for a
+     check the written file to 1%, inside the decided 3%.
+   - **Whole-curve retime built (2026-10-27, `retimeCurve.ts`, `test/retimeCurve.test.ts`; `profile:edit` takes `reach`):** "the curve reaches 150 °C at 190 s",
+     for any temperature from 100 °C to the curve's last point, several at once. Each checkpoint splits the curve where it crosses that temperature (the shape
+     does not change), the stretch before it is stretched in time to fit, everything after the last checkpoint moves as it was (so the roast ends that much later or
+     earlier), and the corner at a checkpoint is smoothed. Temperatures never change, only when they are reached. Refused when a checkpoint is in the machine's heat-up
+     (under 100 °C), past the curve's last point, out of order, or would make the curve fall or climb faster than any stock profile does once past 100 °C (116 °C/min);
+     the edit is made, and the preview says so, where the rate of rise picks up again (every stock profile falls steadily). Alone, `reach` keeps the version's level and says
+     how far the predicted thermal dose moved ("about the same" only within 3%); with a `level` too it then reshapes the last climb to hold the version's thermal dose.
+     The thermal dose is nearly blind to the drying stretch (about 6% of a curve's total comes before 190 °C), so a retime there says the thermal dose cannot tell the cup apart: only a roast can.
+     Not yet shown on a machine: that Studio and the Nano accept a curve with the extra points a checkpoint adds, and that the machine follows the retimed curve. Load the first one in Studio
+     and compare it with its base before roasting.
+   - **Whole curve drawn through points built (2026-10-27, `throughCurve.ts`; `profile:edit` takes `through`: `[[0, 20], [60, 110], [120, 158.5], [180, 178], ...]`, seconds and °C):** a smooth
+     monotone cubic through at least four points (no overshoot between points; the last two set the rate the machine follows past the end). It replaces the shape, so it is for a
+     curve the roaster has sketched or has numbers for; a stock curve sampled every 20 s and redrawn is within 3 °C of itself after 100 °C. A level only says where the roast stops.
+     The climb past 200 °C is a warning, not a refusal (stock profiles reach 12.9 °C/min there at most, which is what they ask of the machine, not what it can do); the climb past 100 °C is
+     refused above 116 °C/min. A sketch with a stalled stretch of rate of rise and a late spike (6 then 21 °C/min) draws, with both warnings, and has about half the predicted
+     thermal dose of the same end temperature on a stock curve: so the end temperature alone may not carry the colour, and the heat may (a hypothesis until a roast on an edited curve tests it). Not built: fan and zone edits, a level search for a
      chosen end rather than a chosen level, a station scenario, the engine offering an edit, a RULES.md section.
    - **Steps, each its own PR.** (1) Read first, no code shipped: compare the real logs' achieved curve with the requested one,
      what the nodes do, how the machine follows a curve, and each roast's offset from its curve's prediction (findings in [research.md](research.md), "Heat transfer"; the
@@ -466,7 +482,7 @@ Order is a suggestion; the roaster picks.
    different curve. A stored profile counts as a stock curve only when it matches the library's copy of that stock profile body to
    body (a version keeps its stock base through edits, so the base alone cannot say), so an edited curve and the stock one differ. `bean:add` stores the bean first so the file can carry its number; `profile:write` takes no name. Profiles already
    written were renamed to match (one: Kron Nang's v1, now `VIET-002-1r1`). Not built: the clean-zone report and the roadmap do not
-   use the names; revisions only differ once curve edits exist or a bean switches stock profile.
+   use the names; revisions only differ once an edited curve is stored or a bean switches stock profile.
 
 ## Waiting on others
 

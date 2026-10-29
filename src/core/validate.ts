@@ -16,7 +16,7 @@ const isDate = (s: string) => {
 };
 
 /** The shape of a command's input around its form answers: which keys exist and what each holds. */
-export type Shape = Record<string, { type: "integer" | "number" | "string" | "object"; required?: boolean }>;
+export type Shape = Record<string, { type: "integer" | "number" | "string" | "object" | "array"; required?: boolean }>;
 
 /** Plain-language errors for input that doesn't fit the shape; unknown keys are errors too, so a typo can't be silently dropped. */
 export function checkShape(input: unknown, shape: Shape): string[] {
@@ -34,8 +34,9 @@ export function checkShape(input: unknown, shape: Shape): string[] {
       type === "integer" ? Number.isInteger(v) && (v as number) > 0
       : type === "number" ? typeof v === "number" && Number.isFinite(v)
       : type === "string" ? typeof v === "string"
+      : type === "array" ? Array.isArray(v)
       : typeof v === "object" && v !== null && !Array.isArray(v);
-    if (!ok) errors.push(`"${key}" must be ${type === "integer" ? "a whole number above 0" : type === "number" ? "a number" : type === "string" ? "text" : "an object"}; got ${JSON.stringify(v)}.`);
+    if (!ok) errors.push(`"${key}" must be ${type === "integer" ? "a whole number above 0" : type === "number" ? "a number" : type === "string" ? "text" : type === "array" ? "a list" : "an object"}; got ${JSON.stringify(v)}.`);
   }
   return errors;
 }

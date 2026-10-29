@@ -158,7 +158,29 @@ and run the command it hands you if the roaster says yes.
    roast stands in thermal dose), run `clean-zone` and say `say` as written. It records nothing and the advice does not use it;
    for how one bean stands, show its `table`.
 
+## 4b. Editing the curve
+
+Only when the roaster asks to change the curve itself (their own idea: the engine does not offer curve edits). `profile:edit` is a
+preview like `level-for`: it records nothing and writes no file. Say its `say` as written. On a yes run its `onYes` (`version:add`),
+then `profile:write` if they want the file. It takes `reach`, `through` or `level` (`reach` and `through` are never used together):
+
+- `reach`: when the curve reaches temperatures, in seconds, `{"150": 190, "180": 260}` (150 °C at 3:10, 180 °C at 4:20). Turn the
+  roaster's words into temperatures and second counts; for a time like 3:10, pass 190. Anywhere from 100 °C to the curve's last point,
+  several at once. The temperatures never change, only when they are reached, and everything after the last one moves as it was.
+  Alone, it keeps the version's level and `say` reports how far the predicted thermal dose moved.
+- `through`: draw the whole curve through points, `[[0, 20], [60, 110], [120, 158.5], ...]` (seconds, °C), at least 4, in time order and
+  rising. For a curve the roaster sketches or has the numbers for; it replaces the shape, where `reach` keeps it. Not with `reach`.
+- `level`: end the roast at that level and reshape the last climb so the predicted thermal dose is the version's. With `reach`, the
+  retime comes first and the last climb makes up the difference. With `through` it only says where the roast stops.
+
+A refusal is in plain words: pass it on. Don't change the roaster's checkpoints or points to get round a refusal, or a warning in
+`say` (the rate of rise picking up again, a climb past 200 °C faster than any stock profile), without asking: the warning is theirs to
+weigh. Read the predicted thermal dose in `say` against the colour they are after: a short roast ended at the same temperature has far less
+heat and may roast lighter (not yet shown by a roast on an edited curve), which the end temperature alone hides. A curve with new points has not yet been shown to load in Kaffelogic
+Studio or to be followed by the machine: before the first roast on one, ask the roaster to load the file in Studio and check it
+against its base.
+
 The level is chosen on the machine before every roast, so a level change needs no file; a
 profile's `recommended_level` is only its suggestion, and the roast's real level is the log's
-`roasting_level`. A new .kpro is needed only when the profile itself changes (curve, fan, zones),
-which is not built yet.
+`roasting_level`. A new .kpro is needed only when the profile itself changes (curve, fan, zones). Curve edits are
+built (section 4b); fan and zone edits are not.

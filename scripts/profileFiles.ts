@@ -3,8 +3,10 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { holdThermalDose, withRoastCurve } from "../src/adapters/kaffelogic/editCurve.js";
-import { levelToTemp, parseKpro, timeCurveReaches } from "../src/adapters/kaffelogic/parse.js";
+import { type Point, levelToTemp, parseKpro, timeCurveReaches } from "../src/adapters/kaffelogic/parse.js";
 import { profileNames, profileRevision } from "../src/adapters/kaffelogic/profileNames.js";
+import { LATE_FROM_C, MAX_LATE_RISE_C_PER_MIN, type Checkpoint, type LateClimb, type RateRise, retimeCurve } from "../src/adapters/kaffelogic/retimeCurve.js";
+import { curveThroughPoints } from "../src/adapters/kaffelogic/throughCurve.js";
 import { curveThermalDoseTo, formatMinutesSeconds, profileThermalDoseAtLevel } from "../src/adapters/kaffelogic/thermalDose.js";
 import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileFromKpro, sameProfileBody, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
 import type { Intake } from "../src/core/intake.js";
@@ -154,19 +156,50 @@ export async function writeVersionProfile(db: Db, input: unknown, env: ProfileFi
   return { written: path, profileName: names.shortName, fileName: names.fileName, version: v.number, level: v.level, endTempC: v.endTempC, builtFrom: base.path };
 }
 
-/**
- * profile:edit: a preview of a curve edit that holds a version's thermal dose and ends at another level (docs/ROADMAP.md, Next 3). It
- * records nothing and writes no file: `onYes` is the `version:add` that stores the edited profile, and the roaster says yes first.
- * The figures are the curve's own predictions; no roast has been made on the edited curve.
- */
-export async function previewCurveEdit(db: Db, input: unknown, env: ProfileFileEnv) {
-  const errors = checkShape(input, { beanId: { type: "integer", required: true }, version: { type: "integer" }, level: { type: "number", required: true }, reason: { type: "string" } });
-  if (errors.length) throw new InputError(errors);
-  const { beanId, version: number, level: asked, reason: said } = input as { beanId: number; version?: number; level: number; reason?: string };
-  const level = Math.round(asked * 10) / 10;
+/** The temperatures profile:edit retimes and reports: the curve's time to each is shown before and after, besides the checkpoints the roaster named. */
+const REPORTED_TEMPS_C = [100, 150, 180, 200];
+
+/** How far (in %) the predicted thermal dose may move for the edit to still be called about the same (docs/ROADMAP.md, "Decided": 3%). */
+const ABOUT_THE_SAME_PCT = 3;
+
+/** A climb's rate before and after an edit, in words: it stays where it was when the edit left it at the one decimal shown. */
+const slopeText = (before: number, after: number) => (before.toFixed(1) === after.toFixed(1) ? `stays at ${after.toFixed(1)} °C/min` : `goes from ${before.toFixed(1)} to ${after.toFixed(1)} °C/min`);
+
+/** The thermal dose weights heat by temperature (docs/research.md, "Thermal dose: the measure we adopted"), so the stretch below this adds little to it; the preview reports the share measured on the curve being edited. */
+const THERMAL_DOSE_LITTLE_BELOW_C = 190;
+
+/** `reach` as the checkpoints retimeCurve takes: {"150": 190} is the curve reaching 150 °C at 190 s. */
+function checkpointsFrom(reach: Record<string, unknown>): Checkpoint[] {
+  const entries = Object.entries(reach);
+  if (!entries.length) throw new InputError(['"reach" needs a temperature and the second the curve reaches it, like {"150": 190}.']);
+  return entries.map(([temp, at]) => {
+    if (temp.trim() === "" || !Number.isFinite(Number(temp)) || typeof at !== "number" || !Number.isFinite(at)) {
+      throw new InputError([`"reach" takes a temperature in °C and the second the curve reaches it, like {"150": 190}; got ${JSON.stringify(temp)}: ${JSON.stringify(at)}.`]);
+    }
+    return { temp: Number(temp), at };
+  });
+}
+
+/** `through` as the points curveThroughPoints takes: [[120, 158.5], [180, 178]] is 158.5 °C at 120 s, then 178 °C at 180 s. */
+function pointsFrom(through: unknown[]): Point[] {
+  return through.map((p) => {
+    if (!Array.isArray(p) || p.length !== 2 || p.some((x) => typeof x !== "number" || !Number.isFinite(x))) {
+      throw new InputError([`"through" takes points, each the second and the temperature in °C, like [[120, 158.5], [180, 178]]; got ${JSON.stringify(p)}.`]);
+    }
+    return { t: p[0], v: p[1] };
+  });
+}
+
+/** A level the machine can be set to: 0 to 6 in steps of 0.1, with float noise (0.30000000000000004) rounded away. */
+function editLevel(asked: number): number {
   if (!(asked >= 0 && asked <= 6)) throw new InputError([`Level must be between 0 and 6; got ${asked}.`]);
-  // The machine sets levels in 0.1 steps and a version stores one decimal, so the edit is for a level the machine can be set to (float noise like 0.30000000000000004 is rounded away).
+  // The machine sets levels in 0.1 steps and a version stores one decimal, so the edit is for a level the machine can be set to.
   if (Math.abs(asked * 10 - Math.round(asked * 10)) > 1e-9) throw new InputError([`Level must be in steps of 0.1; got ${asked}.`]);
+  return Math.round(asked * 10) / 10;
+}
+
+/** What a curve edit starts from: the version, its curve, and the curve's predicted thermal dose at the version's own level. */
+async function editTarget(db: Db, beanId: number, number: number | undefined, env: ProfileFileEnv) {
   const history = await beanHistory(db, beanId);
   if (number === undefined && !history.versions.length) throw new InputError([`Bean ${beanId} has no versions.`]);
   const v = number === undefined ? history.versions[history.versions.length - 1] : history.versions.find((x) => x.number === number);
@@ -176,27 +209,105 @@ export async function previewCurveEdit(db: Db, input: unknown, env: ProfileFileE
   const profile = parseKpro(formatKpro(base.lines));
   const from = profileThermalDoseAtLevel(profile, v.level);
   if (!from) throw new InputError([`v${v.number}'s curve never reaches the end of level ${v.level}, so there's no thermal dose to hold.`]);
-  // The profile has levels, since `from` was found on them.
-  const endTemp = levelToTemp(profile.roastLevels, level)!;
+  // The curve's own figure, not the level table's: the edited curve's is found the same way, so the two compare.
   const target = curveThermalDoseTo(profile.roastCurve, from.endTemp, true)!;
-  const edit = holdThermalDose(profile, endTemp, target.thermalDose);
-  if (!edit.ok) throw new InputError([`v${v.number}: ${edit.problem}`]);
+  return { v, base, profile, from, target };
+}
+
+/**
+ * profile:edit: a preview of a curve edit. It records nothing and writes no file: `onYes` is the `version:add` that stores the edited
+ * profile, and the roaster says yes first. The figures are the curve's own predictions; no roast has been made on the edited curve.
+ * Three edits (docs/ROADMAP.md, Next 3):
+ * - `through` draws the whole curve through points ([[120, 158.5], [180, 178]]: 158.5 °C at 120 s, 178 °C at 180 s), a smooth rising line
+ *   (curveThroughPoints). It keeps the version's level unless `level` names another, which only moves where the roast stops; it takes no `reach`.
+ * - `reach` retimes the curve from checkpoints ({"150": 190}: it reaches 150 °C at 190 s), anywhere between 100 °C and its last point
+ *   (retimeCurve). Alone it keeps the version's level, and says how much the predicted thermal dose moved.
+ * - `level` ends the roast at that level and reshapes the last climb so the predicted thermal dose is the version's (holdThermalDose).
+ *   Together, the retime comes first and the last climb then makes up the difference.
+ */
+export async function previewCurveEdit(db: Db, input: unknown, env: ProfileFileEnv) {
+  const errors = checkShape(input, { beanId: { type: "integer", required: true }, version: { type: "integer" }, level: { type: "number" }, reach: { type: "object" }, through: { type: "array" }, reason: { type: "string" } });
+  if (errors.length) throw new InputError(errors);
+  const { beanId, version: number, level: asked, reach, through, reason: said } = input as { beanId: number; version?: number; level?: number; reach?: Record<string, unknown>; through?: unknown[]; reason?: string };
+  if (asked === undefined && reach === undefined && through === undefined) throw new InputError(['Say what to edit: "reach" (when the curve reaches temperatures, like {"150": 190}), "through" (draw the whole curve through points, like [[120, 158.5], [180, 178]]), "level" (end the roast at that level and reshape its last climb to hold the thermal dose), or reach and level together.']);
+  if (reach !== undefined && through !== undefined) throw new InputError(['"through" draws the whole curve and "reach" moves points of the one there is: give one of them.']);
+  const level = asked === undefined ? undefined : editLevel(asked);
+  const checkpoints = reach === undefined ? undefined : checkpointsFrom(reach);
+  const points = through === undefined ? undefined : pointsFrom(through);
+  const { v, base, profile, from, target } = await editTarget(db, beanId, number, env);
+  // The profile has levels, since `from` was found on them.
+  const endTemp = level === undefined ? from.endTemp : levelToTemp(profile.roastLevels, level)!;
+  let curve = profile.roastCurve;
+  let rises: RateRise[] = [];
+  let late: LateClimb | undefined;
+  const reshaped = points ? curveThroughPoints(points) : checkpoints ? retimeCurve(curve, checkpoints) : undefined;
+  if (reshaped) {
+    if (!reshaped.ok) throw new InputError([`v${v.number}: ${reshaped.problem}`]);
+    ({ curve, rises, late } = reshaped);
+  }
+  // A redrawn curve has no straight last climb to reshape: its level only says where the roast stops.
+  const held = level === undefined || points ? undefined : holdThermalDose({ ...profile, roastCurve: curve }, endTemp, target.thermalDose);
+  if (held && !held.ok) throw new InputError([`v${v.number}: ${held.problem}`]);
+  if (held?.ok) curve = held.curve;
+  const edited = held?.ok ? { endsAt: held.endsAtAfter, thermalDose: held.thermalDose } : curveThermalDoseTo(curve, endTemp, true);
+  if (!edited) throw new InputError([`v${v.number}: the edited curve does not reach ${endTemp.toFixed(1)} °C within 20 minutes, so the roast would not end.`]);
+
+  const climbText = held?.ok ? `the climb after ${formatMinutesSeconds(held.climbFrom.t)} (${held.climbFrom.temp.toFixed(1)} °C) ${slopeText(held.slopeBefore, held.slopeAfter)}, and the roast ends at level ${level} (${endTemp.toFixed(1)} °C)` : undefined;
+  const parts: string[] = [];
+  if (checkpoints || points) {
+    const named = new Map(checkpoints?.map((c) => [c.temp, c.at]));
+    const temps = [...new Set([...REPORTED_TEMPS_C, ...named.keys()])].sort((a, b) => a - b);
+    const both = (temp: number) => {
+      // A checkpoint is reached when it was asked for; reading it off the curve could be a half second out.
+      const [was, now] = [timeCurveReaches(profile.roastCurve, temp), named.get(temp) ?? timeCurveReaches(curve, temp)];
+      return was === undefined || now === undefined ? undefined : `${temp} °C ${formatMinutesSeconds(was)} to ${formatMinutesSeconds(now)}${named.has(temp) ? " (asked for)" : ""}`;
+    };
+    const times = [...temps.map(both).filter((s): s is string => s !== undefined), `the end, ${endTemp.toFixed(1)} °C, ${formatMinutesSeconds(target.endsAt)} to ${formatMinutesSeconds(edited.endsAt)}`];
+    parts.push(`On the same profile, ${points ? `the whole curve is redrawn through ${points.length} points, from ${formatMinutesSeconds(points[0].t)} (${points[0].v} °C) to ${formatMinutesSeconds(points[points.length - 1].t)} (${points[points.length - 1].v} °C)` : "the curve is retimed"}. Time to each temperature, before to after: ${times.join("; ")}.`);
+  }
+  if (held?.ok) {
+    parts.push(
+      `${checkpoints ? "Then" : "On the same profile,"} ${climbText}.`,
+      `The curve's predicted thermal dose stays ${target.thermalDose.toFixed(2)}, the figure for level ${v.level} (${from.endTemp.toFixed(1)} °C) on the current curve.${checkpoints ? "" : ` The curve before ${formatMinutesSeconds(held.climbFrom.t)} is unchanged.`}`,
+    );
+  } else {
+    const change = ((edited.thermalDose - target.thermalDose) / target.thermalDose) * 100;
+    const verdict = Math.abs(change) <= ABOUT_THE_SAME_PCT ? `about the same: within the ${ABOUT_THE_SAME_PCT}% this tool counts as the same` : `${change > 0 ? "more" : "less"} heat than v${v.number}, not the same`;
+    parts.push(`The curve's predicted thermal dose goes from ${target.thermalDose.toFixed(2)} to ${edited.thermalDose.toFixed(2)} (${change >= 0 ? "+" : ""}${change.toFixed(1)}%), ${verdict}. The roast ${points && level !== undefined ? "ends" : "still ends"} at level ${level ?? v.level} (${endTemp.toFixed(1)} °C); pass "level" to end at another${points ? "" : " and hold the thermal dose"}.`);
+  }
+  const early = checkpoints && checkpoints.every((c) => c.temp < THERMAL_DOSE_LITTLE_BELOW_C) ? curveThermalDoseTo(curve, THERMAL_DOSE_LITTLE_BELOW_C, true) : undefined;
+  if (early) parts.push(`The thermal dose counts very little below ${THERMAL_DOSE_LITTLE_BELOW_C} °C (${((100 * early.thermalDose) / edited.thermalDose).toFixed(0)}% of this curve's total comes before it), so it cannot say whether this edit changes the cup; only the cup can.`);
+  if (rises.length) {
+    const first = rises[0];
+    const more = rises.length > 1 ? `, and in ${rises.length - 1} more place${rises.length > 2 ? "s" : ""}` : "";
+    parts.push(`The rate of rise picks up again around ${formatMinutesSeconds(first.from + 30)} (from ${first.before.toFixed(1)} to ${first.after.toFixed(1)} °C/min)${more}; Kaffelogic's Roaster's Companion calls a steadily falling rate of rise optimal, and every stock profile has one. It is your choice.`);
+  }
+  if (late) parts.push(`The curve climbs at ${late.cPerMin.toFixed(0)} °C/min at ${formatMinutesSeconds(late.at)}, past ${LATE_FROM_C} °C, ${late.limit > MAX_LATE_RISE_C_PER_MIN ? `faster than the ${late.limit.toFixed(0)} °C/min this curve already had there` : `where no stock profile goes above ${MAX_LATE_RISE_C_PER_MIN}`}: the Nano may not keep up, and the roast would then end later than the curve says. It is your choice.`);
+  parts.push("These are the curve's predictions: real roasts have run above them (docs/research.md, validation 3), and no roast has been made on this curve yet. Shall I record it as the next version?");
+  const say = parts.join(" ");
+
+  const summary = [
+    ...(points ? [`redrawn through ${points.length} points, ${formatMinutesSeconds(points[0].t)} to ${formatMinutesSeconds(points[points.length - 1].t)}, ${points[0].v} to ${points[points.length - 1].v} °C`] : []),
+    ...(checkpoints ? [`reaches ${[...checkpoints].sort((a, b) => a.temp - b.temp).map((c) => `${c.temp} °C at ${formatMinutesSeconds(c.at)} instead of ${formatMinutesSeconds(timeCurveReaches(profile.roastCurve, c.temp)!)}`).join(", ")}`] : []),
+    ...(climbText ? [climbText] : []),
+  ].join("; ");
   // A blank reason is no reason: version:add would refuse it, so the preview would hand back a command that fails.
-  const reason = said?.trim() || undefined;
-  const slope = (x: number) => x.toFixed(1);
-  const summary = `the climb after ${formatMinutesSeconds(edit.climbFrom.t)} (${edit.climbFrom.temp.toFixed(1)} °C) goes from ${slope(edit.slopeBefore)} to ${slope(edit.slopeAfter)} °C/min, and the roast ends at level ${level} (${endTemp.toFixed(1)} °C)`;
+  const reason = said?.trim() || `Curve edit: ${summary}${held?.ok ? `, holding the predicted thermal dose of v${v.number}` : ""}.`;
   // The stored file describes itself: it is no longer the base designer's curve, and "unchanged" would be false.
-  const file = writeKpro(withRoastCurve(base.lines, edit.curve), { designer: EDITED_CURVE_DESIGNER, description: `Curve edited from v${v.number}'s curve: ${summary}.` });
-  const say = [
-    `On the same profile, ${summary}.`,
-    `The curve's predicted thermal dose stays ${target.thermalDose.toFixed(2)}, the figure for level ${v.level} (${from.endTemp.toFixed(1)} °C) on the current curve. The curve before ${formatMinutesSeconds(edit.climbFrom.t)} is unchanged.`,
-    `By the curve the roast ends at ${formatMinutesSeconds(edit.endsAtAfter)} instead of ${formatMinutesSeconds(target.endsAt)}, a climb of ${formatMinutesSeconds(edit.endsAtAfter - edit.climbFrom.t)} instead of ${formatMinutesSeconds(target.endsAt - edit.climbFrom.t)}.`,
-    `These are the curve's predictions: real roasts have run above them (docs/research.md, validation 3), and no roast has been made on this curve yet. Shall I record it as the next version?`,
-  ].join(" ");
+  const file = writeKpro(withRoastCurve(base.lines, curve), { designer: EDITED_CURVE_DESIGNER, description: `Curve edited from v${v.number}'s curve: ${summary}.` });
   return {
     from: { version: v.number, level: v.level, endTempC: from.endTemp, thermalDose: target.thermalDose, endsAtS: target.endsAt },
-    edit: { climbFromS: edit.climbFrom.t, climbFromTempC: edit.climbFrom.temp, slopeBeforeCPerMin: edit.slopeBefore, slopeAfterCPerMin: edit.slopeAfter, level, endTempC: endTemp, thermalDose: edit.thermalDose, endsAtS: edit.endsAtAfter },
+    edit: {
+      level: level ?? v.level,
+      endTempC: endTemp,
+      thermalDose: edited.thermalDose,
+      endsAtS: edited.endsAt,
+      ...(held?.ok ? { climb: { fromS: held.climbFrom.t, fromTempC: held.climbFrom.temp, slopeBeforeCPerMin: held.slopeBefore, slopeAfterCPerMin: held.slopeAfter } } : {}),
+      ...(points ? { through: points } : {}),
+      ...(checkpoints ? { reach: checkpoints.map((c) => ({ tempC: c.temp, atS: c.at, wasS: timeCurveReaches(profile.roastCurve, c.temp)! })) } : {}),
+      ...(reshaped ? { rateOfRiseRisesAt: rises.map((r) => ({ atS: r.from + 30, fromCPerMin: r.before, toCPerMin: r.after })), ...(late ? { climbsFasterThanStock: { atS: late.at, cPerMin: late.cPerMin, stockCPerMin: MAX_LATE_RISE_C_PER_MIN, limitCPerMin: late.limit } } : {}) } : {}),
+    },
     say,
-    onYes: { command: "version:add", input: { beanId, parent: v.number, level, reason: reason ?? `Curve edit: ${summary}, holding the predicted thermal dose of v${v.number}.`, profileFile: file } },
+    onYes: { command: "version:add", input: { beanId, parent: v.number, level: level ?? v.level, reason, profileFile: file } },
   };
 }
