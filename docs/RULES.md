@@ -40,8 +40,9 @@ is skipped):
 
 **The goal.** A roast with no defect: a clean cup, roast quality 3 or more. The cup is judged from
 uncooked (grassy, bready, baked or raw) to scorched (bitter, roasty, ashy), and when a bean has been tasted on both
-sides the engine goes halfway between the two. A clean cup is done for what this tool can do: it can't choose another
-profile for a cup that shows no defect to point the way, and it can't edit a curve or make a new profile yet (rule 7).
+sides the engine goes halfway between the two. A clean cup is done for what this tool can do: it doesn't choose another
+profile or a curve change for a cup that shows no defect to point the way, though it can draw an edited curve the roaster
+describes (rule 7).
 
 **The count.** The tool aims to get a roast right in three level changes on a profile. It counts the versions behind the roast
 tasted, back to the first version on its profile: each is one level change, whether the engine recommended it or the roaster
@@ -171,7 +172,8 @@ over word) is a 1 or 2, and a clean cup is a 3 or better.
 | 5 | clean, expressive, balanced and sweet |
 
 A flat, thin or monotone cup with no roast defect is a 3, however little you like it. Taking a clean cup to a
-4 would need another profile or an edited curve, which this tool can't choose or make yet.
+4 would need another profile or an edited curve. This tool doesn't choose either for a cup with no defect to point
+the way, but it can draw an edited curve you describe.
 
 ⚠ **Check this:** `bitter` can also be over-extraction, so a cup can be misread by the brew rather than the roast.
 Every tasting of a coffee is of one brew (rule 1), so no roast is tasted as another kind of brew, but the rules do not
@@ -352,7 +354,7 @@ tasted the same side with at least `noResponsePct` less roasting
 process and altitude as they are recorded now), at the level the tool starts that profile at. The comparison is with the first earlier roast on this profile that qualifies, not necessarily
 the one just before. It won't send you back to a profile this bean has already been roasted on, tasted or not;
 if there isn't an alternative, or you've used it, it asks instead and says the next lever is the
-curve, which this tool can't edit yet.
+curve, which this tool doesn't choose a change to but can draw as the roaster describes it.
 **Why:** one lever at a time. The level has been moved a real distance and the cup stayed on the same side,
 so the next lever the rule names is the profile's shape (how fast heat goes in and how long the beans
 develop), which the level does not change. The rule does not rule out a difference in rest or batch
@@ -388,18 +390,19 @@ roaster who wants to go on can keep stepping the level themselves; the answer is
 **When:** the cup has no under or over word (rules 1 to 6 didn't apply). Because of rule 2 the roast quality is then
 3 or more: the cup is clean.
 **What it does:** holds; no new version. The answer names the good words when there are any, or says nothing in the cup is a
-roast defect. For a quality below 4 it adds what would take the cup further: another profile or an edited curve, which this
-tool can't choose or make yet.
+roast defect. For a quality below 4 it adds what would take the cup further: another profile or an edited curve. The tool
+chooses neither for a cup with no defect to point the way, and says it can draw an edited curve the roaster describes.
 **Why:** the level can only fix a defect, and a defect word is what shows which way to move it, so a clean cup gives the
-level no direction. The tool can't pick another profile for a cup that shows no defect to point the way (the profile
-switch in `level-not-helping` follows a defect), and it can't edit a curve or write a new profile yet. A clean cup is
-done for what this tool can do. The aim, a quality of 4 or more, is for when it can.
+level no direction. The tool doesn't pick another profile for a cup that shows no defect to point the way (the profile
+switch in `level-not-helping` follows a defect), and no rule chooses a curve change either: a curve edit is the roaster's
+own idea, drawn on request and recorded as a new version. A clean cup is done for what the rules can choose. The aim, a
+quality of 4 or more, needs a rule that picks the direction from something other than a defect.
 
-> Example: flat and thin, clean, roast quality 3. "Nothing in the cup is a roast defect and the roast quality is 3 (clean, with little character). A better cup would need another profile or an edited curve, which this tool can't choose or make yet. Keep this roast as it is. No new version is needed."
+> Example: flat and thin, clean, roast quality 3. "Nothing in the cup is a roast defect and the roast quality is 3 (clean, with little character). A better cup would need another profile or an edited curve. This tool doesn't choose either for a cup with no defect to point the way, but it can draw an edited curve you describe. Keep this roast as it is. No new version is needed."
 
-⚠ **Check this:** a cup rated 3 (clean, with little character) is held like a 5. A roaster who wants more from it has
-no lever in this tool yet, and the answer says so rather than offering a step that would be a probe for the edge of the
-clean zone.
+⚠ **Check this:** a cup rated 3 (clean, with little character) is held like a 5. The rules give a roaster who wants
+more from it no step to take, and the answer says so rather than offering a step that would be a probe for the edge of
+the clean zone; a curve they want to try is theirs to describe.
 
 ## 6. What a step means on each stock profile
 
@@ -504,7 +507,8 @@ is recorded as a version only when they say so, with their own words as the reas
   process. No measurement in this project ties them to the thermal dose a coffee needs to be clean: the intake takes
   moisture, density and crop date as optional answers and nothing reads them, and the one published result found (two coffees, `docs/research.md`) is too small to rest a
   rule on. More research or data is needed before they are used (`docs/ROADMAP.md`, Next, 3).
-- It can only change the level, or switch to another stock profile. It can't edit a curve yet.
+- Its advice can only change the level, or switch to another stock profile. It never chooses a change to the curve; it draws
+  an edited curve only when the roaster describes one (`profile:edit`).
 - It treats a bean's earlier roasts as comparable. A different green lot, batch size or ambient
   temperature between roasts isn't accounted for.
 - It is built for the Kaffelogic Nano 7. Another roaster would need its own facts (section 4) and

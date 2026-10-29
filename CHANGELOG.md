@@ -5,6 +5,10 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-10-29
+
+- 2026-10-29 - fix(rules): say the tool draws an edited curve the roaster describes, instead of that it can't edit or make one yet
+
 ## [0.6.4] - 2026-10-29
 
 - 2026-10-29 - docs(roadmap): record that a profile written into the Studio sync folder reached the machine

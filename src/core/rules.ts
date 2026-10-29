@@ -5,8 +5,8 @@
 // thermal dose); turning it into a level for the profile at hand is the adapter's job (thermalDose.ts).
 //
 // Only the clear cases are here. Every tasting gets an answer from a rule (a test checks that), never an
-// improvised one, and a clean cup is left alone: this tool can't choose another profile or edit a curve to take
-// it further. Every setting is a first guess to be tuned against real roasts and tastings;
+// improvised one, and a clean cup is left alone: this tool doesn't choose another profile or a curve change to take
+// it further (it draws an edited curve only when the roaster describes one). Every setting is a first guess to be tuned against real roasts and tastings;
 // each lives in RULE_SETTINGS so the rules and tests can see it.
 
 import { daysBetween } from "./dates.js";
@@ -212,7 +212,7 @@ function levelNotHelping(side: Side, mine: string[], input: AdviceInput, unmoved
   const tried = alternative && roastedOn(input, alternative.profileName);
   if (alternative && !tried) return { kind: "switch-profile", ruleId: "level-not-helping", profileName: alternative.profileName, level: alternative.level, endTempC: alternative.endTempC, reason: seen };
   const why = alternative ? `You've already roasted this bean on ${alternative.profileName}, the other stock profile suggested for this bean.` : "No other stock profile is suggested for this bean.";
-  return { kind: "ask", ruleId: "level-not-helping", reason: `${seen} ${why} The next lever would be the profile's curve, which this tool can't edit yet. Keep adjusting the level anyway, or try something else?` };
+  return { kind: "ask", ruleId: "level-not-helping", reason: `${seen} ${why} The next lever would be the profile's curve. This tool doesn't choose a curve change, but it can draw one you describe. Keep adjusting the level anyway, or try something else?` };
 }
 
 /**
@@ -341,12 +341,12 @@ export const RULES: Rule[] = [
   {
     // A cup with no roast defect is done for what this tool can do. Rule 2 has already sent a defect-free cup rated 1 or 2 back
     // to the roaster, so the quality here is 3 or more. A cup that is clean but short of the best would need another profile or
-    // an edited curve, and the tool can neither choose another profile for a cup with no defect to show the way nor edit a curve.
+    // an edited curve, and the tool chooses neither for a cup with no defect to show the way (it draws a curve only as the roaster describes it).
     id: "keep-as-is",
     run: ({ latest }, r) => {
       if (r.under.length || r.over.length) return undefined;
       const cup = r.good.length ? `The cup tasted ${words(r.good)} and the roast quality is ${latest.quality} (${qualityMeaning(latest.quality)}).` : `Nothing in the cup is a roast defect and the roast quality is ${latest.quality} (${qualityMeaning(latest.quality)}).`;
-      const further = latest.quality < RIGHT_QUALITY ? " A better cup would need another profile or an edited curve, which this tool can't choose or make yet." : "";
+      const further = latest.quality < RIGHT_QUALITY ? " A better cup would need another profile or an edited curve. This tool doesn't choose either for a cup with no defect to point the way, but it can draw an edited curve you describe." : "";
       return { kind: "hold", ruleId: "keep-as-is", reason: `${cup}${further} Keep this roast as it is.` };
     },
   },

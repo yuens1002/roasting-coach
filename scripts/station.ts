@@ -322,7 +322,7 @@ const SCENARIO: Step[] = [
     check: (out, ok) => {
       expectEqual("advise succeeded", ok, true);
       expectRule(out, "keep-as-is");
-      expectIncludes("say", out.say, "which this tool can't choose or make yet");
+      expectIncludes("say", out.say, "it can draw an edited curve you describe");
       if (out.onYes) throw new Error("a hold must not carry an onYes");
     },
   },
