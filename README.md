@@ -20,7 +20,7 @@ the cup:
 
 The full five-point scale is in [docs/RULES.md](docs/RULES.md), section 3. A flat cup with no roast
 defect is a 3 however little you like it. The tool treats a clean cup as done: it can't choose another profile for a
-cup with no defect to point the way, and it can't edit a curve yet.
+cup with no defect to point the way, and it only edits a curve when the roaster asks for one.
 
 Liking is deliberately not asked and not used. Two roasters can disagree about whether they like a
 cup, but they should agree on whether the roast has a defect, so that is what the tool coaches on.
@@ -197,7 +197,7 @@ What each part means:
 **Version and revision.** The version counts steps: every time a change is recorded for the next roast, a different level or a
 different profile, the bean gets the next version. The revision says whether the profile itself changed (its curve, zones or
 settings): it stays the same while only the level changes, and takes the next number when the bean moves to a different profile
-body. Going back to an earlier one gives its revision again. The tool cannot edit a curve yet, so today the revision moves when a bean switches to another
+body. Going back to an earlier one gives its revision again. The tool edits a curve only when you ask for one (`profile:edit`), so the revision moves when you take such an edit, when a bean switches to another
 profile, or when you roast a profile you changed yourself (in Kaffelogic Studio): that roast is recorded as a new version and
 gets the next revision, unless the version it replaces has not been roasted yet, in which case that version is updated to what
 you roasted. An example, the Yirgacheffe roasted on `2000-2700m RTD`:

@@ -162,7 +162,7 @@ and run the command it hands you if the roaster says yes.
 
 Only when the roaster asks to change the curve itself (their own idea: the engine does not offer curve edits). `profile:edit` is a
 preview like `level-for`: it records nothing and writes no file. Say its `say` as written. On a yes run its `onYes` (`version:add`),
-then `profile:write` if they want the file. It takes either or both of:
+then `profile:write` if they want the file. It takes `reach`, `through` or `level` (`reach` and `through` are never used together):
 
 - `reach`: when the curve reaches temperatures, in seconds, `{"150": 190, "180": 260}` (150 °C at 3:10, 180 °C at 4:20). Turn the
   roaster's words into temperatures and second counts; for a time like 3:10, pass 190. Anywhere from 100 °C to the curve's last point,
@@ -176,7 +176,7 @@ then `profile:write` if they want the file. It takes either or both of:
 A refusal is in plain words: pass it on. Don't change the roaster's checkpoints or points to get round a refusal, or a warning in
 `say` (the rate of rise picking up again, a climb past 200 °C faster than any stock profile), without asking: the warning is theirs to
 weigh. Read the predicted thermal dose in `say` against the colour they are after: a short roast ended at the same temperature has far less
-heat and roasts lighter, which the end temperature alone hides. A curve with new points has not yet been shown to load in Kaffelogic
+heat and may roast lighter (not yet shown by a roast on an edited curve), which the end temperature alone hides. A curve with new points has not yet been shown to load in Kaffelogic
 Studio or to be followed by the machine: before the first roast on one, ask the roaster to load the file in Studio and check it
 against its base.
 

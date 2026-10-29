@@ -340,6 +340,9 @@ describe("profile:edit", () => {
       expect(preview.say).toMatch(/The rate of rise picks up again around \d:\d\d \(from [\d.]+ to [\d.]+ °C\/min\)/);
       expect(preview.say).toContain("It is your choice.");
       expect(preview.edit.rateOfRiseRisesAt).toHaveLength(1);
+      // The window starts at 101 s and the rate is read again 30 s on: that is the time the roaster is told.
+      expect(preview.say).toContain("picks up again around 2:11");
+      expect(preview.edit.rateOfRiseRisesAt![0].atS).toBe(131);
       expect((await previewCurveEdit(db, { beanId, reach: { "150": 130 } }, climbEnv)).say).not.toContain("rate of rise");
     });
 
@@ -386,6 +389,11 @@ describe("profile:edit", () => {
       await expect(previewCurveEdit(db, { beanId, reach: { "150": 75 } }, climbEnv)).rejects.toThrow("no stock profile climbs faster than");
       await expect(previewCurveEdit(db, { beanId, reach: { "150": 30 } }, climbEnv)).rejects.toThrow("where the machine's start-up ends");
       await expect(previewCurveEdit(db, { beanId, reach: { "150": 200, "180": 190 } }, climbEnv)).rejects.toThrow("a hotter temperature comes later");
+    });
+
+    it("says so when the retimed curve reaches the end temperature later than a roast is searched for, and not that it never does", async () => {
+      const { db, climbEnv, beanId } = await setup();
+      await expect(previewCurveEdit(db, { beanId, reach: { "229": 5000 } }, climbEnv)).rejects.toThrow(/v1: the edited curve does not reach \d+\.\d °C within 20 minutes, so the roast would not end/);
     });
 
     it("refuses a reach that is not temperatures with seconds, and a call that edits nothing", async () => {
@@ -454,6 +462,7 @@ describe("profile:edit", () => {
       expect(gentle.edit.rateOfRiseRisesAt).toEqual([]);
       const flick = await previewCurveEdit(db, { beanId, through: FLICK }, climbEnv);
       expect(flick.say).toMatch(/The rate of rise picks up again around \d:\d\d/);
+      expect(flick.say).toContain(", and in 2 more places;");
       expect(flick.say).toMatch(/The curve climbs at \d+ °C\/min at \d:\d\d, past 200 °C, where no stock profile goes above 13: the Nano may not keep up, and the roast would then end later than the curve says\. It is your choice\./);
       expect(flick.edit).toMatchObject({ climbsFasterThanStock: { stockCPerMin: 13 } });
     });

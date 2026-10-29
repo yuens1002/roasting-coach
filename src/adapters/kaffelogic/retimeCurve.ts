@@ -184,8 +184,11 @@ export function retimeCurve(base: CurveNode[], checkpoints: Checkpoint[]): Retim
   const moved: CurveNode[] = nodes.map((n, k) => {
     if (k === 0) return { ...n, handleOut: { t: within(0)(n.handleOut.t), v: n.handleOut.v } };
     const left = within(k - 1);
-    const right = k === nodes.length - 1 ? left : within(k);
-    return { point: { t: left(n.point.t), v: n.point.v }, handleIn: { t: left(n.handleIn.t), v: n.handleIn.v }, handleOut: { t: right(n.handleOut.t), v: n.handleOut.v } };
+    const isLast = k === nodes.length - 1;
+    const right = isLast ? left : within(k);
+    // Kaffelogic writes the last node's out-handle as 0,0 (nothing follows it): that is not a time to move.
+    const noHandleOut = isLast && n.handleOut.t === 0 && n.handleOut.v === 0;
+    return { point: { t: left(n.point.t), v: n.point.v }, handleIn: { t: left(n.handleIn.t), v: n.handleIn.v }, handleOut: noHandleOut ? n.handleOut : { t: right(n.handleOut.t), v: n.handleOut.v } };
   });
   const smoothed = moved.map((n, k) => {
     if (!asked.has(k) || k === nodes.length - 1) return n;
@@ -206,11 +209,14 @@ export function retimeCurve(base: CurveNode[], checkpoints: Checkpoint[]): Retim
   return { ok: false, problem: refusal };
 }
 
+/** A stretch the edit only slides in time is measured on whole seconds again, from a different phase, so its steepest second moves by about 0.1%: what the base did counts with this much allowed over. */
+const BASE_CLIMB_ALLOWANCE = 1.01;
+
 /** The limits for an edit of `base`: the stock ones, or what the base already did where that was faster, so an edit never refuses the part of the curve it leaves alone. */
 export function limitsFor(base?: CurveNode[]): ClimbLimits {
   return {
-    early: Math.max(MAX_RISE_C_PER_MIN, base ? steepestClimb(base).cPerMin : 0),
-    late: Math.max(MAX_LATE_RISE_C_PER_MIN, base ? steepestClimb(base, LATE_FROM_C).cPerMin : 0),
+    early: Math.max(MAX_RISE_C_PER_MIN, base ? steepestClimb(base).cPerMin * BASE_CLIMB_ALLOWANCE : 0),
+    late: Math.max(MAX_LATE_RISE_C_PER_MIN, base ? steepestClimb(base, LATE_FROM_C).cPerMin * BASE_CLIMB_ALLOWANCE : 0),
   };
 }
 

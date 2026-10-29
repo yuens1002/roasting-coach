@@ -80,9 +80,33 @@ describe("retiming a curve from checkpoints", () => {
     const { rises } = retimed([{ temp: 150, at: 160 }]);
     expect(rises).toHaveLength(1);
     expect(rises[0].after).toBeGreaterThan(rises[0].before + 1);
-    // Two straight climbs, the second twice as fast: 6 °C/min to 150 s, then 12.
-    const stepUp = parseCurve("0,100,0,0,50,100,150,115,100,115,150,115,450,175,300,145,450,175,600,205,500,205,0,0");
-    expect(risingRateOfRise(stepUp).length).toBeGreaterThan(0);
+    // The window the rate picks up in starts at 101 s, a second after the curve reaches 100 °C, and is the 30 s before the rate is read again.
+    expect(rises[0].from).toBe(101);
+    // Two straight climbs, the second twice as fast: 6 °C/min to 150 s, then 12 (every handle on the line between its points).
+    const stepUp = parseCurve("0,100,0,0,50,105,150,115,100,110,250,135,450,175,350,155,500,185,600,205,550,195,0,0");
+    const [step] = risingRateOfRise(stepUp);
+    expect(risingRateOfRise(stepUp)).toHaveLength(1);
+    expect(step.from).toBe(120);
+    expect(step.before).toBeCloseTo(6, 1);
+    expect(step.after).toBeCloseTo(12, 1);
+  });
+
+  it("leaves the last point's empty out-handle (0,0, which Kaffelogic writes) as it is, and moves a real one with the rest of the tail", () => {
+    const stepUp = parseCurve("0,100,0,0,50,105,150,115,100,110,250,135,450,175,350,155,500,185,600,205,550,195,0,0");
+    expect(retimed([{ temp: 150, at: 250 }], stepUp).curve.at(-1)!.handleOut).toEqual({ t: 0, v: 0 });
+    const real = base.map((n, k) => (k === base.length - 1 ? { ...n, handleOut: { t: n.point.t + 30, v: n.point.v + 3 } } : n));
+    const out = retimed([{ temp: 150, at: 160 }], real).curve.at(-1)!;
+    expect(out.handleOut.t - out.point.t).toBeCloseTo(30, 6);
+  });
+
+  it("does not warn about a late climb the base already made, which the edit only slid in time", () => {
+    // A gently bowed climb of 40 °C/min or so past 200 °C, three times the stock 13, in a stretch after the one the checkpoint's corner is smoothed into. Sliding it by a part of a second moves the whole second it is steepest over, and so the rate measured, by a fraction of a percent.
+    const sCurve = parseCurve("0,100,0,0,66.667,116.667,200,150,133.333,133.333,240,161.667,320,185,280,173.333,342,198,380,225,358,212,400,230,440,240,420,235,0,0");
+    expect(steepestClimb(sCurve, LATE_FROM_C).cPerMin).toBeGreaterThan(3 * MAX_LATE_RISE_C_PER_MIN);
+    for (const at of [149.5, 149.75, 150.1, 150.25, 150.5]) {
+      const result = retimed([{ temp: 150, at }], sCurve);
+      expect(result.late, `150 °C at ${at} s`).toBeUndefined();
+    }
   });
 
   it("says where it climbs past 200 °C faster than any stock profile does, and makes the curve all the same", () => {
@@ -141,6 +165,11 @@ describe("a retime that is refused", () => {
     const startsAt = timeCurveReaches(base, MIN_CHECKPOINT_TEMP_C, 0.01)!;
     for (let t = 0; t <= startsAt; t += 5) expect(evalCurve(curve, t)).toBeCloseTo(evalCurve(base, t)!, 6);
     expect(timeCurveReaches(curve, MIN_CHECKPOINT_TEMP_C, 0.01)).toBeCloseTo(startsAt, 1);
+  });
+
+  it("will not move the curve's first point, which a checkpoint on it would have to", () => {
+    const gentle = parseCurve("0,100,0,100,120,120,360,160,240,140,480,180,720,220,600,200,720,220");
+    expect(refused([{ temp: 100, at: 10 }], gentle)).toContain("fell on the curve's first point");
   });
 
   it("will not hand back a curve that falls", () => {

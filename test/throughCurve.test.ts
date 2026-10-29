@@ -102,6 +102,13 @@ describe("points that are refused", () => {
   it("will not ask the machine for a climb faster than any stock profile makes once past 100 °C", () => {
     expect(refused([[0, 20], [60, 100], [65, 160], [200, 190]])).toContain("no stock profile climbs faster than 116 °C/min");
   });
+
+  it("does not count the machine's heat-up, before 100 °C, toward that limit", () => {
+    // 75 °C in the first 20 s is over 200 °C/min, but only the climb once past 100 °C (78 °C/min at most) is asked of the machine.
+    const result = curveThroughPoints(pts([[0, 20], [20, 95], [60, 130], [180, 186], [300, 210], [500, 229]]));
+    expect(result.ok).toBe(true);
+    expect(steepestClimb(result.ok ? result.curve : [], 0).cPerMin).toBeGreaterThan(116);
+  });
 });
 
 // A real stock curve, sampled and drawn again through its samples, comes back as itself: the drawing is as good a model of a curve as the stock files'.

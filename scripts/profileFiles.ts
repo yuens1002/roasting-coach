@@ -5,7 +5,7 @@ import { dirname } from "node:path";
 import { holdThermalDose, withRoastCurve } from "../src/adapters/kaffelogic/editCurve.js";
 import { type Point, levelToTemp, parseKpro, timeCurveReaches } from "../src/adapters/kaffelogic/parse.js";
 import { profileNames, profileRevision } from "../src/adapters/kaffelogic/profileNames.js";
-import { LATE_FROM_C, type Checkpoint, type LateClimb, type RateRise, retimeCurve } from "../src/adapters/kaffelogic/retimeCurve.js";
+import { LATE_FROM_C, MAX_LATE_RISE_C_PER_MIN, type Checkpoint, type LateClimb, type RateRise, retimeCurve } from "../src/adapters/kaffelogic/retimeCurve.js";
 import { curveThroughPoints } from "../src/adapters/kaffelogic/throughCurve.js";
 import { curveThermalDoseTo, formatMinutesSeconds, profileThermalDoseAtLevel } from "../src/adapters/kaffelogic/thermalDose.js";
 import { type KaffelogicFile, type ProfileLines, findBaseProfile, formatKpro, profileFromKpro, sameProfileBody, writeKpro } from "../src/adapters/kaffelogic/writeProfile.js";
@@ -250,7 +250,7 @@ export async function previewCurveEdit(db: Db, input: unknown, env: ProfileFileE
   if (held && !held.ok) throw new InputError([`v${v.number}: ${held.problem}`]);
   if (held?.ok) curve = held.curve;
   const edited = held?.ok ? { endsAt: held.endsAtAfter, thermalDose: held.thermalDose } : curveThermalDoseTo(curve, endTemp, true);
-  if (!edited) throw new InputError([`v${v.number}: the edited curve never reaches ${endTemp.toFixed(1)} °C, so the roast would not end.`]);
+  if (!edited) throw new InputError([`v${v.number}: the edited curve does not reach ${endTemp.toFixed(1)} °C within 20 minutes, so the roast would not end.`]);
 
   const climbText = held?.ok ? `the climb after ${formatMinutesSeconds(held.climbFrom.t)} (${held.climbFrom.temp.toFixed(1)} °C) ${slopeText(held.slopeBefore, held.slopeAfter)}, and the roast ends at level ${level} (${endTemp.toFixed(1)} °C)` : undefined;
   const parts: string[] = [];
@@ -282,7 +282,7 @@ export async function previewCurveEdit(db: Db, input: unknown, env: ProfileFileE
     const more = rises.length > 1 ? `, and in ${rises.length - 1} more place${rises.length > 2 ? "s" : ""}` : "";
     parts.push(`The rate of rise picks up again around ${formatMinutesSeconds(first.from + 30)} (from ${first.before.toFixed(1)} to ${first.after.toFixed(1)} °C/min)${more}; Kaffelogic's Roaster's Companion calls a steadily falling rate of rise optimal, and every stock profile has one. It is your choice.`);
   }
-  if (late) parts.push(`The curve climbs at ${late.cPerMin.toFixed(0)} °C/min at ${formatMinutesSeconds(late.at)}, past ${LATE_FROM_C} °C, where no stock profile goes above ${late.limit.toFixed(0)}: the Nano may not keep up, and the roast would then end later than the curve says. It is your choice.`);
+  if (late) parts.push(`The curve climbs at ${late.cPerMin.toFixed(0)} °C/min at ${formatMinutesSeconds(late.at)}, past ${LATE_FROM_C} °C, ${late.limit > MAX_LATE_RISE_C_PER_MIN ? `faster than the ${late.limit.toFixed(0)} °C/min this curve already had there` : `where no stock profile goes above ${MAX_LATE_RISE_C_PER_MIN}`}: the Nano may not keep up, and the roast would then end later than the curve says. It is your choice.`);
   parts.push("These are the curve's predictions: real roasts have run above them (docs/research.md, validation 3), and no roast has been made on this curve yet. Shall I record it as the next version?");
   const say = parts.join(" ");
 
@@ -305,7 +305,7 @@ export async function previewCurveEdit(db: Db, input: unknown, env: ProfileFileE
       ...(held?.ok ? { climb: { fromS: held.climbFrom.t, fromTempC: held.climbFrom.temp, slopeBeforeCPerMin: held.slopeBefore, slopeAfterCPerMin: held.slopeAfter } } : {}),
       ...(points ? { through: points } : {}),
       ...(checkpoints ? { reach: checkpoints.map((c) => ({ tempC: c.temp, atS: c.at, wasS: timeCurveReaches(profile.roastCurve, c.temp)! })) } : {}),
-      ...(reshaped ? { rateOfRiseRisesAt: rises.map((r) => ({ atS: r.from + 30, fromCPerMin: r.before, toCPerMin: r.after })), ...(late ? { climbsFasterThanStock: { atS: late.at, cPerMin: late.cPerMin, stockCPerMin: late.limit } } : {}) } : {}),
+      ...(reshaped ? { rateOfRiseRisesAt: rises.map((r) => ({ atS: r.from + 30, fromCPerMin: r.before, toCPerMin: r.after })), ...(late ? { climbsFasterThanStock: { atS: late.at, cPerMin: late.cPerMin, stockCPerMin: MAX_LATE_RISE_C_PER_MIN, limitCPerMin: late.limit } } : {}) } : {}),
     },
     say,
     onYes: { command: "version:add", input: { beanId, parent: v.number, level: level ?? v.level, reason, profileFile: file } },
