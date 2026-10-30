@@ -17,8 +17,9 @@ ACs: [nano7-calibration-ACs.md](nano7-calibration-ACs.md)
 Build, from this roaster's own Nano 7 roasts, the production knowledge for one machine: for every bean the store offers, a **bean
 card** that names the reference profile (a stock profile or an edited curve), the gold-standard level, and the exact step to dial for each of
 the four levels sold; and a formula that makes the card cheap to produce for the next bean. This is production work on a given machine,
-not research: the outputs are cards and a procedure, and the formula exists only to produce them with fewer roasts. **One profile file per
-bean serves every batch size** (the 50.4 g sample and the 151.2 g bag): the sizes may differ only in the level dialled in, never in the curve. The four things the store sells: a customer picks one of four
+not research: the outputs are cards and a procedure, and the formula exists only to produce them with fewer roasts. **The aim is one profile file per
+bean for every batch size** (the 50.4 g sample and the 151.2 g bag), the sizes differing only in the level dialled in. Whether one profile can hold both sizes within the
+colour band is not known; Stage 1b tests it first (T14) and the plan says what happens if it cannot. The four things the store sells: a customer picks one of four
 roast levels (City 75, City+ 65, Full City 55, Full City+ 45 on the Agtron scale), and each bean has one gold-standard
 level (the one that cups best) used as the reference for quality control of the other three. The formula is a
 data-built production tool for one machine, not a fit of any theory (thermal dose is a candidate input, kept only if it
@@ -72,7 +73,7 @@ These are the claims the feature makes, each measured before it ships (the ACs s
 | P5 | **The gold standard is the benchmark**: a production roast at any level is checked against the bean's reference roast (G7), and two misses on the same side in a row re-fit that bean's step. | D19; `card` shows production batches read and hits |
 | P6 | **A new bean costs a known number of roasts**: measure, the formula's prediction, a ladder of about 5 roasts at 50.4 g, one cupping, then the first production batch per level confirms. The card records how many it took. | D19; AC-DOC-3 |
 | P7 | **The sample is the bag in small**: a 50.4 g sample roast and a 151.2 g bag roast of the same bean and level are the same colour (within **B**) and cup the same (within **N**), so a customer who likes the sample gets what they tasted. The sample card is direct (the ladder is roasted at 50.4 g); the bag card is the translated and confirmed one. | T13; AC-RUN-17 |
-| P8 | **One profile, both sizes**: the card names exactly one profile file, and the sample and the bag are roasted from it. The two sizes differ only in the level to dial (the translation), shown on the card; where the difference is within the step resolution (T10) the card says "same level at both sizes". An edited reference profile is accepted only after it has been shown at both sizes. | T12, T13; AC-FN-21, AC-FN-24, AC-RUN-9, AC-RUN-16 |
+| P8 | **One profile, both sizes, if the tolerance allows**: when Stage 1b shows one profile can hold both sizes (T14), the card names exactly one profile file and the sample and the bag are roasted from it, differing only in the level to dial (the translation), shown on the card; where the difference is within the step resolution (T10) the card says "same level at both sizes". When it cannot, the card names two sibling profiles, a sample profile and a bag profile with the same parent, says why, and each is calibrated on its own size. An edited reference profile is accepted only after it has been shown at the sizes the card serves. | T12, T13, T14; AC-FN-21, AC-FN-24, AC-RUN-9, AC-RUN-16, AC-RUN-18 |
 
 ### Acceptance thresholds (*proposed*; the roaster approves or changes each at plan approval)
 
@@ -93,6 +94,7 @@ Thresholds are data in one module (`dialInSpec.ts`), not literals in the functio
 | T11 | Gold level by default | A default gold level (by process or density) ships only if it matches the cupped gold level for at least 7 of 8 calibration beans, or is within one adjacent level on all of them; otherwise gold is found per bean by one cupping (the ladder's four roasts) | The procedure keeps one cupping per new bean; the finding "gold varies by bean" is a result |
 | T12 | Edited curve as reference | An edited curve replaces the unedited profile for a bean only if both edited repeats are Good roasts, the edited flavour beats the unedited gold roast's by more than **N**, and all four levels stay reachable, **and the edit's reference level roasted at 151.2 g is a Good roast whose flavour is within N of its 50.4 g roast** (one profile serves both sizes) | The unedited profile stays and the edit is recorded as tried |
 | T13 | Sample matches bag | For the reference level of each of two beans, a 50.4 g roast and a 151.2 g roast made the same day at the card's settings differ in colour by at most **B** and in blind flavour by at most **N** | The sample is not representative of the bag: the card says so, and the sample is roasted to the translated bag-equivalent colour instead, or the sample's claim is dropped from the store |
+| T14 | One profile can hold both sizes | From Stage 1b (one bean, the profile's three levels near 75, 60 and 45, at each size): after the best single constant shift of end temperature between the sizes, the two sizes' colour-against-end-temperature lines differ by at most **B**/2 at every target colour from 75 to 45 | **Stop before Stage 2.** One profile cannot serve both sizes within **B**. The roaster chooses (open decision 11): first, the machine's own load multiplier set for the sample size, if the machine lets it be set per roast (one profile kept, the multiplier recorded on the card); then sibling profiles (a sample profile made from the bag profile by a fan or heat edit, re-tested on three 50.4 g roasts); then a different sample size or a wider **B** for the sample |
 
 ## Approach
 
@@ -118,8 +120,13 @@ The four formulas, and how each is decided:
 3. **The 4-level ladder per bean and the 50 g to 151.2 g translation.** Per bean, find the level of each of the four colour
    targets at 50.4 g (about 5 roasts); translate to the full batch with a step fitted from Stages 1 to 3 (shared across beans if T6
    holds, per bean if not); confirm by the first production roast at each level. The card quotes each level's step from the gold level at the
-   resolution T10 allows (the machine's 0.1 grid, with the end temperature), not a fixed half-level. One profile file serves both sizes, so a bean whose curve works at 50.4 g but gives no Good roast at any
-   level at 151.2 g is a finding about the curve, handled by the reference-profile steps below, not by keeping two profiles. A consequence for the advice
+   resolution T10 allows (the machine's 0.1 grid, with the end temperature), not a fixed half-level. Whether one profile file can serve both sizes is **tested first** (T14, Stage 1b): the machine's own scaling of fan and
+   power by batch size may not be enough to keep the colour-against-level line parallel across sizes. In the roaster's logs the fan and power multipliers are always the same number
+   (one multiplier scales the whole fan curve and the heat together, never the fan alone), the first fan reading of a log equals the profile's start speed times that
+   multiplier, and the same dialled size carries different multipliers in different logs (100 g reads 0.942, 0.953 and 1.000), so the scaling actually applied is
+   not fixed by the dialled size. A fan curve of its own per level is not something the profile file can hold (levels only set end temperatures). If it holds, a bean whose curve works at 50.4 g but gives
+   no Good roast at any level at 151.2 g is a finding about the curve, handled by the reference-profile steps below. If it does not hold, the card carries two sibling
+   profiles (the fan curve, which the machine scales with batch size, is the first lever to try: D23). A consequence for the advice
    engine: a version is a profile plus a level, so the same profile at the two sizes is two versions with different levels; the engine must not count that
    difference as a level change or compare roasts of different batch sizes (D16). That a 50 g roast predicts a
    full batch is **a hypothesis this plan tests, not an assumption**: the machine scales fan and power by the batch size, but 50 g is its lowest setting and below
@@ -140,7 +147,7 @@ their own. Shipped defaults stay the approximation already in `levelForAgtron`. 
 | Step | Deliverables | Why here |
 |------|--------------|----------|
 | 1 | D1, D2, D3, D4 | Nothing can be recorded until the flavour score, bean measurements and importer reference have a place to go; no beans needed. |
-| 2 | D5, D6, D7, D8, D9, D10, D11, D21 | The pure functions can be written and proven on synthetic data before a single calibration roast; the runs then use them. |
+| 2 | D5, D6, D7, D8, D9, D10, D11, D21, D23 | The pure functions can be written and proven on synthetic data before a single calibration roast; the runs then use them. |
 | 3 | D12, D13 | The report and the completeness check turn raw roasts into the stage results and tell whether each stage was actually carried out. |
 | 4 | D14, D15, D22 | The runs. Needs Steps 1 to 3 and the beans. The held-out validation needs the frozen prediction from D14's data; the edit trial needs a gold roast and the larger lots. |
 | 5 | D16, D17, D18, D19, D20 | Ship only what Step 4 passed: the formula in the code path, the rulebook, an end-to-end scenario, the per-bean recipe, and the glue docs. |
@@ -165,11 +172,12 @@ their own. Shipped defaults stay the approximation already in `levelForAgtron`. 
 | D5 | `src/core/dialInSpec.ts` — T1 to T12 values and the four targets as data | resolver | `/backend-architect` |
 | D6 | `src/core/cuppingStats.ts` — mean flavour per roast, scoring noise from repeat roasts, whether two levels are apart by more than **N** | resolver | `/backend-architect` |
 | D7 | `src/core/referenceRoast.ts` — `pickReference` (G5) and `checkLevel` (G7), with plain-words reasons | resolver | `/backend-architect` |
-| D8 | `src/adapters/kaffelogic/batchTranslation.ts` — fit a level or end-temperature step between batch sizes from roast pairs; translate a level from one size to another **on the same profile** (a level offset and end temperature; it never changes the curve or picks another profile); says when it has too few pairs, or when no level on the profile reaches the colour at that size | resolver | `/backend-architect` |
+| D8 | `src/adapters/kaffelogic/batchTranslation.ts` — fit a level or end-temperature step between batch sizes from roast pairs; translate a level from one size to another **on the same profile** (a level offset and end temperature; it never changes the curve or picks another profile); keys roasts by the load multiplier the log recorded, not by the dialled size alone; says when it has too few pairs, or when no level on the profile reaches the colour at that size | resolver | `/backend-architect` |
 | D9 | `src/adapters/kaffelogic/colourLadder.ts` — the four levels, end temperatures and expected colour for a profile and batch size, from readings of the same size, or from another size through D8; extends `levelForAgtron` without changing its no-batch behaviour; also returns the step resolution (T10) | resolver | `/backend-architect` |
 | D10 | `test/dialInCore.test.ts` — invariants of D5 to D7 and D21 | test | `/test-engineer` |
-| D11 | `test/dialInAdapter.test.ts` — invariants of D8 and D9, plus a real-file replay that skips when the files are absent | test | `/test-engineer` |
+| D11 | `test/dialInAdapter.test.ts` — invariants of D8, D9 and D23, plus a real-file replay that skips when the files are absent | test | `/test-engineer` |
 | D21 | `src/core/referenceProfile.ts` — `chooseReferenceProfile`: given the unedited gold roast and one or more edited repeats, applies T12 and says in plain words whether the edit is adopted, kept as tried, or why the evidence is not enough (no edit is chosen here) | resolver | `/backend-architect` |
+| D23 | *Conditional: built only if Stage 1b fails T14, or the roaster picks fan as an edit family.* `src/adapters/kaffelogic/editFan.ts` and a `profile:edit` option — change the fan curve (speed against time) of a profile, previewed, written without overwriting, recorded as a version with the original as parent; refuses a speed outside the range the stock profiles use unless the roaster names a limit | resolver | `/backend-architect` |
 
 ### Step 3: Report and check
 
@@ -232,7 +240,7 @@ Nine slots from the stock on hand and the lots on order. The slot-to-bean map is
 | Slot | Role | Rule for the slot |
 |------|------|-------------------|
 | B1 | Stage 1a bean (6 repeats at 50.4 g), then calibration bean | needs at least 706 g after the delivery (302.4 + 403.2); also a Stage 2c bean |
-| B2 | Stage 1b bean (3 repeats at 151.2 g), then calibration bean | needs at least 857 g (453.6 + 403.2); also a Stage 2c bean |
+| B2 | Stage 1b bean: the size bridge (T14), 8 roasts, 907.2 g; its calibration stages wait for its larger lot | needs at least 907.2 g now and a larger lot later (907.2 + 403.2 g in all); also a Stage 2c bean |
 | B3 to B8 | Calibration beans | at least 403.2 g each (the minimum: 5 x 50.4 g + 151.2 g); the third Stage 2c bean is the one of these with the most green (it needs 453.6 g) |
 | B9 | **Held-out bean** | chosen after Stage 0 and before any Stage 2 roast: not B1 or B2, at least 605 g (4 x 151.2 g), and among those the one whose density and moisture are nearest the median of the nine. Roasted only in Stage 4. |
 
@@ -245,7 +253,8 @@ and at least three altitude bands, so the nine are not one kind of bean (the T9 
 |-------|-------:|------:|
 | 0 measure | 0 | 0 g (measurements are not destructive) |
 | 1a 6 x 50.4 g | 6 | 302.4 g |
-| 1b 3 x 151.2 g | 3 | 453.6 g |
+| 1b size bridge: 3 levels x 2 sizes, plus 2 more full-size roasts at the middle level (3 x 50.4 g and 5 x 151.2 g) | 8 | 907.2 g |
+| 1d only if T14 fails: the sample profile re-tested, 3 x 50.4 g | up to 3 | up to 151.2 g |
 | 2 ladders, 8 beans x 5 x 50.4 g | 40 | 2,016.0 g |
 | 2c profile comparison, 3 beans x 1 x 50.4 g | 3 | 151.2 g |
 | 3 reference level at 151.2 g, 8 beans | 8 | 1,209.6 g |
@@ -256,7 +265,7 @@ and at least three altitude bands, so the nine are not one kind of bean (the T9 
 | 5 if an edit is adopted: the ladder again, 5 x 50.4 g per bean (at most 2 beans) | up to 10 | up to 504.0 g |
 | 5 if an edit is adopted: its reference level at 151.2 g, per bean (one profile, both sizes) | up to 2 | up to 302.4 g |
 | Re-roasts for a failed level (contingency, about 10%) | about 7 | about 350 g |
-| **Total** | **about 85, at most 97** | **about 6.4 kg, at most 7.2 kg** |
+| **Total** | **about 90, at most 105** | **about 6.9 kg, at most 7.8 kg** |
 
 ### Day plan
 
@@ -268,8 +277,8 @@ Day 0 is the day the lots on order first arrive. Dates are fixed then; days are 
 | 0 | none | Receive and record lots. Stage 0: density, moisture, altitude, process for every bean; meter repeatability (T2); fix the slot map, choose B9 | T2 met |
 | 1 | 1a roasts 1 to 3 (50.4 g; roast 1 from a cold start) | Colour reading of each, ground | |
 | 2 | 1a roasts 4 to 6 (roast 4 from a cold start) | Colour readings; cup 1a roasts 1 to 3 blind | |
-| 3 | 1b roasts 1 to 3 (151.2 g, same profile and level) | Colour readings; cup 1a roasts 4 to 6 blind | |
-| 4 | none | `dialin:report`: **B** (T1), machine spread (T3), **N** (T4), **F** confirmed | **T3 met or stop** |
+| 3 | 1b: the three levels at 50.4 g and the three at 151.2 g on one bean (B2), 6 roasts | Colour readings; cup 1a roasts 4 to 6 blind | |
+| 4 | 1b: two more full-size roasts at the middle level (repeat spread) | Colour readings; `dialin:report`: **B** (T1), machine spread (T3), **N** (T4), **F** confirmed, **one profile for both sizes (T14)** | **T3 and T14 met, or stop** |
 | 5 | Stage 2 B1 (5 roasts at 50.4 g: the four levels, then one correction) | Colour readings | |
 | 6 to 12 | Stage 2 B2 to B8, one per day | Colour readings; cup the previous day's bean (4 levels x 3 cups, blind, randomised positions) | |
 | 13 | Stage 2c (3 roasts, reference level of three beans on a second candidate profile) | Cup B8 | |
@@ -325,7 +334,7 @@ seen. Those are T3, T6, T7, T8, measured, not asserted.
 
 ## Acceptance Criteria
 
-See [nano7-calibration-ACs.md](nano7-calibration-ACs.md). Rows are grouped by the same `Step N` headings; each carries a Plan ref (D1 to D22, or
+See [nano7-calibration-ACs.md](nano7-calibration-ACs.md). Rows are grouped by the same `Step N` headings; each carries a Plan ref (D1 to D23, or
 `cross-cutting`) and an owning role. Status is derived there, not here.
 
 ## Commit Schedule
@@ -369,3 +378,5 @@ Each step is its own PR; nothing goes to main directly.
 8. **Held-out choice.** The rule picks B9 from beans that have 605 g or more; with the current stock that is two or three beans. Accept the rule, or buy one more pound so the choice is wider.
 9. **Step resolution.** "Exact step (such as 0.5)" cannot be one fixed level step: on the stock profiles' labelled levels (approximation) 10 Agtron points are 0.3 to 0.5 level apart at the light end and up to 1.7 in the middle, so half a level is wider than the whole 75 to 65 gap on most profiles. The plan quotes each level on the 0.1 grid with its end temperature, and states the resolution (T10). Agree, or say what 0.5 should mean (for example, the unit the roaster dials in at the machine).
 10. **Gold by default.** If gold turns out the same for most beans (T11), a default gold would save the cupping for a new bean. The plan keeps one cupping per new bean unless the data say otherwise.
+11. **If one profile cannot hold both sizes (T14 fails).** Choose a fallback, in this order of least change: the machine's load multiplier set for the sample size (no profile change; only if the machine allows it per roast), sibling profiles (a fan curve edit, D23, then heat), a different sample size, or a wider colour band for the sample. The plan does not choose it in advance; it stops at the gate. It also does not assume the fan can be moved far: the range allowed is the one the stock profiles use unless the roaster names a limit.
+12. **What sets the multiplier?** In the logs the same dialled size carries different multipliers (for example 100 g reads 0.942, 0.953 and 1.000; 120 g reads 0.995, 1.000 and 1.049), always equal for fan and power. Is that a setting you change on the Nano or in Studio per roast, or does the machine work it out (from the load, the voltage, the previous roast)? If it can be set per roast, the plan fixes one multiplier per size and records it on the card; if it cannot, the plan records the one the machine chose and keys the fits to it.
