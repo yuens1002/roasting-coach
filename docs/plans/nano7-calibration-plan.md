@@ -25,6 +25,9 @@ level (the one that cups best) used as the reference for quality control of the 
 data-built production tool for one machine, not a fit of any theory (thermal dose is a candidate input, kept only if it
 earns its place).
 
+**A new bean costs one roast day and one cupping session** (G9). Once the machine is calibrated, the best way to roast a given bean is decided from one
+session: no second tasting to settle a tie, to try a curve edit or to re-check a level. What makes that one session trustworthy is paid for once, in the machine layer.
+
 ## Two layers: the machine, then the bean
 
 The calibration is two things done at different times, and the plan keeps them apart so that a new bean never pays for the machine again.
@@ -32,11 +35,14 @@ The calibration is two things done at different times, and the plan keeps them a
 | Layer | What it answers | Stages | Result | Done when | Redone |
 |-------|-----------------|--------|--------|-----------|--------|
 | **Machine** (with its instruments: the colour meter and the roaster's cupping) | How closely does this machine, meter and palate repeat; how does it follow one profile at 50.4 g and at 151.2 g; how big is the colour band | 0 (meter), 1a (spread, scoring noise), 1b (size bridge), and the shared size step if T6 holds | The **machine card**: tracking by size, **B**, **N**, meter spread, whether one profile holds both sizes (T14), the size step | T2, T3, T4 and T14 pass (Day 4), and T6 says whether the size step belongs to the machine or to each bean | On a schedule and after service, with a control bean (T15) |
-| **Bean** | What profile, gold level and steps does this bean need | 2, 2c, 3, 3b, 3c, 4, 5, then the production recipe | The **bean card** (P1 to P8) | Its ladder, cupping, reference profile and first production batches | Per bean; again if its green changes a lot |
+| **Bean** | What profile, gold level and steps does this bean need | 2, 2c, 3, 3b, 3c, 4, 5, then the production recipe | The **bean card** (P1 to P8) | Its ladder roasted on one day and cupped in one session (G9), then its first production batches read by colour | Per bean; again if its green changes a lot |
 
 The machine layer decides what the bean layer may assume. If T14 fails, the bean layer runs with sibling profiles; if T6 fails, the size step is a bean-layer number
 and not a machine constant. Stages 2 to 5 use beans partly to find out which of those it is, which is why the machine card is issued twice: a first time at the Day 4
 gate, and finally after Stage 3 (T6).
+
+Because a bean gets one cupping session, the machine layer must carry what a second session would otherwise check: that the 50.4 g cup predicts the bag (T13),
+that the size step holds across beans (T6), and the scoring noise **N** that decides when two levels really differ (T4). The bean layer spends none of that again; it reads it.
 
 ## Current State
 
@@ -72,10 +78,11 @@ at the colour asked for, whose cup matches what the importer says that origin sh
 | G2 | **Clean** | Roast quality 3 or better with no under or over taste word: the definition the clean-zone report already uses. |
 | G3 | **Good roast** | Hit and Clean. |
 | G4 | **Flavour** | A 1 to 5 score for how closely the cup matches the importer's flavour map for that origin, the mean of the 3 cups of one roast, tasted after 1 day of rest. Separate from roast quality; no rule reads it; not a liking score. The roaster does not score on the SCA protocol; an importer's cupping score for a lot may be stored as a reference value with its source, never as the roaster's score. |
-| G5 | **Reference (gold) level** | Per bean, among the levels that are Good roasts, the one with the highest flavour. If the top two are closer than the scoring noise **N**, there is no unique reference: the two are re-cupped from a second roast each, and if still tied the roaster chooses and the record says `basis: roaster`. |
+| G5 | **Reference (gold) level** | Per bean, among the levels that are Good roasts, the one with the highest flavour. If the top two are closer than the scoring noise **N**, there is no unique reference and the roaster chooses between those two in the same session, and the record says `basis: roaster` (no re-cup: a second tasting is a second session, G9). |
 | G6 | **Sellable level** | A Good roast whose flavour is at least the floor **F**. Below it, the bean is not offered at that level. |
 | G7 | **QC pass** (any production roast at a level) | Good roast, and flavour no more than **N** above the reference's: a level that outscores the gold standard means the reference was wrong and is re-picked, not passed. |
 | G8 | **Formula good** | See "Acceptance thresholds" T6 to T9: it predicts the dial-in of a bean it has not seen, closer than the method in the code today. |
+| G9 | **One session** | The best way to roast a given bean is decided from exactly one cupping session: the ladder is roasted on one day so every roast rests the same time, and every cup behind the bean's gold level is tasted on one date (24 hours plus or minus 6 after roasting; a Rest profile once, on its rest day). A tie, a missed level or an edit that would need another tasting is not settled by one: it is recorded on the card as an extra session, so the cost is measured and not hidden. |
 
 ### What good means once this ships (production)
 
@@ -88,10 +95,11 @@ These are the claims the feature makes, each measured before it ships (the ACs s
 | P3 | **Roasting any bean on its reference profile at a card level is a Good roast the first time** (colour within **B** of 75, 65, 55 or 45, and Clean). For a new bean the formula gives a first prediction; the card is what the ladder and one cupping turn it into. | T7, T8; first production batch |
 | P4 | **The step is exact enough to use**: the step from the gold level is quoted at a resolution whose colour effect is at most half of **B** on that profile (T10), and the card states that resolution. | AC-FN-23; AC-RUN-15 |
 | P5 | **The gold standard is the benchmark**: a production roast at any level is checked against the bean's reference roast (G7), and two misses on the same side in a row re-fit that bean's step. | D19; `card` shows production batches read and hits |
-| P6 | **A new bean costs a known number of roasts**: measure, the formula's prediction, a ladder of about 5 roasts at 50.4 g, one cupping, then the first production batch per level confirms. The card records how many it took. | D19; AC-DOC-3 |
+| P6 | **A new bean costs a known number of roasts**: measure, the formula's prediction, a ladder of 5 roasts at 50.4 g on one day, one cupping session the next day, then the first production batch per level confirms by colour. The card records the roasts and the cupping sessions it took, and shows any session beyond the first as extra. | D19; AC-DOC-3 |
 | P7 | **The sample is the bag in small**: a 50.4 g sample roast and a 151.2 g bag roast of the same bean and level are the same colour (within **B**) and cup the same (within **N**), so a customer who likes the sample gets what they tasted. The sample card is direct (the ladder is roasted at 50.4 g); the bag card is the translated and confirmed one. | T13; AC-RUN-17 |
 | P8 | **One profile, both sizes, if the tolerance allows**: when Stage 1b shows one profile can hold both sizes (T14), the card names exactly one profile file and the sample and the bag are roasted from it, differing only in the level to dial (the translation), shown on the card; where the difference is within the step resolution (T10) the card says "same level at both sizes". When it cannot, the card names two sibling profiles, a sample profile and a bag profile with the same parent, says why, and each is calibrated on its own size. An edited reference profile is accepted only after it has been shown at the sizes the card serves. | T12, T13, T14; AC-FN-21, AC-FN-24, AC-RUN-9, AC-RUN-16, AC-RUN-18 |
 | P9 | **The machine is current**: a machine card exists (tracking by batch size, **B**, **N**, meter spread, T14, the size step, its date), and a control-bean re-check on a schedule or after service shows the machine still sits within the card (T15); if not, bean cards that depend on it are flagged, not silently used. | T15; AC-FN-27, AC-FN-28, AC-DOC-7 |
+| P10 | **One session decides a bean**: from its first ladder roast to its card a bean costs one roast day and one cupping session (G9). Flavour at full size is not tasted again per bean, because the machine layer showed once that the sample cups like the bag (T13) and that the size step holds (T6). A profile edit is an opt-in extra session, never needed to finish a card. | T16; AC-FN-29, AC-RUN-19, AC-DOC-3 |
 
 ### Acceptance thresholds (*proposed*; the roaster approves or changes each at plan approval)
 
@@ -114,6 +122,7 @@ Thresholds are data in one module (`dialInSpec.ts`), not literals in the functio
 | T13 | Sample matches bag | For the reference level of each of two beans, a 50.4 g roast and a 151.2 g roast made the same day at the card's settings differ in colour by at most **B** and in blind flavour by at most **N** | The sample is not representative of the bag: the card says so, and the sample is roasted to the translated bag-equivalent colour instead, or the sample's claim is dropped from the store |
 | T14 | One profile can hold both sizes | From Stage 1b (one bean, the profile's three levels near 75, 60 and 45, at each size): after the best single constant shift of end temperature between the sizes, the two sizes' colour-against-end-temperature lines differ by at most **B**/2 at every target colour from 75 to 45 | **Stop before Stage 2.** One profile cannot serve both sizes within **B**. The roaster chooses (open decision 11): first, sibling profiles (a sample profile made from the bag profile by a fan or heat edit, re-tested on three 50.4 g roasts); then a different sample size or a wider **B** for the sample |
 | T15 | Machine drift | A control bean (a reserved lot, stored sealed, its green moisture noted each time) is roasted at the card's reference setting, 3 roasts at 50.4 g and 1 at 151.2 g, after any service or cleaning and every 4 weeks. The check flags drift when the mean colour moves from the card's by more than **B**/2, or the spread of the 3 exceeds the T3 limit | The machine card is stale: bean cards that rest on it are marked unconfirmed until the machine is recalibrated (Stages 0, 1a and 1b again) |
+| T16 | One session per bean | For at least 7 of the 8 calibration beans, the Stage 2 ladder (5 roasts at 50.4 g on one day) and one cupping session of its levels give a bean card with a gold level (G5) and its sold levels (G6), with no second tasting; the held-out bean's card rests on its single Stage 4 session | The recipe needs a second session for too many beans: the ladder (roasts per day, the correction roast, the colour prediction) or the scoring noise is the cause, and the report says which before the recipe is shipped as one session |
 
 ## Approach
 
@@ -135,7 +144,8 @@ The four formulas, and how each is decided:
    roasted again on the edited profile (the edit moves the colour-to-level map) and gold is re-picked; (R9) the card is issued. At most 3 edits are
    tried per bean. The tool never chooses the direction of an edit (no evidence yet, a decision already made); it applies the T12 rule to whichever
    edit the roaster made and records every edit, adopted or not, as an experiment. An edited curve has never been roasted on this machine,
-   which is why Stage 5 proves the procedure on two beans before it is promised for all.
+   which is why Stage 5 proves the procedure on two beans before it is promised for all. **R4 onward is a second tasting by construction** (an edit is chosen after the gold level
+   is cupped), so it is outside the one-session budget (G9): it is opt-in per bean, shown on the card as an extra session, and no card needs it to be finished. R1 to R3 are the whole of the default path.
 3. **The 4-level ladder per bean and the 50 g to 151.2 g translation.** Per bean, find the level of each of the four colour
    targets at 50.4 g (about 5 roasts); translate to the full batch with a step fitted from Stages 1 to 3 (shared across beans if T6
    holds, per bean if not); confirm by the first production roast at each level. The card quotes each level's step from the gold level at the
@@ -155,9 +165,12 @@ The four formulas, and how each is decided:
    full batch is **a hypothesis this plan tests, not an assumption**: the machine scales fan and power by the batch size, but 50 g is its lowest setting and below
    the range where that scaling was seen to be about linear (above about 80 g), the colour reached at one level moved with batch size in the earlier logs
    (level 2.6 at 100 g looked like 2.8 at 50 g), and the offset of measured thermal dose from the curve moved by up to about 8 points with batch size on some profiles.
-4. **What to do per bean in production** (`docs/bean-onboarding.md`): measure, read the formula's prediction, roast the ladder at
-   50.4 g, cup after 1 day, pick the gold level (G5), then the first production batch at each level is read and, if outside **B**, corrected
-   once by the measured error and recorded.
+4. **What to do per bean in production** (`docs/bean-onboarding.md`), in one roast day and one cupping session (G9): (a) measure and read the formula's prediction
+   (no roast, no cup); (b) roast the ladder on one day at 50.4 g, the four levels then one correction roast for a level that missed its colour, so every roast rests the
+   same time; (c) cup them all in one session, 4 levels x 3 cups, blind, and pick the gold level (G5), a tie going to the roaster in that session; the card is issued;
+   (d) the first production batch at each level at 151.2 g is read by colour and, if outside **B**, corrected once by the measured error and recorded. It is not cupped
+   again for flavour at full size: that the sample cups like the bag is shown once, for the machine, by T13 and T6. A level whose colour is still missed after the
+   correction is not cupped; the card says it was not reached, and reaching it is an extra session.
 
 Layering (SDK = shape, platform = data, store = presentation, here: core = machine-independent, adapter = Nano 7): batch
 translation and the ladder are Nano 7 adapter code (they read levels, end temperatures and the log's batch size); scoring statistics,
@@ -192,7 +205,7 @@ their own. Shipped defaults stay the approximation already in `levelForAgtron`. 
 
 | ID | Deliverable | Kind | Owning role |
 |----|-------------|------|-------------|
-| D5 | `src/core/dialInSpec.ts` — T1 to T12 values and the four targets as data | resolver | `/backend-architect` |
+| D5 | `src/core/dialInSpec.ts` — T1 to T16 values and the four targets as data | resolver | `/backend-architect` |
 | D6 | `src/core/cuppingStats.ts` — mean flavour per roast, scoring noise from repeat roasts, whether two levels are apart by more than **N** | resolver | `/backend-architect` |
 | D7 | `src/core/referenceRoast.ts` — `pickReference` (G5) and `checkLevel` (G7), with plain-words reasons | resolver | `/backend-architect` |
 | D8 | `src/adapters/kaffelogic/batchTranslation.ts` — fit a level or end-temperature step between batch sizes from roast pairs; translate a level from one size to another **on the same profile** (a level offset and end temperature; it never changes the curve or picks another profile); keys roasts by the load multiplier the log recorded, not by the dialled size alone; says when it has too few pairs, or when no level on the profile reaches the colour at that size | resolver | `/backend-architect` |
@@ -323,12 +336,15 @@ Day 0 is the day the lots on order first arrive. Dates are fixed then; days are 
 About 6 to 7 weeks at 4 to 5 days a week. Stage 3b and Stage 5 wait for the larger lots on order, which have no arrival date yet (Stage 5 beans need about 800 g
 more than a pound-only bean has left); every other stage can run on the lots arriving first, so a late delivery delays only those stages and B9 if B9 is one of those lots.
 
+The 28 days are the one-off calibration. A bean after it costs one roast day and one cupping session (G9): Stage 2's rows are that recipe rehearsed on eight beans,
+which is also how T16 is measured. Stage 3b and Stage 5 are not on a bean's path (Stage 5 is not a ship gate).
+
 ### Cupping procedure (every session)
 
 Standard cupping ratio and method (not SCA scoring), after 1 day of rest (24 hours, plus or minus 6; the day is recorded), the same brew
 for every roast of a coffee, 3 cups per roast, blind (a second person or a labelled code by lot, positions randomised), score 1 to 5 for flavour (G4)
-and roast quality 1 to 5 (the existing anchors) per roast, ground-coffee colour read once from the same grind. Profiles with a rest period
-(`Rest`) are cupped on day 1 for comparison and again on their rest day; both are recorded. See open decision 2.
+and roast quality 1 to 5 (the existing anchors) per roast, ground-coffee colour read once from the same grind. A bean is cupped in one session (G9): all the roasts of its ladder rest the same time and are
+tasted on one date. Profiles with a rest period (`Rest`) are cupped once, on their rest day. See open decision 2.
 
 Sample budget at 50.4 g green: about 43 g roasted (assuming about 15% weight loss), which is 3 cups at 8.25 g (24.75 g)
 and about 18 g for the colour reading and spare; the meter's sample mass decides whether that is enough (open decision 6).
@@ -348,7 +364,7 @@ practice, recorded in the QC column).
 | `batchTranslation` | Translating from a size to the same size is the identity; a round trip a to b to a returns the level within the 0.1 grid; with fewer pairs than the minimum it returns "not enough", not a guess; fitted on synthetic roasts built from a known step plus noise, it recovers the step within the noise-implied tolerance |
 | `colourLadder` | Four levels, strictly increasing end temperature as the target gets darker; all within the profile's ladder, or flagged `reach`; with no batch size it equals `levelForAgtron` for the same inputs (no regression); readings of another size are used only through the translation; the returned resolution times the local colour slope is at most B/2, and a spacing it cannot resolve is reported as such (T10) |
 | `chooseReferenceProfile` | Adopts an edit only when every T12 condition holds, and each failing condition is reported on its own; the same answer for any order of repeats; with fewer than two edited repeats it says the evidence is not enough, never adopts; it never produces an edit, only judges one |
-| `card` | Derived only from the records: the same records give the same card; every level states its basis (measured at 151.2 g, translated, or confirmed by a production batch); a bean with no gold level yet gets a card that says what is missing |
+| `card` | Derived only from the records: the same records give the same card; every level states its basis (measured at 151.2 g, translated, or confirmed by a production batch); a bean with no gold level yet gets a card that says what is missing; the number of cupping sessions it rests on is the number of distinct tasting dates among the cups behind its gold level, and more than one is shown as extra; a tie says "roaster decides", never "re-cup" |
 | `dialIn` | A bean with measurements and no readings degrades to today's answer and says so; the profile is today's pick unless the T9 rule exists; every answer carries **B** and its basis |
 | `dialin` report | On synthetic data from a known model: reports the true spread, picks the known gold level, ranks the new ladder against the baseline correctly, and `check` fails when a planned roast, reading or cupping is missing |
 | Real-file replay | Leave-one-bean-out over the roaster's own roasts: the T7 comparison reproduces the report's number (skips when the files are absent) |
@@ -393,8 +409,8 @@ Each step is its own PR; nothing goes to main directly.
 
 ## Open decisions (for discussion)
 
-1. **Thresholds T1 to T12** and the schedule above are proposed; approve or change.
-2. **Profile family.** The Rest profiles want 3 to 5 days before brewing; the cupping is after 1 day. Calibrate on the RTD profiles (the plan's default), or cup Rest profiles on their rest day?
+1. **Thresholds T1 to T16** and the schedule above are proposed; approve or change.
+2. **Profile family.** The Rest profiles want 3 to 5 days before brewing; one session per bean means one date. Calibrate on the RTD profiles (the plan's default), or cup a Rest-profile bean once, on its rest day (the plan's rule if one is used; the earlier "day 1 and the rest day" is dropped)?
 3. **Resolved 2026-10-30:** the reference profile is "edited or not", so curve edits are in scope as a procedure (approach item 2, Stage 5, T12). Which edit to try on the two Stage 5 beans is the roaster's choice at that point.
 4. **Resolved 2026-10-30: samples are 50 g, not 80 g.** The store's sample size is set outside this repo (the store/platform data); that change is the roaster's to make. With a 50.4 g sample, the sample roast is the ladder's own size, so no 80 g check is needed, and a pound makes nine samples. The price of it is T13: the sample must be shown to match the bag.
 5. **Fit per roaster, ship the procedure.** The coefficients are fitted from each roaster's data, not shipped; defaults stay the approximation. Agree, or ship this machine's numbers as labelled defaults.
@@ -406,3 +422,4 @@ Each step is its own PR; nothing goes to main directly.
 11. **If one profile cannot hold both sizes (T14 fails).** Choose a fallback, in this order of least change: sibling profiles (a fan curve edit, D23, then heat), a different sample size, or a wider colour band for the sample. Setting the machine's load multiplier per roast is not available to the roaster (decision 12). The plan does not choose it in advance; it stops at the gate. It also does not assume the fan can be moved far: the range allowed is the one the stock profiles use unless the roaster names a limit.
 12. **Resolved 2026-10-30: the roaster dials only the batch size (g); the machine sets the fan multiplier.** In the logs the multiplier differs for the same dialled size (for example 100 g reads 0.942, 0.953 and 1.000; 120 g reads 0.995, 1.000 and 1.049), always equal for fan and power. The plan therefore cannot fix it; it records the multiplier of every roast and keys the fits to it, and asks what the machine bases it on (open question for Kaffelogic's documentation or the roaster's knowledge of the machine).
 13. **Control bean.** The machine re-check (T15) needs a reserved lot of about 1 kg that is not sold, stored sealed, with its green moisture noted at each check (green coffee ages, so a drift in colour could be the bean, not the machine). Which lot, and whether a pound is enough for the checks you want (each uses about 300 g)?
+14. **One session leans on T13.** With one cupping session per bean, T13 (two beans, two pairs of 50.4 g and 151.2 g roasts) and T6 (eight beans) are the only evidence that a 50.4 g cup predicts the bag, for every future bean. Keep two pairs, or raise T13 to three beans (about 100 g more green and one more cupping, in Stage 3c)? Recommended: three.
