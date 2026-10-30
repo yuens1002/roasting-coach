@@ -25,6 +25,19 @@ level (the one that cups best) used as the reference for quality control of the 
 data-built production tool for one machine, not a fit of any theory (thermal dose is a candidate input, kept only if it
 earns its place).
 
+## Two layers: the machine, then the bean
+
+The calibration is two things done at different times, and the plan keeps them apart so that a new bean never pays for the machine again.
+
+| Layer | What it answers | Stages | Result | Done when | Redone |
+|-------|-----------------|--------|--------|-----------|--------|
+| **Machine** (with its instruments: the colour meter and the roaster's cupping) | How closely does this machine, meter and palate repeat; how does it follow one profile at 50.4 g and at 151.2 g; how big is the colour band | 0 (meter), 1a (spread, scoring noise), 1b (size bridge), and the shared size step if T6 holds | The **machine card**: tracking by size, **B**, **N**, meter spread, whether one profile holds both sizes (T14), the size step | T2, T3, T4 and T14 pass (Day 4), and T6 says whether the size step belongs to the machine or to each bean | On a schedule and after service, with a control bean (T15) |
+| **Bean** | What profile, gold level and steps does this bean need | 2, 2c, 3, 3b, 3c, 4, 5, then the production recipe | The **bean card** (P1 to P8) | Its ladder, cupping, reference profile and first production batches | Per bean; again if its green changes a lot |
+
+The machine layer decides what the bean layer may assume. If T14 fails, the bean layer runs with sibling profiles; if T6 fails, the size step is a bean-layer number
+and not a machine constant. Stages 2 to 5 use beans partly to find out which of those it is, which is why the machine card is issued twice: a first time at the Day 4
+gate, and finally after Stage 3 (T6).
+
 ## Current State
 
 What exists and is reused, not rebuilt:
@@ -78,6 +91,7 @@ These are the claims the feature makes, each measured before it ships (the ACs s
 | P6 | **A new bean costs a known number of roasts**: measure, the formula's prediction, a ladder of about 5 roasts at 50.4 g, one cupping, then the first production batch per level confirms. The card records how many it took. | D19; AC-DOC-3 |
 | P7 | **The sample is the bag in small**: a 50.4 g sample roast and a 151.2 g bag roast of the same bean and level are the same colour (within **B**) and cup the same (within **N**), so a customer who likes the sample gets what they tasted. The sample card is direct (the ladder is roasted at 50.4 g); the bag card is the translated and confirmed one. | T13; AC-RUN-17 |
 | P8 | **One profile, both sizes, if the tolerance allows**: when Stage 1b shows one profile can hold both sizes (T14), the card names exactly one profile file and the sample and the bag are roasted from it, differing only in the level to dial (the translation), shown on the card; where the difference is within the step resolution (T10) the card says "same level at both sizes". When it cannot, the card names two sibling profiles, a sample profile and a bag profile with the same parent, says why, and each is calibrated on its own size. An edited reference profile is accepted only after it has been shown at the sizes the card serves. | T12, T13, T14; AC-FN-21, AC-FN-24, AC-RUN-9, AC-RUN-16, AC-RUN-18 |
+| P9 | **The machine is current**: a machine card exists (tracking by batch size, **B**, **N**, meter spread, T14, the size step, its date), and a control-bean re-check on a schedule or after service shows the machine still sits within the card (T15); if not, bean cards that depend on it are flagged, not silently used. | T15; AC-FN-27, AC-FN-28, AC-DOC-7 |
 
 ### Acceptance thresholds (*proposed*; the roaster approves or changes each at plan approval)
 
@@ -99,6 +113,7 @@ Thresholds are data in one module (`dialInSpec.ts`), not literals in the functio
 | T12 | Edited curve as reference | An edited curve replaces the unedited profile for a bean only if both edited repeats are Good roasts, the edited flavour beats the unedited gold roast's by more than **N**, and all four levels stay reachable, **and the edit's reference level roasted at 151.2 g is a Good roast whose flavour is within N of its 50.4 g roast** (one profile serves both sizes) | The unedited profile stays and the edit is recorded as tried |
 | T13 | Sample matches bag | For the reference level of each of two beans, a 50.4 g roast and a 151.2 g roast made the same day at the card's settings differ in colour by at most **B** and in blind flavour by at most **N** | The sample is not representative of the bag: the card says so, and the sample is roasted to the translated bag-equivalent colour instead, or the sample's claim is dropped from the store |
 | T14 | One profile can hold both sizes | From Stage 1b (one bean, the profile's three levels near 75, 60 and 45, at each size): after the best single constant shift of end temperature between the sizes, the two sizes' colour-against-end-temperature lines differ by at most **B**/2 at every target colour from 75 to 45 | **Stop before Stage 2.** One profile cannot serve both sizes within **B**. The roaster chooses (open decision 11): first, sibling profiles (a sample profile made from the bag profile by a fan or heat edit, re-tested on three 50.4 g roasts); then a different sample size or a wider **B** for the sample |
+| T15 | Machine drift | A control bean (a reserved lot, stored sealed, its green moisture noted each time) is roasted at the card's reference setting, 3 roasts at 50.4 g and 1 at 151.2 g, after any service or cleaning and every 4 weeks. The check flags drift when the mean colour moves from the card's by more than **B**/2, or the spread of the 3 exceeds the T3 limit | The machine card is stale: bean cards that rest on it are marked unconfirmed until the machine is recalibrated (Stages 0, 1a and 1b again) |
 
 ## Approach
 
@@ -155,10 +170,10 @@ their own. Shipped defaults stay the approximation already in `levelForAgtron`. 
 | Step | Deliverables | Why here |
 |------|--------------|----------|
 | 1 | D1, D2, D3, D4 | Nothing can be recorded until the flavour score, bean measurements and importer reference have a place to go; no beans needed. |
-| 2 | D5, D6, D7, D8, D9, D10, D11, D21, D23 | The pure functions can be written and proven on synthetic data before a single calibration roast; the runs then use them. |
+| 2 | D5, D6, D7, D8, D9, D10, D11, D21, D23, D25 | The pure functions can be written and proven on synthetic data before a single calibration roast; the runs then use them. |
 | 3 | D12, D13 | The report and the completeness check turn raw roasts into the stage results and tell whether each stage was actually carried out. |
 | 4 | D14, D15, D22 | The runs. Needs Steps 1 to 3 and the beans. The held-out validation needs the frozen prediction from D14's data; the edit trial needs a gold roast and the larger lots. |
-| 5 | D16, D17, D18, D19, D20 | Ship only what Step 4 passed: the formula in the code path, the rulebook, an end-to-end scenario, the per-bean recipe, and the glue docs. |
+| 5 | D16, D17, D18, D19, D20, D24 | Ship only what Step 4 passed: the formula in the code path, the rulebook, an end-to-end scenario, the per-bean recipe, and the glue docs. |
 
 ### Step 1: Capture
 
@@ -182,10 +197,11 @@ their own. Shipped defaults stay the approximation already in `levelForAgtron`. 
 | D7 | `src/core/referenceRoast.ts` — `pickReference` (G5) and `checkLevel` (G7), with plain-words reasons | resolver | `/backend-architect` |
 | D8 | `src/adapters/kaffelogic/batchTranslation.ts` — fit a level or end-temperature step between batch sizes from roast pairs; translate a level from one size to another **on the same profile** (a level offset and end temperature; it never changes the curve or picks another profile); keys roasts by the load multiplier the log recorded, not by the dialled size alone; says when it has too few pairs, or when no level on the profile reaches the colour at that size | resolver | `/backend-architect` |
 | D9 | `src/adapters/kaffelogic/colourLadder.ts` — the four levels, end temperatures and expected colour for a profile and batch size, from readings of the same size, or from another size through D8; extends `levelForAgtron` without changing its no-batch behaviour; also returns the step resolution (T10) | resolver | `/backend-architect` |
-| D10 | `test/dialInCore.test.ts` — invariants of D5 to D7 and D21 | test | `/test-engineer` |
+| D10 | `test/dialInCore.test.ts` — invariants of D5 to D7, D21 and D25 | test | `/test-engineer` |
 | D11 | `test/dialInAdapter.test.ts` — invariants of D8, D9 and D23, plus a real-file replay that skips when the files are absent | test | `/test-engineer` |
 | D21 | `src/core/referenceProfile.ts` — `chooseReferenceProfile`: given the unedited gold roast and one or more edited repeats, applies T12 and says in plain words whether the edit is adopted, kept as tried, or why the evidence is not enough (no edit is chosen here) | resolver | `/backend-architect` |
 | D23 | *Conditional: built only if Stage 1b fails T14, or the roaster picks fan as an edit family.* `src/adapters/kaffelogic/editFan.ts` and a `profile:edit` option — change the fan curve (speed against time) of a profile, previewed, written without overwriting, recorded as a version with the original as parent; refuses a speed outside the range the stock profiles use unless the roaster names a limit | resolver | `/backend-architect` |
+| D25 | `src/core/machineCheck.ts` — `checkMachineDrift`: the machine card against a control-bean re-check; says in plain words whether the machine is current, drifted by how much, or has too few roasts to say (T15) | resolver | `/backend-architect` |
 
 ### Step 3: Report and check
 
@@ -193,7 +209,7 @@ their own. Shipped defaults stay the approximation already in `levelForAgtron`. 
 
 | ID | Deliverable | Kind | Owning role |
 |----|-------------|------|-------------|
-| D12 | `scripts/dialin.ts` and `npm run dialin:*` — `report` (consistency, meter repeatability, scoring noise, ladders, translation, leave-one-bean-out against the code today), `check <stage>` (every planned roast, reading and cupping is present, and the stage's gate is met), `predict` (writes a time-stamped prediction before a held-out roast), `bean` (what to roast next for a bean), `card` (the bean card, P1 and P2: derived from the records, writes nothing) | job | `/backend-architect` |
+| D12 | `scripts/dialin.ts` and `npm run dialin:*` — `report` (consistency, meter repeatability, scoring noise, ladders, translation, leave-one-bean-out against the code today), `check <stage>` (every planned roast, reading and cupping is present, and the stage's gate is met), `predict` (writes a time-stamped prediction before a held-out roast), `bean` (what to roast next for a bean), `card` (the bean card, P1 and P2: derived from the records, writes nothing), `machine` (the machine card and the control-bean re-check, P9) | job | `/backend-architect` |
 | D13 | `test/dialInReport.test.ts` — the report and the check on synthetic data with known answers | test | `/test-engineer` |
 
 ### Step 4: The runs
@@ -217,6 +233,7 @@ their own. Shipped defaults stay the approximation already in `levelForAgtron`. 
 | D18 | `scripts/station.ts` scenario and `test/dialIn.test.ts` — a bean from measurements to ladder to reference to QC end to end on made-up logs | test | `/test-engineer` |
 | D19 | `docs/bean-onboarding.md` — the per-bean production recipe (formula 4 above) | doc | `/project-manager` |
 | D20 | `docs/ROADMAP.md`, `CHANGELOG.md`, `package.json`, `package-lock.json`, `README.md` — status, version, and the one-line pointers (glue; AC-COV rows) | doc | `/project-manager` |
+| D24 | `docs/machine-calibration.md` — what to run when a machine is new, serviced or due: the control bean, the roasts, the card, and what a drift verdict means for the bean cards | doc | `/project-manager` |
 
 ### Files to Create
 
@@ -342,7 +359,7 @@ seen. Those are T3, T6, T7, T8, measured, not asserted.
 
 ## Acceptance Criteria
 
-See [nano7-calibration-ACs.md](nano7-calibration-ACs.md). Rows are grouped by the same `Step N` headings; each carries a Plan ref (D1 to D23, or
+See [nano7-calibration-ACs.md](nano7-calibration-ACs.md). Rows are grouped by the same `Step N` headings; each carries a Plan ref (D1 to D25, or
 `cross-cutting`) and an owning role. Status is derived there, not here.
 
 ## Commit Schedule
@@ -388,3 +405,4 @@ Each step is its own PR; nothing goes to main directly.
 10. **Gold by default.** If gold turns out the same for most beans (T11), a default gold would save the cupping for a new bean. The plan keeps one cupping per new bean unless the data say otherwise.
 11. **If one profile cannot hold both sizes (T14 fails).** Choose a fallback, in this order of least change: sibling profiles (a fan curve edit, D23, then heat), a different sample size, or a wider colour band for the sample. Setting the machine's load multiplier per roast is not available to the roaster (decision 12). The plan does not choose it in advance; it stops at the gate. It also does not assume the fan can be moved far: the range allowed is the one the stock profiles use unless the roaster names a limit.
 12. **Resolved 2026-10-30: the roaster dials only the batch size (g); the machine sets the fan multiplier.** In the logs the multiplier differs for the same dialled size (for example 100 g reads 0.942, 0.953 and 1.000; 120 g reads 0.995, 1.000 and 1.049), always equal for fan and power. The plan therefore cannot fix it; it records the multiplier of every roast and keys the fits to it, and asks what the machine bases it on (open question for Kaffelogic's documentation or the roaster's knowledge of the machine).
+13. **Control bean.** The machine re-check (T15) needs a reserved lot of about 1 kg that is not sold, stored sealed, with its green moisture noted at each check (green coffee ages, so a drift in colour could be the bean, not the machine). Which lot, and whether a pound is enough for the checks you want (each uses about 300 g)?

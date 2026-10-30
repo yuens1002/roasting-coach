@@ -499,7 +499,7 @@ Order is a suggestion; the roaster picks.
    on one machine: for every bean offered, a **bean card** naming the reference profile (a stock profile, or an edited curve if an edit beat it), the
    gold-standard level found by cupping, and the step to dial for each of the four levels sold (City 75, City+ 65, Full City 55, Full City+ 45 on the Agtron
    scale), plus a formula fitted from the roaster's own roasts that makes the next card cheaper (batch size from a 50.4 g sample to the 151.2 g bag
-   included). Thermal dose is one candidate input, kept only if it earns its place. Scoring keeps the defect-based roast quality unchanged and adds a separate
+   included). Thermal dose is one candidate input, kept only if it earns its place. The work has two layers: a machine calibration (done once, re-checked against a control bean) and a bean calibration (per bean). Scoring keeps the defect-based roast quality unchanged and adds a separate
    1 to 5 flavour score against the importer's flavour map that no rule reads; the importer's own cupping score may be stored as a sourced reference. Open
    decisions are listed at the end of the plan. See also "Later, not decided", per-profile offset.
 

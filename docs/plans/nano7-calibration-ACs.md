@@ -18,7 +18,7 @@ ACs test them. Steps 1 to 3 and 5 are code and docs proved by tests; Step 4 is t
 
 | Column | Filled by | When |
 |--------|-----------|------|
-| **Plan ref** | Author of the ACs | At authoring: a plan deliverable ID (D1 to D23) or `cross-cutting` |
+| **Plan ref** | Author of the ACs | At authoring: a plan deliverable ID (D1 to D25) or `cross-cutting` |
 | **Role** | Author of the ACs | At authoring: the deliverable's owning role |
 | **Agent** | Verifier (a sub-agent, or the main thread when run ad hoc) | PASS/FAIL with brief evidence |
 | **QC** | Main thread | Confirms or overrides; for a test AC, records that the test was shown to fail when its logic was broken |
@@ -43,10 +43,10 @@ A check that cannot fail is not a check: each `AC-TST` row's QC cell records whi
 | Step | Deliverables | State |
 |------|--------------|-------|
 | [1](#step-1-capture) | [D1, D2, D3, D4](nano7-calibration-plan.md#step-1-capture) | 0 of 7 criteria carry a verdict |
-| [2](#step-2-pure-functions) | [D5, D6, D7, D8, D9, D10, D11, D21, D23](nano7-calibration-plan.md#step-2-pure-functions) | 0 of 19 criteria carry a verdict |
-| [3](#step-3-report-and-check) | [D12, D13](nano7-calibration-plan.md#step-3-report-and-check) | 0 of 6 criteria carry a verdict |
+| [2](#step-2-pure-functions) | [D5, D6, D7, D8, D9, D10, D11, D21, D23, D25](nano7-calibration-plan.md#step-2-pure-functions) | 0 of 21 criteria carry a verdict |
+| [3](#step-3-report-and-check) | [D12, D13](nano7-calibration-plan.md#step-3-report-and-check) | 0 of 7 criteria carry a verdict |
 | [4](#step-4-the-runs) | [D14, D15, D22](nano7-calibration-plan.md#step-4-the-runs) | 0 of 18 criteria carry a verdict |
-| [5](#step-5-ship) | [D16, D17, D18, D19, D20](nano7-calibration-plan.md#step-5-ship) | 0 of 10 criteria carry a verdict |
+| [5](#step-5-ship) | [D16, D17, D18, D19, D20, D24](nano7-calibration-plan.md#step-5-ship) | 0 of 11 criteria carry a verdict |
 
 ---
 
@@ -66,7 +66,7 @@ Builds D1, D2, D3, D4, defined in [the plan](nano7-calibration-plan.md#step-1-ca
 
 ## Step 2: Pure functions
 
-Builds D5, D6, D7, D8, D9, D10, D11, D21, D23, defined in [the plan](nano7-calibration-plan.md#step-2-pure-functions).
+Builds D5, D6, D7, D8, D9, D10, D11, D21, D23, D25, defined in [the plan](nano7-calibration-plan.md#step-2-pure-functions).
 
 | AC | Plan ref | Role | What | How | Pass | Agent | QC | Reviewer |
 |----|----------|------|------|-----|------|-------|----|----------|
@@ -80,11 +80,13 @@ Builds D5, D6, D7, D8, D9, D10, D11, D21, D23, defined in [the plan](nano7-calib
 | AC-FN-11 | D9 | `/backend-architect` | No change for callers without a batch size | Test run: `npm test -- test/startingProfiles.test.ts test/dialInAdapter.test.ts` | For any profile, target and readings and no batch size, the ladder equals `levelForAgtron` for each target (compared against the function itself over a grid, not a recorded answer); every existing startingProfiles test passes unedited | | | |
 | AC-FN-22 | D21 | `/backend-architect` | `chooseReferenceProfile` | Test run: `npm test -- test/dialInCore.test.ts` | Adopts an edit only when T12 holds in full (both edited repeats are Good roasts, the edited flavour beats the unedited gold roast's by more than **N**, all four levels stay reachable); each failing condition is reported on its own in plain text; with fewer than two edited repeats it says the evidence is not enough; it judges an edit and never produces or ranks one | | | |
 | AC-FN-26 | D23 | `/backend-architect` | Fan-curve edit (conditional) | Test run: `npm test -- test/dialInAdapter.test.ts` | If built: the edited file parses, differs from the original only in `fan_profile`, never overwrites a file, records the original as parent, keeps the curve a valid series of nodes in time order, and refuses a speed outside the stock profiles' range unless the roaster names a limit; if not built, the plan's Step 2 records D23 as not needed and why | | | |
+| AC-FN-27 | D25 | `/backend-architect` | `checkMachineDrift` | Test run: `npm test -- test/dialInCore.test.ts` | Compares a control-bean re-check with the machine card: current when the mean colour is within **B**/2 of the card's and the spread of the 3 is within the T3 limit; otherwise drifted, naming which and by how much; with fewer than 3 roasts it says it cannot tell; the green moisture noted is shown beside the verdict so a bean's ageing is not mistaken for the machine; thresholds read from the spec | | | |
 | AC-TST-11 | D11 | `/test-engineer` | Fan-edit properties (if D23 is built) | Test run: `npm test -- test/dialInAdapter.test.ts` | Over every stock profile: an edit with no change returns an equal body; any edit leaves every header key except `fan_profile` equal (`sameProfileBody` differs only by the fan); a refusal names the limit it hit | | | |
 | AC-FN-23 | D9 | `/backend-architect` | The step resolution on a ladder | Test run: `npm test -- test/dialInAdapter.test.ts` | Each ladder level carries the step from the gold level on the machine's 0.1 grid with its end temperature, and the resolution at which that step is quoted; resolution times the local colour slope is at most B/2 (T10); where two targets are closer than the resolution it says "not resolvable at this spacing" rather than a step | | | |
 | AC-TST-2 | D10 | `/test-engineer` | Core invariants | Test run: `npm test -- test/dialInCore.test.ts` | Asserts: result unchanged under any permutation of roasts and cups; adding a cup at the mean leaves the mean; equal scores give noise 0; a tie is never resolved silently; each `checkLevel` reason fires alone | | | |
 | AC-TST-3 | D10 | `/test-engineer` | Thresholds are data | Test run: `npm test -- test/dialInCore.test.ts` | A test changes one spec value (**N**, **F**, **B**) and shows the dependent function's answer changes with it; no threshold is retyped in a test | | | |
 | AC-TST-10 | D10 | `/test-engineer` | `chooseReferenceProfile` properties | Test run: `npm test -- test/dialInCore.test.ts` | The answer is the same for any order of the repeats; raising the edited flavour across the T12 margin flips the answer from kept-as-tried to adopted and nothing else; lowering one repeat to a defect flips it back; every threshold is read from the spec | | | |
+| AC-TST-12 | D10 | `/test-engineer` | `checkMachineDrift` properties | Test run: `npm test -- test/dialInCore.test.ts` | The verdict is the same for any order of the re-check roasts; shifting the re-check colour across **B**/2 flips current to drifted and nothing else; a spread above the T3 limit flips it with the mean unchanged; the same readings as the card give current | | | |
 | AC-TST-4 | D11 | `/test-engineer` | Translation properties | Test run: `npm test -- test/dialInAdapter.test.ts` | Same size to same size is the identity; a round trip a to b to a returns the original within the 0.1 level grid; fitted on synthetic roasts made from a known step plus seeded noise, the step is recovered within the tolerance the noise implies (the relation between the data's noise and the error, not a pinned number) | | | |
 | AC-TST-5 | D11 | `/test-engineer` | Ladder properties | Test run: `npm test -- test/dialInAdapter.test.ts` | Over every selectable stock profile and the four targets: strictly increasing end temperature as the target darkens (or `reach` where the ladder ends); monotone in the batch-size step when D8 is supplied | | | |
 | AC-TST-6 | D11 | `/test-engineer` | Real-file replay | Test run: `npm test -- test/dialInAdapter.test.ts` (with and without the private files present) | With the roaster's logs present, leave-one-bean-out reproduces the number `dialin:report` prints; with them absent the test skips and the suite passes; the test prints no bean, lot or log name | | | |
@@ -101,6 +103,7 @@ Builds D12, D13, defined in [the plan](nano7-calibration-plan.md#step-3-report-a
 | AC-FN-14 | D12 | `/backend-architect` | `dialin:predict` | Test run: `npm test -- test/dialInReport.test.ts` | Writes the predicted profile, levels and colours with an ISO timestamp to the private folder, refuses to overwrite a prediction, and `check` fails a stage whose first roast is dated before its prediction | | | |
 | AC-FN-15 | D12 | `/backend-architect` | `dialin:bean` | Test run: `npm test -- test/dialInReport.test.ts` | For a bean it prints the next roast to make (profile, level, batch size, why) and what is still missing, from the state of its records; run twice with no new record it prints the same | | | |
 | AC-FN-21 | D12 | `/backend-architect` | `dialin:card` (the bean card) | Test run: `npm test -- test/dialInReport.test.ts`; run it on a Stage 2 bean | Prints the reference profile (file name), exactly one for all batch sizes when T14 passed and otherwise two sibling profiles with the size each serves and the reason, the sizes' levels and their difference (or "same level at both sizes" when within the resolution), the gold level with its basis, and for each of the four levels the level, step from gold, end temperature, expected colour, **B** and resolution; each level states whether it was measured at 151.2 g, translated from 50.4 g, or confirmed by a production batch, and the number of production batches read and hits; derived from the records only, writes nothing, the same records give the same card; a bean without a gold level gets a card that says what is missing | | | |
+| AC-FN-28 | D12 | `/backend-architect` | `dialin:machine` (the machine card and re-check) | Test run: `npm test -- test/dialInReport.test.ts` | Prints the machine card (tracking by batch size, **B**, **N**, meter spread, T14 verdict, the size step and whether it is shared, the date issued) from the records only, writes nothing; with a control-bean re-check present it prints the `checkMachineDrift` verdict; a bean card shows "machine card out of date" when the verdict is drifted | | | |
 | AC-TST-8 | D13 | `/test-engineer` | The report and check on data with known answers | Test run: `npm test -- test/dialInReport.test.ts` | On synthetic roasts built from a known model: the reported spread equals the generating spread within sampling error, the known gold level is picked, the new ladder beats the baseline only when the model says it should, `check` fails when any planned roast, reading or cupping is removed, `card` states the right basis for each level, and a swap of two beans' slot ids changes nothing but the ids | | | |
 
 ## Step 4: The runs
@@ -130,7 +133,7 @@ Builds D14, D15, D22, defined in [the plan](nano7-calibration-plan.md#step-4-the
 
 ## Step 5: Ship
 
-Builds D16, D17, D18, D19, D20, defined in [the plan](nano7-calibration-plan.md#step-5-ship). Ships only if AC-RUN-8, AC-RUN-9 and AC-RUN-12 pass.
+Builds D16, D17, D18, D19, D20, D24, defined in [the plan](nano7-calibration-plan.md#step-5-ship). Ships only if AC-RUN-8, AC-RUN-9 and AC-RUN-12 pass.
 
 | AC | Plan ref | Role | What | How | Pass | Agent | QC | Reviewer |
 |----|----------|------|------|-----|------|-------|----|----------|
@@ -141,15 +144,16 @@ Builds D16, D17, D18, D19, D20, defined in [the plan](nano7-calibration-plan.md#
 | AC-DOC-2 | D17 | `/backend-architect` | `docs/RULES.md` | Test run: `npm test -- test/rulesDoc.test.ts test/voice.test.ts test/terminology.test.ts`; `npm run rules:steps` | The tests pass; the changed section 6, the reference and QC text, and "flavour is recorded and no rule reads it" are present; the regenerated step table has no diff | | | |
 | AC-TST-9 | D18 | `/test-engineer` | End-to-end scenario | Test run: `npm test -- test/dialIn.test.ts`; `npm run station:check` | From a bean's measurements through its ladder, a reference pick and a QC of a production roast, on made-up logs, each step's `say` is finished text and each `onYes` is a runnable command; `station:check` needs its stale temporary folder moved aside first (not deleted) | | | |
 | AC-DOC-3 | D19 | `/project-manager` | `docs/bean-onboarding.md` | Walkthrough: follow it on one Stage 2 bean | Each step names its command and its pass condition; following it reproduces that bean's recorded ladder and reference; the first production batch at each level is read and, outside **B**, corrected once by the measured error and recorded; two misses in a row on the same side re-fit that bean's step; the QC against the reference uses G7; the reference-profile steps R1 to R9 are there, including the cap of 3 edits per bean and that the tool judges an edit but never chooses one; it states how many roasts the bean took (P6) | | | |
+| AC-DOC-7 | D24 | `/project-manager` | `docs/machine-calibration.md` | Walkthrough: follow it on the Day 0 to Day 4 sequence | Says when to run it (new machine, after service or cleaning, every 4 weeks), names the control bean and how it is stored, lists the roasts and readings, and what each verdict means for the bean cards; following only the document reproduces the machine card | | | |
 | AC-COV-2 | D20 | `/project-manager` | Roadmap, changelog, version, README | Code review | ROADMAP item 6 links the plan and states the status; CHANGELOG has one entry per merged PR; `package.json` and `package-lock.json` versions match; README (and any other doc that restates the feature) points to the same facts; every count, threshold and command in the plan and ACs was re-grepped against shipped code and docs (a renamed function or a changed count is fixed in all places) | | | |
 | AC-DOC-4 | D20 | `/project-manager` | Plan and ACs match what shipped | Grep each function name, command, file path and threshold value in both docs against the code | Every one matches the shipped code exactly; a changed one is updated in the docs, not reverted in code | | | |
-| AC-DOC-5 | D20 | `/project-manager` | Review additions have their own rows | Code review: the plan's deliverables table | Any change a review round forced beyond D1 to D23 has its own deliverable ID and AC (Agent cell names the review round), and the coverage check was re-run | | | |
+| AC-DOC-5 | D20 | `/project-manager` | Review additions have their own rows | Code review: the plan's deliverables table | Any change a review round forced beyond D1 to D25 has its own deliverable ID and AC (Agent cell names the review round), and the coverage check was re-run | | | |
 
 ## Cross-cutting
 
 | AC | Plan ref | Role | What | How | Pass | Agent | QC | Reviewer |
 |----|----------|------|------|-----|------|-------|----|----------|
-| AC-COV-1 | cross-cutting | `/project-manager` | Plan and ACs cover each other (Gate 1 by hand: this repo has no validator) | Run the check in the ACs' footer (a script that lists D-ids in the plan and in the Plan ref column) | Every deliverable D1 to D23 has at least one AC; every AC names a Plan ref in D1 to D23 or `cross-cutting` and a Role that is not empty or a dash | | | |
+| AC-COV-1 | cross-cutting | `/project-manager` | Plan and ACs cover each other (Gate 1 by hand: this repo has no validator) | Run the check in the ACs' footer (a script that lists D-ids in the plan and in the Plan ref column) | Every deliverable D1 to D25 has at least one AC; every AC names a Plan ref in D1 to D25 or `cross-cutting` and a Role that is not empty or a dash | | | |
 | AC-REG-1 | cross-cutting | `/test-engineer` | The existing suite | Test run: `npm test` | 0 failures; the number of passing tests is at least the number at branch start plus the new tests; no existing test edited except D17's | | | |
 | AC-REG-2 | cross-cutting | `/devops` | Types | Test run: `npx tsc` | 0 errors | | | |
 | AC-DOC-6 | cross-cutting | `/project-manager` | No names in the public repo | `/oss-doc-review`; a search of every changed file for each name in the git-ignored slot map | Zero findings; zero hits for any bean, lot, invoice or log name in a committed file (a hit is a defect, including in a test's output or a commit message); the map itself is not committed | | | |
@@ -161,7 +165,7 @@ Builds D16, D17, D18, D19, D20, defined in [the plan](nano7-calibration-plan.md#
 
 This repo has no coverage validator. The check is: list the `D<n>` ids that open a row of the plan's deliverables tables, list the `AC-*` rows
 here with their Plan ref and Role, and confirm every deliverable appears as some AC's Plan ref, every Plan ref is a listed deliverable or `cross-cutting`, no
-Role is empty or a dash, and no AC id repeats. Run when this document was written: 23 deliverables, 65 ACs, none uncovered, none orphaned, no duplicate ids.
+Role is empty or a dash, and no AC id repeats. Run when this document was written: 25 deliverables, 69 ACs, none uncovered, none orphaned, no duplicate ids.
 Re-run it after any change to either document (AC-COV-1).
 
 ## Agent Notes
