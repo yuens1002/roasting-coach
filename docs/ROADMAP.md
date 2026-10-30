@@ -493,56 +493,15 @@ Order is a suggestion; the roaster picks.
    body (a version keeps its stock base through edits, so the base alone cannot say), so an edited curve and the stock one differ. `bean:add` stores the bean first so the file can carry its number; `profile:write` takes no name. Profiles already
    written were renamed to match (one: Kron Nang's v1, now `VIET-002-1r1`). Not built: the clean-zone report and the roadmap do not
    use the names; revisions only differ once an edited curve is stored or a bean switches stock profile.
-6. **Calibrating the Nano 7 from measured roasts** (planned 2026-10-30, nothing built or run; the formal plan, deliverables
-   and acceptance criteria are in [plans/nano7-calibration-plan.md](plans/nano7-calibration-plan.md) and
-   [plans/nano7-calibration-ACs.md](plans/nano7-calibration-ACs.md), awaiting the roaster's approval of its proposed thresholds). The aim is a production
-   formula for one machine, built from its own roasts and tweaked by them, not a fit of any theory: given a bean's
-   measurements, the roast level a customer picked and the batch size, it says what to dial in, and the roast lands on target and
-   has no roast defect. Thermal dose is one candidate input among others, kept only if it earns its place. The formula belongs
-   to the roaster's machine and does not travel to another.
-   - **The questions.** (1) How much does the machine vary from batch to batch on one profile, one batch size and one level?
-     That is the floor under every other number. (2) What do a bean's density and moisture (and altitude, process) tell us about
-     how it roasts, and can they predict the dial-in? (3) How does a 50 g sample roast translate to a full batch (one third of a
-     pound, 151.2 g), and does one translation hold across beans or does each bean need its own?
-   - **Why 50 g samples.** Sampling every bean at the full batch wastes coffee. 50.4 g is one ninth of a pound, so a pound
-     divides into nine samples, and 151.2 g is three of them. What exists: the machine scales fan and power by one multiplier
-     of the batch size dialled in (1.0 at 120 g; 0.7744 at 50 g; 1.0701 at 150 g; about 0.00234 per gram above 80 g), the logs
-     held in the library show an offset of the measured thermal dose from the curve's prediction that depends mostly on the
-     profile (about -22% to +36% across profiles) and by up to about 8 points on the batch size on some, and the existing
-     repeat spread (11 groups, median 1.5%, worst 7.1%) was not controlled. None of that is enough to translate a sample
-     without a bridging experiment, hence the stages below.
-   - **The customer's four levels** (the store lets a customer pick one; the page marks one in gold as the suggestion):
-     City 75, City+ 65, Full City 55, Full City+ 45, as a colour-meter reading (Agtron-style, 10 points apart). Each bean
-     needs a **ladder**: the dial-in (level, and the step between levels) that lands each of the four. Read on one method every
-     time (assumed: ground coffee, the same meter and grind; to confirm, because whole-bean readings differ). The pass band
-     around each target comes from the spread measured in stage 1, not from a guess.
-   - **Scoring.** Every roast keeps its roast quality (the 1 to 5 defect scale above; `QUALITY_ANCHORS`), unchanged. A second
-     1 to 5 score, **flavour**, is recorded beside it: how closely the cup matches the importer's published flavour map for
-     that origin. It is a separate set, advisory, and no rule reads it; it is not a liking score and the "not asked and not used"
-     decision above stands. The roaster does not score on the SCA protocol (not a certified grader). The importer's own
-     cupping score for a lot may be stored as a reference value with its source named, never as the roaster's score.
-     Cups are tasted after one day of rest, the same brew, three cups per level, blind with positions randomised, with blind
-     duplicates to measure the scoring noise. For a profile with a rest period, rest decides the day, and the day is recorded.
-   - **The reference roast and the gold level.** For each bean, the level that scores highest on flavour among the roasts with
-     no roast defect is its reference level (the one the page would mark in gold), and the other three levels are checked
-     against it: no roast defect, colour inside the band, flavour within the scoring noise of the reference or lower.
-   - **Stages** (each a separate piece of work; sizes are the plan, not results):
-     0. Measure each lot as it arrives: density, moisture, weight, origin, altitude, process.
-     1. Consistency: about six 50.4 g repeats over two days on one bean, one profile and one level, plus three 151.2 g repeats;
-        about 756 g. Gives the machine's spread and the colour band.
-     2. Ladders at 50.4 g: about five roasts per bean for nine beans (about 45 roasts, 2.3 kg).
-     3. Translation: the reference level at 151.2 g for all nine beans, and all four levels at 151.2 g for two of them (about 15
-        roasts, 2.3 kg). Shows whether one 50 g to full batch step holds across beans.
-     4. Held-out bean: predict its dial-in from its measurements alone, roast it at 151.2 g at four levels (about 4 roasts,
-        0.6 kg), and compare. This is the test of the formula; it needs a bean not used in stages 1 to 3.
-     Stop early after four beans if their ladders already show the step is the same across beans (no per-bean tables needed) or
-     that nothing about the bean predicts it.
-   - **Rules and surfaces.** The formula becomes advice only through a tested rule with its own PR, `docs/RULES.md` updated in
-     it. A flavour field and a reference-score field need an intake/result form change under the same discipline.
-   - **Open:** which level the gold suggestion stands for (assumed above: the reference level); the reading method for the four
-     targets; which production profile or profiles the formula is built on; the final list of nine beans, from the stock on
-     hand and what is on the way. The data from the work lands here as derived numbers only, never bean, lot or log names or
-     tasting notes. See also "Later, not decided", per-profile offset.
+6. **Calibrating the Nano 7 from measured roasts** (planned 2026-10-30, nothing built or run). The plan, deliverables, thresholds, bean and
+   tasting schedule and test strategy are in [plans/nano7-calibration-plan.md](plans/nano7-calibration-plan.md), and the acceptance criteria in
+   [plans/nano7-calibration-ACs.md](plans/nano7-calibration-ACs.md); both await the roaster's approval of their proposed thresholds. This is production work
+   on one machine: for every bean offered, a **bean card** naming the reference profile (a stock profile, or an edited curve if an edit beat it), the
+   gold-standard level found by cupping, and the step to dial for each of the four levels sold (City 75, City+ 65, Full City 55, Full City+ 45 on the Agtron
+   scale), plus a formula fitted from the roaster's own roasts that makes the next card cheaper (batch size from a 50.4 g sample to the 151.2 g bag
+   included). Thermal dose is one candidate input, kept only if it earns its place. Scoring keeps the defect-based roast quality unchanged and adds a separate
+   1 to 5 flavour score against the importer's flavour map that no rule reads; the importer's own cupping score may be stored as a sourced reference. Open
+   decisions are listed at the end of the plan. See also "Later, not decided", per-profile offset.
 
 ## Waiting on others
 

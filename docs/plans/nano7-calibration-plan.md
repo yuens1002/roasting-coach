@@ -14,8 +14,10 @@ ACs: [nano7-calibration-ACs.md](nano7-calibration-ACs.md)
 
 ## Summary
 
-Build, from this roaster's own Nano 7 roasts, a formula that says what to dial in for a given bean, roast level and batch
-size, and prove it before it is relied on. The aim is the same four things the store sells: a customer picks one of four
+Build, from this roaster's own Nano 7 roasts, the production knowledge for one machine: for every bean the store offers, a **bean
+card** that names the reference profile (a stock profile or an edited curve), the gold-standard level, and the exact step to dial for each of
+the four levels sold; and a formula that makes the card cheap to produce for the next bean. This is production work on a given machine,
+not research: the outputs are cards and a procedure, and the formula exists only to produce them with fewer roasts. The four things the store sells: a customer picks one of four
 roast levels (City 75, City+ 65, Full City 55, Full City+ 45 on the Agtron scale), and each bean has one gold-standard
 level (the one that cups best) used as the reference for quality control of the other three. The formula is a
 data-built production tool for one machine, not a fit of any theory (thermal dose is a candidate input, kept only if it
@@ -56,6 +58,19 @@ at the colour asked for, whose cup matches what the importer says that origin sh
 | G7 | **QC pass** (any production roast at a level) | Good roast, and flavour no more than **N** above the reference's: a level that outscores the gold standard means the reference was wrong and is re-picked, not passed. |
 | G8 | **Formula good** | See "Acceptance thresholds" T6 to T9: it predicts the dial-in of a bean it has not seen, closer than the method in the code today. |
 
+### What good means once this ships (production)
+
+These are the claims the feature makes, each measured before it ships (the ACs say how) and checked again by every production batch after it.
+
+| # | After ship, this is true | Measured by |
+|---|--------------------------|-------------|
+| P1 | **Every bean offered has a bean card**: its reference profile (the stock profile, or the edited curve if an edit beat it, as a profile file name), its gold level, and for each of the four sold levels the level to dial, the step from the gold level, the end temperature, the expected colour and **B**. The card is derived from the records (like the clean-zone report), not typed. | D12 `card`; AC-RUN-15 |
+| P2 | **The card is honest about its basis**: each level says whether it was measured at 151.2 g or translated from 50.4 g, and whether a production batch has confirmed it. | The card; AC-FN-21 |
+| P3 | **Roasting any bean on its reference profile at a card level is a Good roast the first time** (colour within **B** of 75, 65, 55 or 45, and Clean). For a new bean the formula gives a first prediction; the card is what the ladder and one cupping turn it into. | T7, T8; first production batch |
+| P4 | **The step is exact enough to use**: the step from the gold level is quoted at a resolution whose colour effect is at most half of **B** on that profile (T10), and the card states that resolution. | AC-FN-23; AC-RUN-15 |
+| P5 | **The gold standard is the benchmark**: a production roast at any level is checked against the bean's reference roast (G7), and two misses on the same side in a row re-fit that bean's step. | D19; `card` shows production batches read and hits |
+| P6 | **A new bean costs a known number of roasts**: measure, the formula's prediction, a ladder of about 5 roasts at 50.4 g, one cupping, then the first production batch per level confirms. The card records how many it took. | D19; AC-DOC-3 |
+
 ### Acceptance thresholds (*proposed*; the roaster approves or changes each at plan approval)
 
 Thresholds are data in one module (`dialInSpec.ts`), not literals in the functions that use them.
@@ -71,6 +86,9 @@ Thresholds are data in one module (`dialInSpec.ts`), not literals in the functio
 | T7 | Beats the code today | Leave-one-bean-out mean absolute colour error of the new ladder is lower than `levelForAgtron` as it is now, on the same roasts | The change is not shipped |
 | T8 | Held-out bean | At 151.2 g, at least 3 of 4 levels are Good roasts predicted from its measurements before roasting, none misses by more than 2 x **B**, and the flavour is at least **F** at each level offered (4 roasts: a smoke test, not a statistic; T7 carries the statistics) | The formula is not relied on; the report says which part missed |
 | T9 | Profile choice from density and moisture | Ships as code only if it picks the profile that cupped better on every bean compared (3 of 3) and the roaster approves; otherwise the altitude and process rule stays and the density and moisture are kept for a later round (the earlier sample-size estimate: about 14 beans for a strong link) | The finding "no evidence yet" is a valid result |
+| T10 | Step resolution | The step quoted on the card changes the predicted colour by at most B/2 on that profile and level. On the stock profiles' labelled levels (an approximation, not a measurement) 10 Agtron points are only 0.3 to 0.5 level apart at the light end and 0.9 to 1.7 in the middle, so one fixed step in level numbers (such as 0.5) is wider than the whole 75 to 65 gap on most profiles; the card quotes level to the machine's 0.1 grid and the end temperature, and says the resolution it holds | A level or two cannot be told apart on that profile: the card says "not resolvable at this spacing" instead of a step |
+| T11 | Gold level by default | A default gold level (by process or density) ships only if it matches the cupped gold level for at least 7 of 8 calibration beans, or is within one adjacent level on all of them; otherwise gold is found per bean by one cupping (the ladder's four roasts) | The procedure keeps one cupping per new bean; the finding "gold varies by bean" is a result |
+| T12 | Edited curve as reference | An edited curve replaces the unedited profile for a bean only if both edited repeats are Good roasts, the edited flavour beats the unedited gold roast's by more than **N**, and all four levels stay reachable | The unedited profile stays and the edit is recorded as tried |
 
 ## Approach
 
@@ -80,12 +98,23 @@ The four formulas, and how each is decided:
    Stage 0 measures density and moisture of every bean; Stage 2c roasts the reference level on a second candidate profile for three
    beans and cups both. T9 decides whether density and moisture add anything. Expected honest outcome with 9 beans: a recorded
    hypothesis, not a rule. The plan does not assume otherwise.
-2. **How to change the profile to reach the gold standard.** Read as: the level (and, where the data show it, the batch-size
-   correction) on the chosen stock profile that lands each target colour. Choosing a curve edit to lift the flavour score is
-   out of scope (no rule chooses a curve change; `profile:edit` stays roaster-directed). See open decision 3.
+2. **The reference profile, edited or not.** The reference profile of a bean is the profile its gold roast is made on. Steps:
+   (R1) start on the profile today's rule picks (or the T9 rule if it shipped) and roast the four-level ladder at 50.4 g; (R2) cup, pick the gold
+   level (G5); (R3) the unedited profile is the reference when its gold roast is a Good roast, its flavour is at least **F**, all four sold
+   levels are reachable on it (the KL profiles, for instance, name no level as dark as 55 or 45, so a bean on one starts on an altitude profile
+   instead, as the code already does), and the roaster does not ask for an edit; (R4) otherwise the roaster chooses one edit with `profile:edit`
+   (slope after first crack, `reach` retime or `through`), the tool previews it at the thermal dose held within 3%, writes it (never overwriting)
+   and records it as a version with the unedited one as its parent and the reason; (R5) load the file in Studio and compare with its base before
+   roasting; (R6) roast the edit twice at the level whose predicted thermal dose matches the gold roast's, plus the unedited gold roast again the
+   same day, all at 50.4 g, and cup the three blind; (R7) T12 decides whether the edit becomes the reference; (R8) if it does, the ladder is
+   roasted again on the edited profile (the edit moves the colour-to-level map) and gold is re-picked; (R9) the card is issued. At most 3 edits are
+   tried per bean. The tool never chooses the direction of an edit (no evidence yet, a decision already made); it applies the T12 rule to whichever
+   edit the roaster made and records every edit, adopted or not, as an experiment. An edited curve has never been roasted on this machine,
+   which is why Stage 5 proves the procedure on two beans before it is promised for all.
 3. **The 4-level ladder per bean and the 50 g to 151.2 g translation.** Per bean, find the level of each of the four colour
    targets at 50.4 g (about 5 roasts); translate to the full batch with a step fitted from Stages 1 to 3 (shared across beans if T6
-   holds, per bean if not); confirm by the first production roast at each level.
+   holds, per bean if not); confirm by the first production roast at each level. The card quotes each level's step from the gold level at the
+   resolution T10 allows (the machine's 0.1 grid, with the end temperature), not a fixed half-level.
 4. **What to do per bean in production** (`docs/bean-onboarding.md`): measure, read the formula's prediction, roast the ladder at
    50.4 g, cup after 1 day, pick the gold level (G5), then the first production batch at each level is read and, if outside **B**, corrected
    once by the measured error and recorded.
@@ -101,9 +130,9 @@ their own. Shipped defaults stay the approximation already in `levelForAgtron`. 
 | Step | Deliverables | Why here |
 |------|--------------|----------|
 | 1 | D1, D2, D3, D4 | Nothing can be recorded until the flavour score, bean measurements and importer reference have a place to go; no beans needed. |
-| 2 | D5, D6, D7, D8, D9, D10, D11 | The pure functions can be written and proven on synthetic data before a single calibration roast; the runs then use them. |
+| 2 | D5, D6, D7, D8, D9, D10, D11, D21 | The pure functions can be written and proven on synthetic data before a single calibration roast; the runs then use them. |
 | 3 | D12, D13 | The report and the completeness check turn raw roasts into the stage results and tell whether each stage was actually carried out. |
-| 4 | D14, D15 | The runs. Needs Steps 1 to 3 and the beans. The held-out validation needs the frozen prediction from D14's data. |
+| 4 | D14, D15, D22 | The runs. Needs Steps 1 to 3 and the beans. The held-out validation needs the frozen prediction from D14's data; the edit trial needs a gold roast and the larger lots. |
 | 5 | D16, D17, D18, D19, D20 | Ship only what Step 4 passed: the formula in the code path, the rulebook, an end-to-end scenario, the per-bean recipe, and the glue docs. |
 
 ### Step 1: Capture
@@ -123,13 +152,14 @@ their own. Shipped defaults stay the approximation already in `levelForAgtron`. 
 
 | ID | Deliverable | Kind | Owning role |
 |----|-------------|------|-------------|
-| D5 | `src/core/dialInSpec.ts` — T1 to T9 values and the four targets as data | resolver | `/backend-architect` |
+| D5 | `src/core/dialInSpec.ts` — T1 to T12 values and the four targets as data | resolver | `/backend-architect` |
 | D6 | `src/core/cuppingStats.ts` — mean flavour per roast, scoring noise from repeat roasts, whether two levels are apart by more than **N** | resolver | `/backend-architect` |
 | D7 | `src/core/referenceRoast.ts` — `pickReference` (G5) and `checkLevel` (G7), with plain-words reasons | resolver | `/backend-architect` |
 | D8 | `src/adapters/kaffelogic/batchTranslation.ts` — fit a level or end-temperature step between batch sizes from roast pairs; translate a level from one size to another; says when it has too few pairs | resolver | `/backend-architect` |
-| D9 | `src/adapters/kaffelogic/colourLadder.ts` — the four levels, end temperatures and expected colour for a profile and batch size, from readings of the same size, or from another size through D8; extends `levelForAgtron` without changing its no-batch behaviour | resolver | `/backend-architect` |
-| D10 | `test/dialInCore.test.ts` — invariants of D5 to D7 | test | `/test-engineer` |
+| D9 | `src/adapters/kaffelogic/colourLadder.ts` — the four levels, end temperatures and expected colour for a profile and batch size, from readings of the same size, or from another size through D8; extends `levelForAgtron` without changing its no-batch behaviour; also returns the step resolution (T10) | resolver | `/backend-architect` |
+| D10 | `test/dialInCore.test.ts` — invariants of D5 to D7 and D21 | test | `/test-engineer` |
 | D11 | `test/dialInAdapter.test.ts` — invariants of D8 and D9, plus a real-file replay that skips when the files are absent | test | `/test-engineer` |
+| D21 | `src/core/referenceProfile.ts` — `chooseReferenceProfile`: given the unedited gold roast and one or more edited repeats, applies T12 and says in plain words whether the edit is adopted, kept as tried, or why the evidence is not enough (no edit is chosen here) | resolver | `/backend-architect` |
 
 ### Step 3: Report and check
 
@@ -137,21 +167,22 @@ their own. Shipped defaults stay the approximation already in `levelForAgtron`. 
 
 | ID | Deliverable | Kind | Owning role |
 |----|-------------|------|-------------|
-| D12 | `scripts/dialin.ts` and `npm run dialin:*` — `report` (consistency, meter repeatability, scoring noise, ladders, translation, leave-one-bean-out against the code today), `check <stage>` (every planned roast, reading and cupping is present, and the stage's gate is met), `predict` (writes a time-stamped prediction before a held-out roast), `bean` (what to roast next for a bean) | job | `/backend-architect` |
+| D12 | `scripts/dialin.ts` and `npm run dialin:*` — `report` (consistency, meter repeatability, scoring noise, ladders, translation, leave-one-bean-out against the code today), `check <stage>` (every planned roast, reading and cupping is present, and the stage's gate is met), `predict` (writes a time-stamped prediction before a held-out roast), `bean` (what to roast next for a bean), `card` (the bean card, P1 and P2: derived from the records, writes nothing) | job | `/backend-architect` |
 | D13 | `test/dialInReport.test.ts` — the report and the check on synthetic data with known answers | test | `/test-engineer` |
 
 ### Step 4: The runs
 
-**Depends on:** Steps 1 to 3; the beans arriving (see the schedule); the roaster's colour meter and moisture and density measurements.
+**Depends on:** Steps 1 to 3; the beans arriving (see the schedule); the roaster's colour meter and moisture and density measurements; for D22, the larger lots on order.
 
 | ID | Deliverable | Kind | Owning role |
 |----|-------------|------|-------------|
 | D14 | `docs/calibration-results.md` — Stages 0 to 3 as derived numbers (no bean, lot or log names): meter repeatability, machine spread and **B**, scoring noise **N**, ladders and the translation per T6, leave-one-bean-out per T7, and the profile comparison for T9 | doc | `/test-engineer` |
-| D15 | `docs/calibration-results.md`, Stage 4 section — the prediction made before the held-out roasts, the four full-size roasts, T8 and T9 outcomes, and what the data do not show | doc | `/test-engineer` |
+| D15 | `docs/calibration-results.md`, Stage 4 section — the prediction made before the held-out roasts, the four full-size roasts, T8 and T9 outcomes, the bean cards of all nine beans, and what the data do not show | doc | `/test-engineer` |
+| D22 | `docs/calibration-results.md`, Stage 5 section — the reference-profile edit trial on two beans (R4 to R8): the edit, its predicted thermal dose held, whether Studio and the machine took the file, the T12 outcome | doc | `/test-engineer` |
 
 ### Step 5: Ship
 
-**Depends on:** D14 and D15 meeting T6 to T8 (otherwise only D19 and D20 ship, as a plan of what failed).
+**Depends on:** D14 and D15 meeting T6 to T8 (otherwise only D19 and D20 ship, as a plan of what failed). D22 is not a ship gate: an edit that fails T12 leaves the unedited profile as the reference, and the card says so.
 
 | ID | Deliverable | Kind | Owning role |
 |----|-------------|------|-------------|
@@ -167,7 +198,7 @@ their own. Shipped defaults stay the approximation already in `levelForAgtron`. 
 |------|---------|
 | `docs/calibration-protocol.md`, `docs/calibration-results.md`, `docs/bean-onboarding.md` | The protocol, the derived-number results, the per-bean recipe |
 | `db/011_bean_measurements_and_flavour.sql` | Storage for measurements, flavour and the importer reference |
-| `src/core/dialInSpec.ts`, `cuppingStats.ts`, `referenceRoast.ts` | Thresholds as data; scoring statistics; reference pick and QC |
+| `src/core/dialInSpec.ts`, `cuppingStats.ts`, `referenceRoast.ts`, `referenceProfile.ts` | Thresholds as data; scoring statistics; reference pick and QC; the rule for an edited reference profile |
 | `src/adapters/kaffelogic/batchTranslation.ts`, `colourLadder.ts`, `dialIn.ts` | The Nano 7 formula |
 | `scripts/dialin.ts` | Report, check, predict, bean |
 | `test/flavour.test.ts`, `dialInCore.test.ts`, `dialInAdapter.test.ts`, `dialInReport.test.ts`, `dialIn.test.ts` | The tests |
@@ -210,8 +241,10 @@ and at least three altitude bands, so the nine are not one kind of bean (the T9 
 | 3 reference level at 151.2 g, 8 beans | 8 | 1,209.6 g |
 | 3b four levels at 151.2 g on 2 beans (3 extra each) | 6 | 907.2 g |
 | 4 held-out, 4 x 151.2 g | 4 | 604.8 g |
+| 5 reference-profile edit trial: 2 beans x (2 edited + 1 unedited repeat) at 50.4 g | 6 | 302.4 g |
+| 5 if an edit is adopted: the ladder again, 5 x 50.4 g per bean (at most 2 beans) | up to 10 | up to 504.0 g |
 | Re-roasts for a failed level (contingency, about 10%) | about 7 | about 350 g |
-| **Total** | **about 77** | **about 6.0 kg** |
+| **Total** | **about 83, at most 93** | **about 6.3 kg, at most 6.8 kg** |
 
 ### Day plan
 
@@ -234,10 +267,14 @@ Day 0 is the day the lots on order first arrive. Dates are fixed then; days are 
 | 18 to 20 | Stage 3b (needs the larger lots): 3 extra levels at 151.2 g on each of two beans | Colour readings; cup | |
 | 21 | none | `dialin:predict` for B9: profile, four levels, expected colour, **B**; frozen | |
 | 22 | Stage 4: B9, 4 x 151.2 g | Colour readings | |
-| 23 | none | Cup B9; `dialin:report`: T8, T9, final results | **Ship or not** (Step 5) |
+| 23 | none | Cup B9; `dialin:report`: T8, T9, T10, T11, the bean cards | **Ship or not** (Step 5) |
+| 24 | Stage 5 (needs the larger lots): load check of the edited file in Studio; then for bean E1, 2 edited roasts and the unedited gold roast again (50.4 g) | Colour readings | The file loads and shows the curve it was drawn as, or the trial stops |
+| 25 | Stage 5 for bean E2, the same | Cup E1 blind (3 roasts); colour readings | |
+| 26 | If an edit is adopted: its ladder, 5 roasts | Cup E2 blind; `chooseReferenceProfile` | T12 recorded |
+| 27 | If the second edit is adopted: its ladder, 5 roasts | Cup the first ladder | Bean cards reissued |
 
-About 5 to 6 weeks at 4 to 5 days a week. Stage 3b waits for the larger lots on order, which have no arrival date yet; every other stage
-can run on the 5 lb-or-smaller lots, so a late delivery delays only that stage and B9 if B9 is one of those lots.
+About 6 to 7 weeks at 4 to 5 days a week. Stage 3b and Stage 5 wait for the larger lots on order, which have no arrival date yet (Stage 5 beans need about 800 g
+more than a pound-only bean has left); every other stage can run on the lots arriving first, so a late delivery delays only those stages and B9 if B9 is one of those lots.
 
 ### Cupping procedure (every session)
 
@@ -262,7 +299,9 @@ practice, recorded in the QC column).
 | `pickReference` | Only Good roasts are eligible; the result is the same for any permutation of the input; a gap under **N** gives "tie", never a silent pick; no Good roast gives "none" with the reason; `basis` is `roaster` only when set by the roaster |
 | `checkLevel` | Each failing reason (colour outside **B**, a defect, flavour under **F**, flavour more than **N** above the reference) is reported on its own and all together; a pass has no reasons |
 | `batchTranslation` | Translating from a size to the same size is the identity; a round trip a to b to a returns the level within the 0.1 grid; with fewer pairs than the minimum it returns "not enough", not a guess; fitted on synthetic roasts built from a known step plus noise, it recovers the step within the noise-implied tolerance |
-| `colourLadder` | Four levels, strictly increasing end temperature as the target gets darker; all within the profile's ladder, or flagged `reach`; with no batch size it equals `levelForAgtron` for the same inputs (no regression); readings of another size are used only through the translation |
+| `colourLadder` | Four levels, strictly increasing end temperature as the target gets darker; all within the profile's ladder, or flagged `reach`; with no batch size it equals `levelForAgtron` for the same inputs (no regression); readings of another size are used only through the translation; the returned resolution times the local colour slope is at most B/2, and a spacing it cannot resolve is reported as such (T10) |
+| `chooseReferenceProfile` | Adopts an edit only when every T12 condition holds, and each failing condition is reported on its own; the same answer for any order of repeats; with fewer than two edited repeats it says the evidence is not enough, never adopts; it never produces an edit, only judges one |
+| `card` | Derived only from the records: the same records give the same card; every level states its basis (measured at 151.2 g, translated, or confirmed by a production batch); a bean with no gold level yet gets a card that says what is missing |
 | `dialIn` | A bean with measurements and no readings degrades to today's answer and says so; the profile is today's pick unless the T9 rule exists; every answer carries **B** and its basis |
 | `dialin` report | On synthetic data from a known model: reports the true spread, picks the known gold level, ranks the new ladder against the baseline correctly, and `check` fails when a planned roast, reading or cupping is missing |
 | Real-file replay | Leave-one-bean-out over the roaster's own roasts: the T7 comparison reproduces the report's number (skips when the files are absent) |
@@ -273,7 +312,7 @@ seen. Those are T3, T6, T7, T8, measured, not asserted.
 
 ## Acceptance Criteria
 
-See [nano7-calibration-ACs.md](nano7-calibration-ACs.md). Rows are grouped by the same `Step N` headings; each carries a Plan ref (D1 to D20, or
+See [nano7-calibration-ACs.md](nano7-calibration-ACs.md). Rows are grouped by the same `Step N` headings; each carries a Plan ref (D1 to D22, or
 `cross-cutting`) and an owning role. Status is derived there, not here.
 
 ## Commit Schedule
@@ -297,20 +336,23 @@ Each step is its own PR; nothing goes to main directly.
 
 ## Out of Scope
 
-- A rule that chooses a curve change, or a flavour-driven curve edit (stays roaster-directed).
+- A rule that chooses the direction of a curve edit (no evidence yet; the roaster makes the edit, the tool judges it by T12). Curve edits themselves are in scope, as the reference-profile procedure.
 - Sharing or shipping the roaster's fitted coefficients, and any other machine (Kaleido M1).
 - SCA scoring by the roaster; any liking or preference score.
 - Reading raw curves with a model.
 - Changing existing advice rules for a defect (`rules.ts` steps), except the colour placement in D16/D17.
+- Research findings for their own sake: the outputs are the cards, the procedure and the formula that makes the next card cheaper.
 - A web UI or interactive prompts (the interface stays a Claude Code session).
 
 ## Open decisions (for discussion)
 
-1. **Thresholds T1 to T9** and the schedule above are proposed; approve or change.
+1. **Thresholds T1 to T12** and the schedule above are proposed; approve or change.
 2. **Profile family.** The Rest profiles want 3 to 5 days before brewing; the cupping is after 1 day. Calibrate on the RTD profiles (the plan's default), or cup Rest profiles on their rest day?
-3. **"Change the profile to reach the gold standard"** is read as the level and batch correction on a stock profile. If a curve edit is meant, it is a separate experiment (an edited-profile roast has never been made) and cannot be validated in this plan.
+3. **Resolved 2026-10-30:** the reference profile is "edited or not", so curve edits are in scope as a procedure (approach item 2, Stage 5, T12). Which edit to try on the two Stage 5 beans is the roaster's choice at that point.
 4. **Sample size.** The store offers an 80 g green sample and a 151.2 g bag. If samples are roasted at 80 g, 80 g needs its own check (2 beans, reference level); if they are cut from a larger roast, nothing changes.
 5. **Fit per roaster, ship the procedure.** The coefficients are fitted from each roaster's data, not shipped; defaults stay the approximation. Agree, or ship this machine's numbers as labelled defaults.
 6. **Equipment.** The colour meter model and sample mass (a 43 g roast may not leave enough), moisture and density measurement method.
 7. **Importer reference.** Store the importer's cupping score per lot in this tool, or only in the store/platform data (the source of truth for lots).
 8. **Held-out choice.** The rule picks B9 from beans that have 605 g or more; with the current stock that is two or three beans. Accept the rule, or buy one more pound so the choice is wider.
+9. **Step resolution.** "Exact step (such as 0.5)" cannot be one fixed level step: on the stock profiles' labelled levels (approximation) 10 Agtron points are 0.3 to 0.5 level apart at the light end and up to 1.7 in the middle, so half a level is wider than the whole 75 to 65 gap on most profiles. The plan quotes each level on the 0.1 grid with its end temperature, and states the resolution (T10). Agree, or say what 0.5 should mean (for example, the unit the roaster dials in at the machine).
+10. **Gold by default.** If gold turns out the same for most beans (T11), a default gold would save the cupping for a new bean. The plan keeps one cupping per new bean unless the data say otherwise.
