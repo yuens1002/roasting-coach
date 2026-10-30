@@ -5,6 +5,10 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.6.6] - 2026-10-30
+
+- 2026-10-30 - docs(roadmap): plan the calibration of the Nano 7 from measured roasts (consistency, four-level ladders, 50 g to full-batch translation, scoring)
+
 ## [0.6.5] - 2026-10-29
 
 - 2026-10-29 - fix(rules): say the tool draws an edited curve the roaster describes, instead of that it can't edit or make one yet
