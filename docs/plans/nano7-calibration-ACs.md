@@ -45,7 +45,7 @@ A check that cannot fail is not a check: each `AC-TST` row's QC cell records whi
 | [1](#step-1-capture) | [D1, D2, D3, D4](nano7-calibration-plan.md#step-1-capture) | 0 of 7 criteria carry a verdict |
 | [2](#step-2-pure-functions) | [D5, D6, D7, D8, D9, D10, D11, D21](nano7-calibration-plan.md#step-2-pure-functions) | 0 of 16 criteria carry a verdict |
 | [3](#step-3-report-and-check) | [D12, D13](nano7-calibration-plan.md#step-3-report-and-check) | 0 of 6 criteria carry a verdict |
-| [4](#step-4-the-runs) | [D14, D15, D22](nano7-calibration-plan.md#step-4-the-runs) | 0 of 16 criteria carry a verdict |
+| [4](#step-4-the-runs) | [D14, D15, D22](nano7-calibration-plan.md#step-4-the-runs) | 0 of 17 criteria carry a verdict |
 | [5](#step-5-ship) | [D16, D17, D18, D19, D20](nano7-calibration-plan.md#step-5-ship) | 0 of 9 criteria carry a verdict |
 
 ---
@@ -119,6 +119,7 @@ Builds D14, D15, D22, defined in [the plan](nano7-calibration-plan.md#step-4-the
 | AC-RUN-11 | D14 | `/test-engineer` | The results document | Code review: `docs/calibration-results.md` | Each of T1 to T12 has its measured value, PASS or FAIL and the date; derived numbers only, with beans as slots; a failed gate is written as a result, not removed | | | |
 | AC-RUN-12 | D15 | `/test-engineer` | Stage 4: held-out bean | `npm run dialin:check 4` | The prediction (profile, four levels, expected colours, **B**) is time-stamped before the first of the 4 roasts at 151.2 g; T8 is evaluated exactly as defined, including each miss; the roasts are cupped and G6 applied | | | |
 | AC-RUN-13 | D15 | `/test-engineer` | What the data do not show | Code review: the Stage 4 section | States the limits plainly: one held-out bean and four roasts are a smoke test; a single taster; one machine; the profile families and altitude bands not covered; T9's sample size | | | |
+| AC-RUN-17 | D14 | `/test-engineer` | Stage 3c: the sample matches the bag (T13) | `npm run dialin:check 3c`; `npm run dialin:report` | For each of two beans, a 50.4 g and a 151.2 g roast of the reference level on one day at the card's settings, each with a colour reading and a blind 3-cup flavour score and quality, cupped together; the colour difference and the flavour difference are reported against **B** and **N**; a miss is recorded with its size and the card's sample line says the sample is not representative until fixed | | | |
 | AC-RUN-14 | D14 | `/test-engineer` | Gold level by default (T11) | `npm run dialin:report` | The table of each bean's cupped gold level against its measurements (process, altitude, density, moisture) is in the results; T11 is evaluated as defined; the outcome (a default gold, or one cupping per new bean) is recorded with the numbers it rests on | | | |
 | AC-RUN-15 | D15 | `/test-engineer` | Bean cards for all nine beans | `npm run dialin:card` for each slot | Each of the nine has a card with every field of P1 and the basis of P2; the cards for the three beans measured at 151.2 g on all four levels say so, the others show translated levels as translated; each level's resolution meets T10 or says it is not resolvable | | | |
 | AC-RUN-16 | D22 | `/test-engineer` | Stage 5: the reference-profile edit trial | `npm run dialin:check 5` | Two beans each have the edited file loaded in Studio and compared with its base, 2 edited roasts and the unedited gold roast again on one day at 50.4 g, all cupped blind; `chooseReferenceProfile` is run on them and its answer recorded; an adopted edit has its ladder and a re-picked gold; a refused edit is recorded as tried with the failing condition; whether the machine followed the edited curve is stated (tracking against the requested curve, as in the earlier protocol) | | | |
@@ -155,7 +156,7 @@ Builds D16, D17, D18, D19, D20, defined in [the plan](nano7-calibration-plan.md#
 
 This repo has no coverage validator. The check is: list the `D<n>` ids that open a row of the plan's deliverables tables, list the `AC-*` rows
 here with their Plan ref and Role, and confirm every deliverable appears as some AC's Plan ref, every Plan ref is a listed deliverable or `cross-cutting`, no
-Role is empty or a dash, and no AC id repeats. Run when this document was written: 22 deliverables, 59 ACs, none uncovered, none orphaned, no duplicate ids.
+Role is empty or a dash, and no AC id repeats. Run when this document was written: 22 deliverables, 60 ACs, none uncovered, none orphaned, no duplicate ids.
 Re-run it after any change to either document (AC-COV-1).
 
 ## Agent Notes
