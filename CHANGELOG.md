@@ -7,7 +7,7 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [0.6.6] - 2026-10-30
 
-- 2026-10-30 - docs(roadmap): plan the calibration of the Nano 7 from measured roasts (consistency, four-level ladders, 50 g to full-batch translation, scoring)
+- 2026-10-30 - docs(roadmap): plan the calibration of the Nano 7 from measured roasts, with a formal plan and acceptance criteria (what good means, bean and tasting schedule, test strategy)
 
 ## [0.6.5] - 2026-10-29
 

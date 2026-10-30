@@ -493,7 +493,9 @@ Order is a suggestion; the roaster picks.
    body (a version keeps its stock base through edits, so the base alone cannot say), so an edited curve and the stock one differ. `bean:add` stores the bean first so the file can carry its number; `profile:write` takes no name. Profiles already
    written were renamed to match (one: Kron Nang's v1, now `VIET-002-1r1`). Not built: the clean-zone report and the roadmap do not
    use the names; revisions only differ once an edited curve is stored or a bean switches stock profile.
-6. **Calibrating the Nano 7 from measured roasts** (planned 2026-10-30, nothing built or run). The aim is a production
+6. **Calibrating the Nano 7 from measured roasts** (planned 2026-10-30, nothing built or run; the formal plan, deliverables
+   and acceptance criteria are in [plans/nano7-calibration-plan.md](plans/nano7-calibration-plan.md) and
+   [plans/nano7-calibration-ACs.md](plans/nano7-calibration-ACs.md), awaiting the roaster's approval of its proposed thresholds). The aim is a production
    formula for one machine, built from its own roasts and tweaked by them, not a fit of any theory: given a bean's
    measurements, the roast level a customer picked and the batch size, it says what to dial in, and the roast lands on target and
    has no roast defect. Thermal dose is one candidate input among others, kept only if it earns its place. The formula belongs
