@@ -1,6 +1,6 @@
 // The dev station: try the current build against a throwaway database and a fresh session, whenever a rule,
 // message or form changes. It never touches the app's own database (roast_copilot) and writes nothing to the
-// roaster's folders; `start` only reads the profile files in profiles/.
+// roaster's folders; `start` only reads the profile files in the library (KAFFELOGIC_DIR).
 //
 //   npm run station            empty the station and start Claude Code on it, with a new user's data (run it in its own terminal)
 //   npm run station:new-bean | station:follow-up | station:three-changes
@@ -14,11 +14,12 @@
 // same server; its scratch folders are under the system temp folder. The replay uses made-up logs only; `start` copies
 // the roaster's own stock profiles in and nothing else.
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import pg from "pg";
 import { DATABASE_URL } from "./db.js";
 import { ROOT } from "./env.js";
+import { KAFFELOGIC_DIR } from "./library.js";
 import type { OutcomeId } from "../src/core/rules.js";
 import { migrate } from "./migrate.js";
 import {
@@ -32,6 +33,7 @@ import {
   assertStationOwnsDatabase,
   assertStationOwnsDir,
   assertStationUrl,
+  isStockProfile,
   maintenanceUrl,
   stationEnv,
   stationLog,
@@ -653,17 +655,17 @@ async function replay(): Promise<void> {
 }
 
 /**
- * Copies the roaster's profile files (the .kpro files at any depth in profiles/, as the library finds them, except the
- * generated out/ and logs/ folders) into the station's library with their relative paths, so a new bean finds its
- * starting profile as it would on a fresh install. Reads profiles/, never writes it.
+ * Copies the roaster's profile files (the .kpro files at any depth in the library, KAFFELOGIC_DIR, except the generated out/ and
+ * logs/ folders, files with no profile in them and curves roasting-coach drew) into the station's library with their relative
+ * paths, so a new bean finds its starting profile as it would on a fresh install. Reads the library, never writes it.
  */
 function copyStockProfiles(): number {
-  const source = join(ROOT, "profiles");
+  const source = KAFFELOGIC_DIR;
   if (!existsSync(source)) return 0;
   const library = join(STATION_DIR, STATION_SUBDIRS.library);
   // statSync follows a symlink, so a symlinked profile counts and a folder named like a profile does not.
   const stock = (readdirSync(source, { recursive: true, encoding: "utf8" }) as string[]).filter(
-    (file) => /\.kpro$/i.test(file) && !/^(out|logs)[\\/]/i.test(file) && statSync(join(source, file)).isFile(),
+    (file) => /\.kpro$/i.test(file) && !/^(out|logs)[\\/]/i.test(file) && statSync(join(source, file)).isFile() && isStockProfile(readFileSync(join(source, file), "utf8")),
   );
   for (const file of stock) {
     const target = join(library, file);
@@ -683,7 +685,7 @@ function showCli(args: string[]): void {
 
 /**
  * `npm run station`: starts Claude Code on a station holding what a new user would start with. The station is emptied
- * (an empty database, the profile files from profiles/ in the library, no made-up logs and no prompt) and `claude` is
+ * (an empty database, the profile files from the library, no made-up logs and no prompt) and `claude` is
  * started with the station's database and folders set for it, so nothing has to be typed or pasted. When Claude Code
  * exits, what it recorded is listed. Only the station's data is a new user's: the session itself still loads the
  * person's own Claude Code settings and this repository's local notes.
@@ -695,8 +697,8 @@ async function start(scenario?: Scenario): Promise<void> {
   }
   await reset();
   const copied = copyStockProfiles();
-  console.log(`Station ready: an empty database (${STATION_DB}) and ${copied} profile files copied from profiles/ (profiles/ itself is not changed).`);
-  if (copied === 0) console.log("No profile files found in profiles/, so a new bean gets a warning instead of a profile file.");
+  console.log(`Station ready: an empty database (${STATION_DB}) and ${copied} profile files copied from the library (${KAFFELOGIC_DIR}, which is not changed).`);
+  if (copied === 0) console.log(`No profile files found in ${KAFFELOGIC_DIR}, so a new bean gets a warning instead of a profile file.`);
   if (scenario) {
     const state: State = { beanId: 0, flatBeanId: 0, level: 0 };
     scenario.setup(state);

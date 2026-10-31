@@ -152,21 +152,24 @@ describe.skipIf(!pairs.length)("the profile curve predicts a real roast's therma
 const ROBUSTA_FILES = PRIVATE_PROFILES.filter((p) => headerValue(p.text, "profile_short_name")?.trim() === "Robusta");
 const ROBUSTA_UNAMBIGUOUS = new Set(ROBUSTA_FILES.map((p) => headerValue(p.text, "profile_modified")?.trim())).size === 1;
 
+// A skipped block still runs its body to collect its tests, so the file is read inside the tests, which run only when there is one.
 describe.skipIf(!ROBUSTA_UNAMBIGUOUS)("level steps on the real Robusta profile", () => {
-  const file = ROBUSTA_FILES[0];
-  const robusta = parseKpro(file.text);
+  const stock = () => ROBUSTA_FILES[0];
 
   it("is the stock Robusta profile, so the numbers below mean what they say", () => {
-    expect(robusta.roastLevels, file.file).toEqual(STOCK_PROFILES.Robusta.roastLevels);
+    expect(parseKpro(stock().text).roastLevels, stock().file).toEqual(STOCK_PROFILES.Robusta.roastLevels);
   });
 
   it("are uneven: 2.6 to 3.0 adds far more than 3.0 to 3.4", () => {
+    const robusta = parseKpro(stock().text);
     const d = (l: number) => profileThermalDoseAtLevel(robusta, l)!.thermalDose;
     expect(d(3.0) / d(2.6) - 1).toBeGreaterThan(0.1);
     expect(d(3.4) / d(3.0) - 1).toBeLessThan(0.05);
   });
 
   it("take 15% off level 3.0 at level 2.5", () => {
+    const file = stock();
+    const robusta = parseKpro(file.text);
     const from = profileThermalDoseAtLevel(robusta, 3);
     expect(from, "the profile reaches level 3").toBeDefined();
     const target = from!.thermalDose * 0.85;

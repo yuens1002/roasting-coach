@@ -43,7 +43,7 @@ rather than shell redirection, and don't assume LF line endings.
 
 `npm test` checks the parts. The station tries the whole build the way a roaster does, against a
 throwaway database (`roast_station` on the same Docker server) and scratch folders in the system temp
-folder, so your own database is never touched and nothing is written to `profiles/`. It needs `npm run db:up`.
+folder, so your own database is never touched and nothing is written to your `KAFFELOGIC_DIR` folder. It needs `npm run db:up`.
 
 ```
 npm run station          # empty the station and start Claude Code on it, with a new user's data
@@ -59,8 +59,8 @@ npm run station:reset    # empty the station and nothing else
 database and folders already set, so nothing is typed or pasted. Run it in a terminal of its own, not from inside a
 Claude Code session (it refuses). Say "Use /roast, I have a new bean" and bring your own log paths. When you exit, it
 lists what was recorded and the `/roast` skill's rules to read the session against. It copies the profile files in
-`profiles/` into the scratch folder (a copy in the system temp folder, never committed; `profiles/` is only read);
-there are no made-up logs and no prompt. Only the station's data is a new user's: the session still loads your own
+`KAFFELOGIC_DIR` into the scratch folder (a copy in the system temp folder, never committed; `KAFFELOGIC_DIR` is only read;
+profiles roasting-coach drew a curve for are left out); there are no made-up logs and no prompt. Only the station's data is a new user's: the session still loads your own
 Claude Code settings and this repository's local notes, so it can behave better than a first-day user's would.
 
 A scenario (`station:new-bean`, `station:follow-up`, `station:three-changes`) does the same, but first records the
