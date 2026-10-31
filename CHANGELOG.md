@@ -5,6 +5,21 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.6.6] - 2026-10-31
+
+- 2026-10-31 - feat(rules): offer the colour a clean cup read as the new target, accept a density up to 1300 g/L, and let a worktree read the main checkout's .env
+
+### Changed
+
+- **`keep-as-is` also speaks to colour.** A cup rated 4 or more with no roast defect, whose roast read 10 or more Agtron points from the
+  colour shot for, says how far off it read and offers the colour it read as the new one (`onYes` is a `bean:update`). The advice itself
+  is unchanged: no new version, and the colour shot for still only picks the first level to try.
+- **Density accepts 550 to 1300 g/L** (it was 550 to 850), read with the roaster's own instrument and the same one for every bean, so
+  beans compare. Migration `db/011` replaces the database's range check; stored values are inside the new range and are not changed.
+  Run `npm run db:migrate` after updating.
+- **A git worktree with no `.env` of its own reads the one in the checkout it was made from**, so its scripts and real-file tests find
+  `KAFFELOGIC_DIR`.
+
 ## [0.6.5] - 2026-10-29
 
 - 2026-10-29 - fix(rules): say the tool draws an edited curve the roaster describes, instead of that it can't edit or make one yet

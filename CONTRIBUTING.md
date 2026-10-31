@@ -11,8 +11,7 @@ By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 - **Never commit Kaffelogic files** (`*.kpro`, `*.klog`), in any form: not as fixtures, not
   pasted into tests, docs or issues. We found no licence for them and Kaffelogic's terms forbid
   reproduction. Only profile names and numbers derived from them (facts) live in the code. Real
-  files go in `fixtures/private/` or `profiles/`, both git-ignored, or in the folder `KAFFELOGIC_DIR`
-  names; tests that need them pick them by content and skip when they're absent. A roaster's own
+  files stay in the folder `KAFFELOGIC_DIR` names, or in `fixtures/private/` (git-ignored); tests that need them pick them by content and skip when they're absent. A roaster's own
   folder holds roasts of every length and several firmware versions, so a test over real files
   states which files it applies to (finished roasts, keys that differ between firmware
   versions excused) rather than assuming all of them.
