@@ -338,6 +338,44 @@ describe("the finished answer", () => {
     expect(clean.onYes).toBeUndefined();
     expect(clean.say).toContain("Keep this roast as it is. No new version is needed.");
   });
+  describe("a clean cup far from the colour shot for", () => {
+    const withTarget = (t: Partial<TastedRoast>, context: AdviceContext = { agtronTarget: 75 }) => adviceReport(2, { basedOn, advice: advise({ ...input(t), context }) }, undefined);
+    const best = { taste: ["sweet"], quality: 5 };
+
+    it("says how far off the colour was and offers the colour it read as the new one to shoot for", () => {
+      const r = withTarget({ ...best, colour: 53 });
+      expect(r.say).toBe("The cup tasted sweet and the roast quality is 5 (clean, expressive, balanced and sweet). It read Agtron 53, 22 points darker than the Agtron 75 you are shooting for, and the cup is clean at that colour. Keep this roast as it is. No new version is needed. Shall I set the colour you are shooting for to Agtron 53?");
+      expect(r.onYes).toEqual({ command: "bean:update", input: { beanId: 2, answers: { agtronTarget: 53 } } });
+    });
+    it("says lighter when the roast read lighter than the colour shot for", () => {
+      expect(withTarget({ ...best, colour: 85 }, { agtronTarget: 60 }).say).toContain("It read Agtron 85, 25 points lighter than the Agtron 60 you are shooting for");
+    });
+    it("speaks from one band of the scale up, not below it", () => {
+      expect(withTarget({ ...best, colour: 65 }).onYes).toBeDefined();
+      expect(withTarget({ ...best, colour: 66 })).toEqual({ say: "The cup tasted sweet and the roast quality is 5 (clean, expressive, balanced and sweet). Keep this roast as it is. No new version is needed." });
+    });
+    it("leaves a clean cup rated below 4 alone: only the best cup says the colour is right", () => {
+      const r = withTarget({ taste: ["flat"], quality: 3, colour: 53 });
+      expect(r.onYes).toBeUndefined();
+      expect(r.say).not.toContain("Agtron 53");
+    });
+    it("says nothing without a colour reading or a colour shot for", () => {
+      expect(withTarget(best).onYes).toBeUndefined();
+      expect(withTarget({ ...best, colour: 53 }, {}).onYes).toBeUndefined();
+      expect(adviceReport(2, answer({ ...best, colour: 53 }), undefined).onYes).toBeUndefined();
+    });
+    it("says nothing about colour when the cup has a defect: the defect decides", () => {
+      expect(withTarget({ taste: ["grassy"], colour: 53 }).onYes).toBeUndefined();
+    });
+    it("reads the colour of the roast and the target from a bean's history", () => {
+      const history: HistoryForAdvice = {
+        versions: [{ number: 1, profileName: "Test", roasts: [{ id: 1, roastedAt: "2026-10-01", logLevel: 3, colour: 53, colourMethod: "meter", features: { thermalDose: 10 }, tastings: [{ id: 1, tastedOn: "2026-10-01", quality: 5, taste: ["sweet"], brew: "pourover" }] }] }],
+      };
+      const result = adviseFromHistory(history, { agtronTarget: 75 })!;
+      expect(result.advice).toMatchObject({ kind: "hold", ruleId: "keep-as-is", retarget: 53 });
+      expect(adviseFromHistory(history)!.advice).not.toHaveProperty("retarget");
+    });
+  });
   describe("counts the level changes the tool aims to get a roast right in", () => {
     const at = (levelChange: number, t: Partial<TastedRoast> = { taste: ["ashy"] }) => adviceReport(2, { basedOn: { ...basedOn, levelChange }, advice: advise(input(t)) }, move);
     it("says which of the three this recommendation is, before the question", () => {

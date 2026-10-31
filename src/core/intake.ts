@@ -68,7 +68,7 @@ export const INTAKE_FIELDS: Field[] = [
   { id: "variety", label: "Variety", kind: "text", help: "e.g. Bourbon, Gesha, SL28.", usedFor: "Comparing beans later" },
   { id: "cropDate", label: "Harvest or arrival date", kind: "date", help: "Old crop roasts faster and tastes flatter.", usedFor: "Recorded for later; no rule reads it yet (docs/ROADMAP.md)" },
   { id: "moisturePct", label: "Moisture", kind: "number", unit: "%", min: 5, max: 15, help: "Only if the seller lists it.", usedFor: "Recorded for later; no rule reads it yet (docs/ROADMAP.md)" },
-  { id: "densityGL", label: "Density", kind: "number", unit: "g/L", min: 550, max: 850, integer: true, help: "Only if the seller lists it.", usedFor: "Recorded for later; no rule reads it yet (docs/ROADMAP.md)" },
+  { id: "densityGL", label: "Density", kind: "number", unit: "g/L", min: 550, max: 1300, integer: true, help: "Only if the seller lists it or you measure it. Read every bean with the same instrument, so beans can be compared.", usedFor: "Recorded for later; no rule reads it yet (docs/ROADMAP.md)" },
   { id: "chaffy", label: "Lots of chaff", kind: "boolean", help: "Leave blank until you've roasted it once.", usedFor: "Suggests the higher-fan variant" },
   { id: "sellerNotes", label: "Seller's tasting notes", kind: "text", usedFor: "What 'good' should taste like for this bean" },
 ];

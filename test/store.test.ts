@@ -26,6 +26,12 @@ describe("checkAnswers", () => {
     ]);
   });
 
+  it("takes a density from 550 to 1300 g/L, whatever instrument read it", () => {
+    expect(checkAnswers(INTAKE_FIELDS, { ...GUJI, densityGL: 1100 })).toEqual({ ok: true, values: { ...GUJI, densityGL: 1100 } });
+    const r = checkAnswers(INTAKE_FIELDS, { ...GUJI, densityGL: 1301 });
+    expect(r.ok ? [] : r.errors).toEqual(["Density must be between 550 and 1300 g/L; got 1301 g/L."]);
+  });
+
   it("takes numbers for choices like the roast quality, and drops repeated chips", () => {
     const r = checkAnswers(TASTING_FIELDS, { tastedOn: "2026-10-08", brew: "pourover", quality: 4, taste: ["sour", "sour", "thin"] });
     expect(r).toEqual({ ok: true, values: { tastedOn: "2026-10-08", brew: "pourover", quality: "4", taste: ["sour", "thin"] } });

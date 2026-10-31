@@ -392,11 +392,19 @@ roaster who wants to go on can keep stepping the level themselves; the answer is
 **What it does:** holds; no new version. The answer names the good words when there are any, or says nothing in the cup is a
 roast defect. For a quality below 4 it adds what would take the cup further: another profile or an edited curve. The tool
 chooses neither for a cup with no defect to point the way, and says it can draw an edited curve the roaster describes.
+When the cup is rated 4 or more, the roast has a colour reading, and that reading is 10 or more Agtron points (one band of the
+scale) from the colour the roaster is shooting for, the answer also says how far off it read and in which direction, and asks
+whether to set the colour shot for to the colour it read (`bean:update`, on a yes). Nothing else changes: still no new version, and the
+colour shot for only picks the first level to try. A no is not remembered: the question comes again each time the advice is asked
+for that roast, until the colour shot for is changed.
 **Why:** the level can only fix a defect, and a defect word is what shows which way to move it, so a clean cup gives the
 level no direction. The tool doesn't pick another profile for a cup that shows no defect to point the way (the profile
 switch in `level-not-helping` follows a defect), and no rule chooses a curve change either: a curve edit is the roaster's
 own idea, drawn on request and recorded as a new version. A clean cup is done for what the rules can choose. The aim, a
-quality of 4 or more, needs a rule that picks the direction from something other than a defect.
+quality of 4 or more, needs a rule that picks the direction from something other than a defect. A clean cup of 4 or more that
+read a band or more from the colour shot for shows that colour was not what made the roast right (a profile built to roast darker
+can land far from a light target), so the answer offers the colour it read as the new one to shoot for. The roaster decides:
+a no leaves the colour shot for as it was.
 
 > Example: flat and thin, clean, roast quality 3. "Nothing in the cup is a roast defect and the roast quality is 3 (clean, with little character). A better cup would need another profile or an edited curve. This tool doesn't choose either for a cup with no defect to point the way, but it can draw an edited curve you describe. Keep this roast as it is. No new version is needed."
 

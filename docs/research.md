@@ -7,7 +7,7 @@ what didn't.
 
 Every computation below is reproducible: `npm run research` (`scripts/research.ts`) recomputes the
 published-data sections from the papers' own tables, and the sections that need real logs from
-whatever Kaffelogic files are in your local library (`profiles/`, never committed).
+whatever Kaffelogic files are in your local library (`KAFFELOGIC_DIR`, never committed).
 
 ## Thermal dose: the measure we adopted
 

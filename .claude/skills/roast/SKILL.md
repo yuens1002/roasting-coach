@@ -42,9 +42,9 @@ A reference cup the roaster describes (say, the farm's or the seller's) goes in 
    the `why` lines, and the alternative profile. Ask for an Agtron reading of each roast if they have a colour
    meter: with two readings at ends at least 3 °C apart on a profile, the tool places later beans on that line.
 5. If `profile.written` is set, the bean has its own profile in
-   `profiles/out/` (or `KAFFELOGIC_OUT_DIR` when it is set), named by the tool (a file like `KLN7-YIRG-WSH-003-1r1.kpro`, short name `YIRG-003-1r1`; the README's "The names of the files it writes" explains the parts, version against revision included): the chosen stock profile renamed for the bean, curve unchanged. Tell the
+   `KAFFELOGIC_OUT_DIR` (`out/` inside `KAFFELOGIC_DIR` when it is unset), named by the tool (a file like `KLN7-YIRG-WSH-003-1r1.kpro`, short name `YIRG-003-1r1`; the README's "The names of the files it writes" explains the parts, version against revision included): the chosen stock profile renamed for the bean, curve unchanged. Tell the
    roaster to load it onto the machine, pick it, and set the level. Without it (a warning says
-   the stock file is missing from `profiles/`), say which stock profile to pick and the level.
+   the stock file is missing from `KAFFELOGIC_DIR`), say which stock profile to pick and the level.
    The profile's name on the machine is the short name in the result (`version.profileName`); the tool picks both names, so don't ask the
    roaster for one. The origin they give (country first, region last: "Ethiopia, Yirgacheffe") is where its first four letters come from.
 
@@ -121,7 +121,8 @@ and run the command it hands you if the roaster says yes.
    and don't judge the roast yourself: textbook numbers don't apply to Nano profiles, and the
    rules already allow for that.
 3. If there is an `onYes` and the roaster says yes, run its `command` with its `input` exactly as
-   given (`version:add`). Then tell them the level to set on the machine and the end temperature
+   given (`version:add`, or `bean:update` when the answer offers the colour a clean cup read as the new colour to shoot for).
+   After a `version:add`, tell them the level to set on the machine and the end temperature
    (both are in `say`). Without an `onYes`, nothing is recorded.
 4. After every answer, whether it asks, holds or changes, run `table <beanId>` and show its `say` as written: it is the bean's
    own table (each roast, how it ran against its profile, how it tasted from uncooked to scorched, the level changes made on its
@@ -150,7 +151,7 @@ and run the command it hands you if the roaster says yes.
    retaste in the coffee's tasting brew, add that tasting with `taste:add` on the same roast and run
    `advise` again; nothing new is recorded until the tasting is.
 6. If the roaster wants a file for the new version, `profile:write` (`{"beanId", "version"}`) writes a file named by the tool (the
-   result's `fileName` and `profileName`) to `profiles/out/` (or `KAFFELOGIC_OUT_DIR` when it is set; with the Kaffelogic Studio folder in `.env` that is its `roast-profiles/`, and Studio sends the file to the machine): the version's profile with
+   result's `fileName` and `profileName`) to `KAFFELOGIC_OUT_DIR` (`out/` inside `KAFFELOGIC_DIR` when it is unset; with the Kaffelogic Studio folder in `.env` that is its `roast-profiles/`, and Studio sends the file to the machine): the version's profile with
    its level as the level the machine offers first. Only labels change, so a roast on it still
    counts as the same profile. Remind them to check the level on the machine before roasting.
 

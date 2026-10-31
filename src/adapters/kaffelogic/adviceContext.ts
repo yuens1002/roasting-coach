@@ -15,5 +15,6 @@ export function kaffelogicAdviceContext(intake: Intake, readings: readonly Colou
     alternative: alternative && level ? { profileName: alternative.name, level: level.level, endTempC: level.endTemp } : undefined,
     reference: intake.sellerNotes,
     tastingBrew: intake.tastingBrew,
+    agtronTarget: intake.agtronTarget,
   };
 }
