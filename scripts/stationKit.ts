@@ -1,11 +1,12 @@
 // The dev station's pure parts: where its throwaway database and files live, and made-up roast logs for
 // it. Nothing here touches a database or the disk, so tests can import it. The station never uses the
-// app's own database (roast_copilot) and writes nothing to the roaster's folders (profiles/): see station.ts.
+// app's own database (roast_copilot) and writes nothing to the roaster's folders (KAFFELOGIC_DIR): see station.ts.
 import { tmpdir } from "node:os";
 import pg from "pg";
 import { join, resolve } from "node:path";
-import { levelToTemp, parseKpro } from "../src/adapters/kaffelogic/parse.js";
+import { hasProfile, levelToTemp, parseKpro } from "../src/adapters/kaffelogic/parse.js";
 import { PROFILE } from "../test/syntheticLog.js";
+import { EDITED_CURVE_DESIGNER } from "./profileFiles.js";
 
 /** The only database the station may create, drop or write to. A plain lower-case name, so it is safe as an SQL identifier. */
 export const STATION_DB = "roast_station";
@@ -109,6 +110,14 @@ export const stationEnv = (appUrl: string): Record<string, string> => ({
   KAFFELOGIC_DIR: join(STATION_DIR, STATION_SUBDIRS.library),
   KAFFELOGIC_OUT_DIR: join(STATION_DIR, STATION_SUBDIRS.out),
 });
+
+/**
+ * Whether a .kpro from the roaster's library is one the station gives a new user: it holds a profile, and roasting-coach did not draw its
+ * curve (those are the roaster's own work with this tool, not what a fresh install starts with).
+ */
+export function isStockProfile(text: string): boolean {
+  return hasProfile(text) && /^profile_designer:(.*)$/m.exec(text)?.[1].trim() !== EDITED_CURVE_DESIGNER;
+}
 
 const TEST_PROFILE = parseKpro(PROFILE);
 

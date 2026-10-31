@@ -5,10 +5,21 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
-## [0.6.7] - 2026-10-31
+## [0.6.8] - 2026-10-31
 
 - 2026-10-31 - docs(roadmap): plan the calibration of the Nano 7 from measured roasts, with a formal plan and acceptance criteria (what good means, bean and tasting schedule, test strategy)
 - 2026-10-31 - docs(roadmap): hold the bean calibration to one roast day and one cupping session, and number the plan's migration 012 since main took 011
+
+## [0.6.7] - 2026-10-31
+
+- 2026-10-31 - fix(tests): skip the Robusta tests when there is no profile file and copy the dev station's starting profiles from KAFFELOGIC_DIR
+
+### Changed
+
+- **The Robusta tests skip cleanly without a Robusta profile file.** A skipped block still runs its body to collect its tests, and the body
+  read the file at once, so a clone with no Kaffelogic files (or a fresh worktree) failed the suite instead of skipping.
+- **The dev station copies its starting profiles from `KAFFELOGIC_DIR`**, the library the CLI and the real-file tests read, not from a fixed
+  `profiles/` folder. Files with no profile in them and curves roasting-coach drew are left out.
 
 ## [0.6.6] - 2026-10-31
 
