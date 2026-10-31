@@ -23,6 +23,9 @@ export const CLEAN_QUALITY = 3;
 /** The roast quality the product aims for (docs/ROADMAP.md): clean and expressive. A clean cup below it is left alone too, with what would take it further. */
 const RIGHT_QUALITY = 4;
 
+/** How far, in Agtron points, a clean cup's colour may be from the colour aimed for before the answer says so: one band of the SCA scale. */
+export const COLOUR_GAP_AGTRON = 10;
+
 export const RULE_SETTINGS = {
   /** Thermal dose change, as % of the tasted roast's thermal dose, when one chip points the way. */
   stepPct: 10,
@@ -118,6 +121,8 @@ export interface TastedRoast {
   restedDays?: number;
   /** The level the roast was made at, for telling roasts apart in what the engine says. */
   level?: number;
+  /** The colour reading of the roasted coffee (an Agtron number), when the roaster gave one. */
+  colour?: number;
   /** Days this roast's profile wants it to rest before it is judged, when the profile says (min, max). */
   restNeeded?: readonly [number, number];
 }
@@ -132,6 +137,8 @@ export interface AdviceContext {
   reference?: string;
   /** The one brew every tasting of this coffee is of, chosen at intake. Left out when the engine is used without a bean: any brew counts then. */
   tastingBrew?: string;
+  /** The roast colour the roaster is shooting for (the SCA / Agtron number), chosen at intake. */
+  agtronTarget?: number;
 }
 
 export interface AdviceInput {
@@ -163,8 +170,8 @@ export type Advice =
     }
   /** The level isn't what's wrong: try another profile, at the level it suggests. */
   | { kind: "switch-profile"; ruleId: OutcomeId; profileName: string; level: number; endTempC: number; reason: string }
-  /** Keep the roast as it is. */
-  | { kind: "hold"; ruleId: OutcomeId; reason: string }
+  /** Keep the roast as it is. `retarget` is the colour the roast read, offered as the new colour to shoot for: a clean cup far from the colour aimed for. */
+  | { kind: "hold"; ruleId: OutcomeId; reason: string; retarget?: number }
   /** The evidence disagrees with itself; the roaster decides. */
   | { kind: "ask"; ruleId: OutcomeId; reason: string };
 
@@ -343,10 +350,17 @@ export const RULES: Rule[] = [
     // to the roaster, so the quality here is 3 or more. A cup that is clean but short of the best would need another profile or
     // an edited curve, and the tool chooses neither for a cup with no defect to show the way (it draws a curve only as the roaster describes it).
     id: "keep-as-is",
-    run: ({ latest }, r) => {
+    run: ({ latest, context }, r) => {
       if (r.under.length || r.over.length) return undefined;
       const cup = r.good.length ? `The cup tasted ${words(r.good)} and the roast quality is ${latest.quality} (${qualityMeaning(latest.quality)}).` : `Nothing in the cup is a roast defect and the roast quality is ${latest.quality} (${qualityMeaning(latest.quality)}).`;
       const further = latest.quality < RIGHT_QUALITY ? " A better cup would need another profile or an edited curve. This tool doesn't choose either for a cup with no defect to point the way, but it can draw an edited curve you describe." : "";
+      // A cup of the best quality that is a band or more off the colour aimed for says the colour aimed for is not what makes this coffee good.
+      const target = context?.agtronTarget;
+      const gap = latest.colour !== undefined && target !== undefined ? Math.abs(latest.colour - target) : 0;
+      if (latest.quality >= RIGHT_QUALITY && latest.colour !== undefined && target !== undefined && gap >= COLOUR_GAP_AGTRON) {
+        const off = `It read Agtron ${latest.colour}, ${gap} points ${latest.colour < target ? "darker" : "lighter"} than the Agtron ${target} you are shooting for, and the cup is clean at that colour.`;
+        return { kind: "hold", ruleId: "keep-as-is", reason: `${cup} ${off} Keep this roast as it is.`, retarget: latest.colour };
+      }
       return { kind: "hold", ruleId: "keep-as-is", reason: `${cup}${further} Keep this roast as it is.` };
     },
   },
@@ -480,6 +494,7 @@ export function tastedRoastsOf(history: HistoryForAdvice, context?: AdviceContex
         restedDays: daysBetween(roast.roastedAt as string | Date, tasting.tastedOn),
         restNeeded: context?.restNeeded?.(profile),
         level: roast.logLevel ?? version.level,
+        colour: roast.colour,
       };
       return { version, roast, tasting, counted: inBrew !== undefined, tasted };
     });
@@ -497,8 +512,10 @@ export interface LevelMove {
 export interface AdviceReport {
   /** The whole answer for the roaster, in plain words. Relay it as is. */
   say: string;
-  /** Present only when the roaster can say yes: the exact `version:add` input to run then. Nothing else follows from the advice. */
-  onYes?: { command: "version:add"; input: { beanId: number; parent: number; profileName?: string; level: number; reason: string } };
+  /** Present only when the roaster can say yes: the exact command and input to run then (`version:add` for a level or profile change, `bean:update` to restate the colour shot for). Nothing else follows from the advice. */
+  onYes?:
+    | { command: "version:add"; input: { beanId: number; parent: number; profileName?: string; level: number; reason: string } }
+    | { command: "bean:update"; input: { beanId: number; answers: { agtronTarget: number } } };
 }
 
 /**
@@ -536,6 +553,13 @@ function setAsideNote({ setAside }: AdviceResult): string | undefined {
 }
 
 function draftFor(beanId: number, { basedOn, advice }: AdviceResult, move: LevelMove | undefined, problem?: string): Draft {
+  if (advice.kind === "hold" && advice.retarget !== undefined) {
+    return {
+      statement: `${advice.reason} No new version is needed.`,
+      question: `Shall I set the colour you are shooting for to Agtron ${advice.retarget}?`,
+      onYes: { command: "bean:update", input: { beanId, answers: { agtronTarget: advice.retarget } } },
+    };
+  }
   if (advice.kind === "hold") return { statement: `${advice.reason} No new version is needed.` };
   if (advice.kind === "switch-profile") {
     return {

@@ -164,10 +164,10 @@ deletes the tastings that held an old overall score).
 
 ## Your Kaffelogic files
 
-Put your own `.kpro` profiles and `.klog` logs in `profiles/` (any names, any depth; git-ignored),
-or point `KAFFELOGIC_DIR` at the folder your roaster writes to. Profiles roasting-coach writes go to
-`profiles/out/`. Tests against real files run only when they are present (in `profiles/`,
-`fixtures/private/` or `KAFFELOGIC_DIR`).
+Set `KAFFELOGIC_DIR` in `.env` (git-ignored) to the folder you keep your Kaffelogic files in. Your `.kpro` profiles and
+`.klog` logs are read from there, at any depth, by content. Profiles roasting-coach writes go to `KAFFELOGIC_OUT_DIR`,
+or to an `out/` folder inside `KAFFELOGIC_DIR` when that is unset. Tests against real files run only when the files are
+there. A git worktree with no `.env` of its own reads the one in the checkout it was made from.
 
 ### Using the folder Kaffelogic Studio syncs
 

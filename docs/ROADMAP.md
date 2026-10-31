@@ -264,7 +264,7 @@ Not designed; fits beside `calibration` (stored in the roaster's own database).
 - **Roast projects in Postgres**: bean -> profile version (a tree, with a one-line change reason)
   -> roast (log, features, weight loss) -> tasting. The log decides which version a roast belongs
   to. `bean:update` and `taste:update` correct answers after the fact.
-- **Writing profile files**: the bean's own `.kpro` is written to `profiles/out/` at intake, and
+- **Writing profile files**: the bean's own `.kpro` is written to `KAFFELOGIC_OUT_DIR` at intake, and
   `profile:write` writes a version's file. A written file is accepted by Kaffelogic Studio and the
   Nano; a curve that `profile:edit` retimed or redrew, with the extra points that makes, is not yet shown to load (Next, 3). Fan and zone edits are not built (see below), and the curve edits built (`profile:edit`: when the curve reaches temperatures, the whole curve drawn through points, and the slope of the last segment)
   are a preview a roaster accepts, so a written file differs from its base in name (by the naming convention, Next 5),
@@ -291,7 +291,7 @@ Not designed; fits beside `calibration` (stored in the roaster's own database).
   3 to 5 days; RTD, ready to drink, ones none), switches to the bean's alternative profile when more
   roasting left the cup on the same side (the level isn't what's wrong; not one the bean has been roasted on), asks for a retaste in the coffee's tasting brew when a roast was tasted another way, and says which of the three level changes a
   recommendation is. The engine returns the finished answer: `say`,
-  the whole reply in plain words, and `onYes`, the exact `version:add` command for a yes. The
+  the whole reply in plain words, and `onYes`, the exact command for a yes (`version:add`, or `bean:update` to restate the colour shot for). The
   `/roast` skill only relays `say` and runs `onYes`; it interprets nothing.
 - **Per-roaster settings and taste words** (`src/core/calibration.ts`): the `RULE_SETTINGS`
   and the meaning of each taste word (under, over, good, none) can be overridden in the roaster's
@@ -423,7 +423,7 @@ Order is a suggestion; the roaster picks.
      (a) pure tests on made-up curves whose thermal dose is known by hand, and properties: the thermal dose after the edit and the
      re-level is within 3% of the original over a range of edits, the curve stays rising, the file round-trips through
      `parseKpro`, the levels are unchanged, an edit is a different body and a rename is the same. (b) The same properties over
-     every stock profile in `profiles/`, skipped when the files are absent, as today. (c) Station scenarios on made-up logs of
+     every stock profile in the library (`KAFFELOGIC_DIR`), skipped when the files are absent, as today. (c) Station scenarios on made-up logs of
      an edited profile (`stationLog` taught to embed an edited file), so edit, `version:add` with a `profileFile`,
      `roast:add` matched by body, the three-level count restarting and the engine's statements run end to end, one scenario per
      way in. (d) The made-up log follows the requested curve with a tracking error taken from the real logs (mean 2.1 °C, max 5.8
@@ -458,6 +458,9 @@ Order is a suggestion; the roaster picks.
      at every intake (and moisture and density when the roaster has meters), and show each bean's first clean roast and its
      offset beside its properties (the report, item 2b, built; it derives them on each run and records nothing; an offset for
      every roast is not built), so the table builds as the roaster roasts. No rule until it shows a link.
+     Density is whatever the roaster's own instrument reads, the same instrument for every bean (2026-10-31): the range is
+     550 to 1300 g/L, not the 550 to 850 of a bulk density weighed from a known volume, because some instruments read above 850.
+     A roaster who changes instrument can't compare beans read on the old one.
    - **Roasting philosophies, not yet considered.** Roast masters differ on shape: how fast to dry, how steeply to approach and
      pass first crack, how long development lasts. Kaffelogic's stock profiles already state targets for some of these
      (`developmentTarget` and `riseAfterCrack` in the table). A philosophy would be a named set of targets on the measured axes

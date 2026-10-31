@@ -195,7 +195,7 @@ their own. Shipped defaults stay the approximation already in `levelForAgtron`. 
 | ID | Deliverable | Kind | Owning role |
 |----|-------------|------|-------------|
 | D1 | `docs/calibration-protocol.md` — what to measure, how to roast, read colour and cup, the tasting sheet (roast quality 1 to 5, flavour 1 to 5) and the cupping procedure (standard cupping ratio and method, not SCA scoring) | doc | `/project-manager` |
-| D2 | `db/011_bean_measurements_and_flavour.sql` — bean density, moisture and the date measured; a roast's flavour score with its cups; the importer's reference score and its source | migration | `/backend-architect` |
+| D2 | `db/012_bean_measurements_and_flavour.sql` — bean density, moisture and the date measured; a roast's flavour score with its cups; the importer's reference score and its source | migration | `/backend-architect` |
 | D3 | `src/core/intake.ts`, `src/core/validate.ts`, `scripts/roast.ts` — a `flavour` answer (1 to 5, with anchors) on the tasting form, measurement answers, an optional importer score with source; checked in code; no rule reads flavour | server-action | `/backend-architect` |
 | D4 | `test/flavour.test.ts` and additions to the existing intake/validate tests — the new answers are accepted and rejected by the spec | test | `/test-engineer` |
 
@@ -253,7 +253,7 @@ their own. Shipped defaults stay the approximation already in `levelForAgtron`. 
 | File | Purpose |
 |------|---------|
 | `docs/calibration-protocol.md`, `docs/calibration-results.md`, `docs/bean-onboarding.md` | The protocol, the derived-number results, the per-bean recipe |
-| `db/011_bean_measurements_and_flavour.sql` | Storage for measurements, flavour and the importer reference |
+| `db/012_bean_measurements_and_flavour.sql` | Storage for measurements, flavour and the importer reference |
 | `src/core/dialInSpec.ts`, `cuppingStats.ts`, `referenceRoast.ts`, `referenceProfile.ts` | Thresholds as data; scoring statistics; reference pick and QC; the rule for an edited reference profile |
 | `src/adapters/kaffelogic/batchTranslation.ts`, `colourLadder.ts`, `dialIn.ts` | The Nano 7 formula |
 | `scripts/dialin.ts` | Report, check, predict, bean |
