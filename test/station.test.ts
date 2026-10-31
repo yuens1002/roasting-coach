@@ -14,12 +14,14 @@ import {
   assertStationOwnsDatabase,
   assertStationOwnsDir,
   assertStationUrl,
+  isStockProfile,
   maintenanceUrl,
   stationEndTemp,
   stationEnv,
   stationLog,
   stationUrl,
 } from "../scripts/stationKit.js";
+import { PROFILE } from "./syntheticLog.js";
 
 const APP = "postgres://roast:secret@localhost:54320/roast_copilot";
 
@@ -149,5 +151,17 @@ describe("the station's made-up logs", () => {
   it("read as clean roasts: the crack markers are in order and nothing is flagged as a data problem", () => {
     const features = extractFeatures(roast(3.3));
     expect(features.dataWarnings).toEqual([]);
+  });
+});
+
+describe("isStockProfile", () => {
+  it("gives a new user a profile that holds a curve", () => {
+    expect(isStockProfile(PROFILE)).toBe(true);
+  });
+
+  it("leaves out an empty file, a log with no profile in it, and a curve roasting-coach drew", () => {
+    expect(isStockProfile("")).toBe(false);
+    expect(isStockProfile("log_file_name:kaffelogic/roast-logs/log0001.klog\n")).toBe(false);
+    expect(isStockProfile(PROFILE.replace(/^profile_designer:.*$/m, "profile_designer:roasting-coach"))).toBe(false);
   });
 });

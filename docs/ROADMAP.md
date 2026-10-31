@@ -303,7 +303,7 @@ Not designed; fits beside `calibration` (stored in the roaster's own database).
   `station:new-bean`, `station:follow-up` and `station:three-changes` start it on a scenario (earlier roasts already
   recorded, a script to say, a list to watch for), and
   `station:check` replays a scripted session and each scenario through the real CLI with each answer checked. It never touches the
-  roaster's database and writes nothing to their folders; it only reads `profiles/`. Not built: running the fresh session
+  roaster's database and writes nothing to their folders; it only reads the library (`KAFFELOGIC_DIR`). Not built: running the fresh session
   headless and checking its transcript.
 - **Session interface**: `scripts/roast.ts` (JSON in, JSON out, inputs checked against the form
   definitions) driven by the `/roast` skill. No UI by design.

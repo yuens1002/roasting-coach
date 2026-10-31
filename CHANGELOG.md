@@ -5,6 +5,17 @@ All notable changes to roasting-coach. Versions follow [semantic versioning](htt
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-10-31
+
+- 2026-10-31 - fix(tests): skip the Robusta tests when there is no profile file and copy the dev station's starting profiles from KAFFELOGIC_DIR
+
+### Changed
+
+- **The Robusta tests skip cleanly without a Robusta profile file.** A skipped block still runs its body to collect its tests, and the body
+  read the file at once, so a clone with no Kaffelogic files (or a fresh worktree) failed the suite instead of skipping.
+- **The dev station copies its starting profiles from `KAFFELOGIC_DIR`**, the library the CLI and the real-file tests read, not from a fixed
+  `profiles/` folder. Files with no profile in them and curves roasting-coach drew are left out.
+
 ## [0.6.6] - 2026-10-31
 
 - 2026-10-31 - feat(rules): offer the colour a clean cup read as the new target, accept a density up to 1300 g/L, and let a worktree read the main checkout's .env
