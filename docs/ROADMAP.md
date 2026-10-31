@@ -5,7 +5,7 @@ someone else. Update it in the same change that moves any of these. Design ratio
 [research.md](research.md) and [thread1-notes.md](thread1-notes.md); the release history is in
 [CHANGELOG.md](../CHANGELOG.md).
 
-Last updated 2026-10-28 (0.6.x alpha).
+Last updated 2026-10-30 (0.6.x alpha).
 
 ## The goal
 
@@ -496,6 +496,15 @@ Order is a suggestion; the roaster picks.
    body (a version keeps its stock base through edits, so the base alone cannot say), so an edited curve and the stock one differ. `bean:add` stores the bean first so the file can carry its number; `profile:write` takes no name. Profiles already
    written were renamed to match (one: Kron Nang's v1, now `VIET-002-1r1`). Not built: the clean-zone report and the roadmap do not
    use the names; revisions only differ once an edited curve is stored or a bean switches stock profile.
+6. **Calibrating the Nano 7 from measured roasts** (planned 2026-10-30, nothing built or run). The plan, deliverables, thresholds, bean and
+   tasting schedule and test strategy are in [plans/nano7-calibration-plan.md](plans/nano7-calibration-plan.md), and the acceptance criteria in
+   [plans/nano7-calibration-ACs.md](plans/nano7-calibration-ACs.md); both await the roaster's approval of their proposed thresholds. This is production work
+   on one machine: for every bean offered, a **bean card** naming the reference profile (a stock profile, or an edited curve if an edit beat it), the
+   gold-standard level found by cupping, and the step to dial for each of the four levels sold (City 75, City+ 65, Full City 55, Full City+ 45 on the Agtron
+   scale), plus a formula fitted from the roaster's own roasts that makes the next card cheaper (batch size from a 50.4 g sample to the 151.2 g bag
+   included). Thermal dose is one candidate input, kept only if it earns its place. The work has two layers: a machine calibration (done once, re-checked against a control bean) and a bean calibration (per bean), which is held to one roast day and one cupping session per bean. Scoring keeps the defect-based roast quality unchanged and adds a separate
+   1 to 5 flavour score against the importer's flavour map that no rule reads; the importer's own cupping score may be stored as a sourced reference. Open
+   decisions are listed at the end of the plan. See also "Later, not decided", per-profile offset.
 
 ## Waiting on others
 
